@@ -1,0 +1,12 @@
+/* gin_frontend global overrides */
+:root {
+  --brand-color: #0b4a7a;
+  --muted: #666;
+}
+body {
+  color: #222;
+  background: #fff;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* Add site-wide overrides here */

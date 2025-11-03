@@ -1,0 +1,9 @@
+services:
+  _defaults:
+    autoconfigure: true
+    autowire: true
+  Drupal\drupal_cms_helper\EventSubscriber\RecipeSubscriber: ~
+  Drupal\drupal_cms_helper\SiteExporter:
+    arguments:
+      $storage: '@config.storage'
+      $contentExporter: '@?Drupal\Core\DefaultContent\Exporter'

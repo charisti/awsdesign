@@ -1,0 +1,22 @@
+global-styling:
+  css:
+    theme:
+      # load Google Fonts (Ubuntu) from Google Fonts (external)
+      "https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap": { type: external }
+      css/style.css: {}
+  version: 1.x
+
+header:
+  css:
+    theme:
+      css/header.css: {}
+  js:
+    js/header.js: {}
+  dependencies:
+    - core/drupal
+
+work-item:
+  css:
+    theme:
+      css/work-item.css: {}
+  version: 1.x

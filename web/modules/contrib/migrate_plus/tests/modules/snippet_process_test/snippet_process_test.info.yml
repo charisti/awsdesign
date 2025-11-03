@@ -1,0 +1,11 @@
+name: 'Snippet Process Plugin Test Module'
+type: module
+description: 'Test the snippet process plugin'
+package: Testing
+dependencies:
+  - migrate_plus:migrate_plus
+
+# Information added by Drupal.org packaging script on 2025-07-28
+version: '6.0.8'
+project: 'migrate_plus'
+datestamp: 1753714033

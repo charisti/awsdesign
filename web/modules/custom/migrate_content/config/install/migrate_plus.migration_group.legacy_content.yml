@@ -1,0 +1,5 @@
+id: legacy_content
+label: 'Legacy content'
+shared_configuration:
+  source:
+    key: legacy

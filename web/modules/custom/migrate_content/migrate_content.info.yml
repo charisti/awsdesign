@@ -1,0 +1,9 @@
+name: Migrate Content
+type: module
+description: 'Imports content from legacy Drupal site.'
+core_version_requirement: ^10 || ^11
+package: Custom
+dependencies:
+  - migrate_plus
+  - migrate_tools
+  - migrate_drupal_d8

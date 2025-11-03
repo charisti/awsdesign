@@ -1,0 +1,11 @@
+id: legacy_files
+label: 'Files from legacy site'
+migration_group: legacy_content
+source:
+  plugin: d8_entity
+  key: legacy
+  entity_type: file
+process: {}
+destination:
+  plugin: entity:file
+migration_dependencies: {}

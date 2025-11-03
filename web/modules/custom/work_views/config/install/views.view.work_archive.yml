@@ -1,0 +1,85 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - views
+    - node
+id: work_archive
+label: 'Work archive (images only)'
+module: views
+core: 11.x
+backend: views_ui
+base_table: node_field_data
+base_field: nid
+display:
+  default:
+    display_plugin: default
+    id: default
+    display_title: Master
+    display_options:
+      access:
+        type: perm
+        options:
+          perm: 'access content'
+      cache:
+        type: tag
+      query:
+        type: views_query
+      pager:
+        type: full
+        options:
+          items_per_page: 12
+      style:
+        type: default
+        options: { }
+      row:
+        type: fields
+        options: { }
+      fields:
+        field_bilder:
+          id: field_bilder
+          table: node__field_bilder
+          field: field_bilder
+          label: ''
+          exclude: false
+          alter:
+            alter_text: false
+            make_link: false
+            allow_substring: false
+          element_type: ''
+          plugin_id: field
+          settings:
+            image_style: medium
+            image_link: content
+      filters:
+        status:
+          id: status
+          table: node_field_data
+          field: status
+          value:
+            - '1'
+        type:
+          id: type
+          table: node_field_data
+          field: type
+          value:
+            - work
+      sorts:
+        created:
+          id: created
+          table: node_field_data
+          field: created
+          order: DESC
+  page_1:
+    display_plugin: page
+    id: page_1
+    display_title: 'Work archive page'
+    position: 1
+    display_options:
+      path: 'work/archive'
+      menu:
+        type: none
+      pager:
+        type: full
+        options:
+          items_per_page: 12

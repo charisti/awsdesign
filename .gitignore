@@ -1,0 +1,39 @@
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore IDE/project settings
+.vscode/
+.idea/
+
+# Ignore Composer vendor and other generated files
+/vendor/
+*/vendor/
+composer.lock
+
+# Ignore DDEV config if you prefer not to share local setup
+.ddev/.import/
+.ddev/commands/
+.ddev/db_snapshots/
+.ddev/router-compose.yaml
+.ddev/docker-compose.*
+!.ddev/config.yaml
+
+# Ignore Drupal caches and private files
+/web/sites/*/files/css/
+ /web/sites/*/files/js/
+ /web/sites/*/files/php/
+ /web/sites/*/files/styles/
+ /web/sites/*/files/tmp/
+ /web/sites/*/files/translations/
+ /web/sites/*/private/
+ /web/sites/*/files/sync/
+
+# Ignore Drupal settings overrides
+/web/sites/default/settings.local.php
+/web/sites/default/files/
+
+/web/sites/simpletest
+
+# Ignore node_modules if you have JS in theme
+**/node_modules/

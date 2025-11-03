@@ -1,0 +1,54 @@
+.site-header {
+  background: #fff;
+  border-bottom: 1px solid #eee;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.site-header__inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.site-logo img {
+  height: 48px;
+  width: auto;
+}
+
+.site-branding {
+  display: flex;
+  flex-direction: column;
+  margin-left: 1rem;
+}
+
+.site-name {
+  font-size: 1.8rem;
+  font-weight: 700;
+  text-decoration: none;
+  color: #222;
+}
+
+.site-slogan {
+  font-size: 0.9rem;
+  color: #777;
+}
+
+.site-nav .menu {
+  display: flex;
+  gap: 2.5rem;
+}
+
+.site-nav .menu a {
+  font-size: 1.4rem;
+  color: #999;
+  text-decoration: none;
+}
+
+.site-nav .menu a:hover {
+  color: #222;
+}

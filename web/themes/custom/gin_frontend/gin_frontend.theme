@@ -1,0 +1,68 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * @file
+ * Theme preprocess functions for gin_frontend.
+ */
+
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\node\NodeInterface;
+use Drupal\Component\Utility\Html;
+
+/**
+ * Implements hook_preprocess_node().
+ */
+function gin_frontend_preprocess_node(array &$variables): void {
+  // Sicherstellen, dass wir wirklich einen Node verarbeiten.
+  $entity = $variables['node'] ?? null;
+  if (!$entity instanceof NodeInterface) {
+    return;
+  }
+
+  // Nur für den Content-Type "work".
+  if ($entity->bundle() !== 'work') {
+    return;
+  }
+
+  // Attribut-Objekt sicherstellen.
+  if (!isset($variables['attributes']) || !is_object($variables['attributes'])) {
+    // Fallback: neues Attribute-Objekt anlegen.
+    $variables['attributes'] = new \Drupal\Core\Template\Attribute();
+  }
+
+  $classes = [];
+
+  // OPTIONAL: View-Mode als Klasse (z. B. node--view-mode-teaser).
+  if (!empty($variables['view_mode'])) {
+    $classes[] = 'work--view-' . Html::getClass($variables['view_mode']);
+  }
+
+  // Priority → CSS-Klasse, falls Feld existiert und Wert hat.
+  if ($entity->hasField('field_priority') && !$entity->get('field_priority')->isEmpty()) {
+    $priority_raw = (string) $entity->get('field_priority')->value;
+    if ($priority_raw !== '') {
+      // Normalisieren: lowercase + clean_class.
+      $priority = Html::getClass(mb_strtolower($priority_raw));
+      $classes[] = 'work-priority-' . $priority;
+    }
+  }
+
+  // Design → CSS-Klasse, falls Feld existiert und Wert hat.
+  if ($entity->hasField('field_design') && !$entity->get('field_design')->isEmpty()) {
+    $design_raw = (string) $entity->get('field_design')->value;
+    if ($design_raw !== '') {
+      $design = Html::getClass(mb_strtolower($design_raw));
+      $classes[] = 'work-design-' . $design;
+    }
+  } else {
+    // Optional: explizite Klasse, wenn kein Design gesetzt ist.
+    $classes[] = 'work-design-none';
+  }
+
+  // Alle gesammelten Klassen hinzufügen (in einem Rutsch).
+  if ($classes) {
+    $variables['attributes']->addClass($classes);
+  }
+}

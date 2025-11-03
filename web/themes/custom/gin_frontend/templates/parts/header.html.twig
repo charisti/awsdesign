@@ -1,0 +1,30 @@
+{# templates/parts/header.html.twig #}
+{{ attach_library('gin_frontend/header') }}
+
+<header class="site-header" id="header" role="banner">
+  <div class="site-header__inner">
+
+    {# Logo left #}
+    {% if logo %}
+      <a href="{{ path('<front>') }}" title="{{ 'Home'|t }}" rel="home" class="site-logo">
+        <img src="{{ logo }}" alt="{{ 'Home'|t }}" />
+      </a>
+    {% endif %}
+
+
+    {# Primary menu (center) #}
+    {% if page.primary_menu %}
+      <nav class="site-nav" role="navigation" aria-label="{{ 'Main navigation'|t }}">
+        {{ page.primary_menu }}
+      </nav>
+    {% endif %}
+
+    {# Optional header region (right side, logo or anything else) #}
+    {% if page.header %}
+      <div class="header-region">
+        {{ page.header }}
+      </div>
+    {% endif %}
+
+  </div>
+</header>
