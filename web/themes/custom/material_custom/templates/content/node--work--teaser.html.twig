@@ -1,0 +1,52 @@
+{#
+/**
+ * @file
+ * Teaser view for Work nodes.
+ */
+#}
+
+{% set base_text = '' %}
+{% if node.field_kurztext is defined and node.field_kurztext.value %}
+  {% set base_text = node.field_kurztext.value|striptags|trim %}
+{% elseif node.body is defined and node.body.value %}
+  {% set base_text = node.body.value|striptags|trim %}
+{% endif %}
+{% set truncated_text = base_text|length > 500 ? base_text|slice(0, 500) ~ '…' : base_text %}
+{% set client_name = '' %}
+{% if node.field_kunde_tags is defined and node.field_kunde_tags|length %}
+  {% set client_item = node.field_kunde_tags|first %}
+  {% if client_item.entity is not empty %}
+    {% set client_name = client_item.entity.label %}
+  {% elseif client_item.value is defined %}
+    {% set client_name = client_item.value %}
+  {% endif %}
+{% endif %}
+{% set divider_one = node.field_trennstrich1 is defined and node.field_trennstrich1.value ? node.field_trennstrich1.value : '' %}
+
+<article{{ attributes.addClass('work-teaser') }}>
+  <div class="work-teaser__text">
+    <h2 class="work-teaser__title">{{ label }}</h2>
+
+    {% if client_name %}
+      <div class="work-teaser__client"><em>{{ client_name }}</em></div>
+    {% endif %}
+
+    {% if divider_one %}
+      <div class="work-teaser__divider">{{ divider_one }}</div>
+    {% endif %}
+
+    {% if truncated_text %}
+      <p class="work-teaser__body">{{ truncated_text }}</p>
+    {% endif %}
+
+    {% if content.field_links %}
+      <div class="work-teaser__links">{{ content.field_links }}</div>
+    {% endif %}
+  </div>
+
+  {% if content.field_bilder is defined and content.field_bilder|length > 0 %}
+    <div class="work-teaser__media">
+      {{ content.field_bilder[0] }}
+    </div>
+  {% endif %}
+</article>

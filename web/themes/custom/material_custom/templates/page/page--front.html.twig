@@ -1,0 +1,31 @@
+{% extends "@material_base/layout/page.html.twig" %}
+
+{% block content %}
+  <div class="front-page">
+    {% if spruch_highlight %}
+      <section class="front-section front-section--spruch">
+        <div class="front-section__inner">
+          <div class="front-section__content">
+            {{ spruch_highlight }}
+          </div>
+        </div>
+      </section>
+    {% endif %}
+
+    {% if featured_projects %}
+      <section class="front-section front-section--projects">
+        <div class="front-section__inner">
+          <ul class="front-projects__list">
+            {% for project in featured_projects %}
+              <li class="front-projects__item front-projects__item--highlight">
+                {{ project }}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </section>
+    {% endif %}
+
+    {{ parent() }}
+  </div>
+{% endblock %}

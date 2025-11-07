@@ -1,0 +1,6 @@
+.block-title {
+  // stylelint-disable-next-line
+  @extend .block-title-standard;
+
+  margin-bottom: $spacing * 3;
+}

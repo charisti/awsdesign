@@ -1,0 +1,53 @@
+@charset "UTF-8";
+@import 'base/variables';
+@import 'https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined|Material+Icons+Two+Tone|Material+Icons+Round|Material+Icons+Sharp&display=block';
+
+// Duplicate definition from @import for further extending.
+.material-icons,
+.material-icons-outlined,
+.material-icons-round,
+.material-icons-sharp,
+.material-icons-two-tone {
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.material-icons {
+  font-family: 'Material Icons', emoji;
+}
+
+.material-icons-outlined {
+  font-family: 'Material Icons Outlined', emoji;
+}
+
+.material-icons-round {
+  font-family: 'Material Icons Round', emoji;
+}
+
+.material-icons-sharp {
+  font-family: 'Material Icons Sharp', emoji;
+}
+
+.material-icons-two-tone {
+  font-family: 'Material Icons Two Tone', emoji;
+}
+
+// Example of setting color for two tone font.
+
+/*
+.material-icons-two-tone {
+  // color: blue; // won't work
+  // fill: blue; // won't work
+  filter: invert(0.5) sepia(1) saturate(10) hue-rotate(180deg);
+}
+*/

@@ -1,0 +1,67 @@
+{#
+/**
+ * @file
+ * Theme override for Work content type.
+ *
+ * Available variables:
+ * - node: Full node entity.
+ * - content: Render array of node fields.
+ * - label: Node title.
+ */
+#}
+
+<article{{ attributes.addClass('work-item') }}>
+  <div class="work-item__columns">
+    <div class="work-item__column work-item__column--left">
+      <header class="work-item__header">
+        <h1 class="work-item__title">{{ label }}</h1>
+      </header>
+
+      {% if content.field_kunde_tags %}
+        <div class="work-item__row work-item__row--kunde">{{ content.field_kunde_tags }}</div>
+      {% endif %}
+
+      {% if content.field_trennstrich1 %}
+        <div class="work-item__divider">{{ content.field_trennstrich1 }}</div>
+      {% endif %}
+
+      {% if content.field_jahr %}
+        <div class="work-item__row work-item__row--year">{{ content.field_jahr }}</div>
+      {% endif %}
+
+      {% if content.field_trennstrich2 %}
+        <div class="work-item__divider">{{ content.field_trennstrich2 }}</div>
+      {% endif %}
+
+      {% if content.body %}
+        <div class="work-item__body">
+          {{ content.body }}
+        </div>
+      {% endif %}
+
+      {% if content.field_trennstrich3 %}
+        <div class="work-item__divider">{{ content.field_trennstrich3 }}</div>
+      {% endif %}
+
+      {% if content.field_design %}
+        <div class="work-item__row work-item__row--design">{{ content.field_design }}</div>
+      {% endif %}
+
+      {% if content.field_links %}
+        <div class="work-item__row work-item__row--links">{{ content.field_links }}</div>
+      {% endif %}
+
+      {% if content.field_tags_kategorien_ %}
+        <div class="work-item__row work-item__row--tags">{{ content.field_tags_kategorien_ }}</div>
+      {% endif %}
+    </div>
+
+    <div class="work-item__column work-item__column--right">
+      {% if content.field_bilder %}
+        <div class="work-item__gallery">
+          {{ content.field_bilder }}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</article>

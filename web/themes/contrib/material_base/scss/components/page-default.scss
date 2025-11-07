@@ -1,0 +1,13 @@
+.page-title {
+  // stylelint-disable-next-line
+  @extend .page-title-standard;
+
+  margin-bottom: $spacing * 4;
+}
+
+.layout-container--page {
+  .main-content__container {
+    // stylelint-disable-next-line
+    @extend .spacing-my-standard;
+  }
+}

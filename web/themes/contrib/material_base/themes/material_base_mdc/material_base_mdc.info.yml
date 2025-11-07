@@ -1,0 +1,47 @@
+name: Material Base MDC
+type: theme
+description: Material Base subtheme which implements MDC.
+core_version_requirement: ^9 || ^10 || ^11
+
+base theme: material_base
+
+screenshot: screenshot.svg
+
+libraries:
+  - material_base_mdc/mdc
+
+libraries-override:
+  user/drupal.user:
+    js:
+      # The path changed in 11.1, see https://www.drupal.org/node/3471539.
+      user.js: '../../dist/js/user.js'
+      js/user.js: '../../dist/js/user.js'
+
+regions:
+  navbar: 'Navbar'
+  header: 'Header'
+  actions: 'Actions'
+  main_top: 'Main top'
+  content_above: 'Content above'
+  breadcrumb: 'Breadcrumb'
+  messages: 'Messages'
+  highlighted: 'Highlighted'
+  help: 'Help'
+  content: 'Content'
+  content_secondary: 'Content secondary'
+  sidebar_first: 'Sidebar first'
+  sidebar_second: 'Sidebar second'
+  content_below: 'Content below'
+  main_bottom: 'Main bottom'
+  footer: 'Footer'
+  drawer: 'Drawer'
+  overlay: 'Overlay'
+
+regions_hidden:
+  page_bottom: 'Page bottom'
+  page_top: 'Page top'
+
+# Information added by Drupal.org packaging script on 2025-09-07
+version: '3.1.1'
+project: 'material_base'
+datestamp: 1757255849

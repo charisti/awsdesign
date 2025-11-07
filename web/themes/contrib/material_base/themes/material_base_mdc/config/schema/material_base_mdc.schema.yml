@@ -1,0 +1,22 @@
+material_base_mdc.settings:
+  type: theme_settings
+  label: 'Material Base MDC settings'
+  mapping:
+    navbar_fixed:
+      type: boolean
+      label: 'Sticky navbar'
+    navbar_style:
+      type: string
+      label: 'Navbar style'
+    drawer_style:
+      type: string
+      label: 'Drawer style'
+    drawer_height:
+      type: string
+      label: 'Drawer height'
+    footer_style:
+      type: string
+      label: 'Footer style'
+    messages_fixed:
+      type: boolean
+      label: 'Messages in overlay'

@@ -1,0 +1,32 @@
+{#
+/**
+ * @file
+ * Theme override to display the navbar region with a custom drawer toggle.
+ */
+#}
+{% set classes = [
+  'region',
+  'region-' ~ region|clean_class,
+  'page-navbar',
+  'navbar',
+  'mdc-top-app-bar',
+  navbar_fixed ? 'mdc-top-app-bar--fixed' : 'mdc-top-app-bar--not-fixed',
+  navbar_style ? 'mdc-top-app-bar--' ~ navbar_style,
+] %}
+
+{% if content %}
+  <header{{ attributes.addClass(classes).setAttribute('data-mdc-auto-init', 'MDCTopAppBar') }}>
+    <div class="navbar__container mdc-top-app-bar__row">
+      <section class="navbar__section mdc-top-app-bar__section navbar__section--left">
+        {{ content }}
+      </section>
+      <section class="navbar__section mdc-top-app-bar__section navbar__section--right">
+        <button class="navbar-icon-button navbar-icon-button--animated mdc-icon-button drawer-toggle__button" type="button" aria-label="{{ 'Menu'|t }}">
+          <span class="burger-line burger-line--top"></span>
+          <span class="burger-line burger-line--middle"></span>
+          <span class="burger-line burger-line--bottom"></span>
+        </button>
+      </section>
+    </div>
+  </header>
+{% endif %}

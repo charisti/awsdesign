@@ -1,0 +1,33 @@
+@use 'sass:color';
+@use 'sass:list';
+
+// Networks array: title, background color, text and icon color.
+$networks:
+  facebook #1877f2 #fff,
+  twitter #1da1f2 #fff,
+  linkedin #0073b1 #fff !default;
+
+.share-button {
+  &--branded {
+    @each $network in $networks {
+      $network-name: list.nth($network, 1);
+      $network-bg: list.nth($network, 2);
+      $network-color: list.nth($network, 3);
+
+      &.share-button--#{$network-name} {
+        background: $network-bg;
+        border: 0;
+        color: $network-color;
+
+        .icon {
+          fill: $network-color;
+          color: $network-color;
+        }
+
+        &:hover {
+          background: color.adjust($network-bg, $lightness: -4%);
+        }
+      }
+    }
+  }
+}

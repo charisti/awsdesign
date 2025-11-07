@@ -1,0 +1,11 @@
+name: Material Stable 9
+type: theme
+description: A base theme using Drupal 9.0.0's core markup and CSS.
+core_version_requirement: ^9 || ^10
+base theme: false
+hidden: true
+
+# Information added by Drupal.org packaging script on 2025-09-07
+version: '3.1.1'
+project: 'material_base'
+datestamp: 1757255849

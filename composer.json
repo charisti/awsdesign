@@ -18,6 +18,7 @@
     "require": {
         "composer/composer": "^2.8",
         "composer/installers": "^2.3",
+        "drupal/adaptivetheme": "^7.1",
         "drupal/core-composer-scaffold": "^11.2.4",
         "drupal/core-project-message": "^11.2.4",
         "drupal/core-recipe-unpack": "^11.2.4",
@@ -39,6 +40,7 @@
         "drupal/gin": "^5.0",
         "drupal/gin_toolbar": "^3.0",
         "drupal/layout_builder_restrictions": "^3.0",
+        "drupal/material_base": "^3.1",
         "drupal/metatag": "^2.2",
         "drupal/migrate_drupal_d8": "^1.2",
         "drupal/migrate_plus": "^6.0",

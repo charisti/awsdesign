@@ -1,0 +1,1 @@
+!function(t){"use strict";t.behaviors.material_custom_MdcFunctions={attach:function(t,c){}}}(Drupal,once);

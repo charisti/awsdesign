@@ -1,5 +1,0 @@
-# Schema for the configuration files of the tailwind_radix theme.
-
-tailwind_radix.settings:
-  type: theme_settings
-  label: 'tailwind_radix settings'
