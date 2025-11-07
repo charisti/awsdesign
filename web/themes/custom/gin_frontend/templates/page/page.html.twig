@@ -1,0 +1,36 @@
+{# Attach your theme’s base styling #}
+{{ attach_library('gin_frontend/global-styling') }}
+
+<div id="page">
+
+  {# ───────────── HEADER ───────────── #}
+  {% include '@gin_frontend/parts/header.html.twig' ignore missing %}
+
+  {% if page.navigation %}
+    <nav class="site-navigation" role="navigation">
+      {{ page.navigation }}
+    </nav>
+  {% endif %}
+
+  {# ───────────── MAIN CONTENT ───────────── #}
+  <main id="main" role="main">
+    {{ page.content }}
+  </main>
+
+  {# ───────────── FOOTER ───────────── #}
+  <footer id="footer" class="site-footer">
+    <p class="site-footer__contact">
+      <span class="contact-tagline">more projects</span>
+      <span class="contact-info">
+        office@awsdesign.at | +43 699 19425831 | Hollandstraße 9 | 1020 Vienna | Austria Europe
+      </span>
+    </p>
+
+    {% if page.footer %}
+      <div class="site-footer__region">
+        {{ page.footer }}
+      </div>
+    {% endif %}
+  </footer>
+
+</div>
