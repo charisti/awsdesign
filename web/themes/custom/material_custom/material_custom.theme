@@ -1,5 +1,7 @@
 <?php
 
+use Drupal\views\Views;
+
 /**
  * @file
  * Functions to support theming in material_custom theme.
@@ -54,25 +56,31 @@ function material_custom_preprocess_page(array &$variables): void {
   $storage = $entity_type_manager->getStorage('node');
   $view_builder = $entity_type_manager->getViewBuilder('node');
 
-  // Random Spruch.
+  // Spruch view output.
   $variables['spruch_highlight'] = NULL;
-  $spruch_nids = \Drupal::entityQuery('node')
-    ->condition('status', 1)
-    ->condition('type', 'spruch')
-    ->range(0, 1)
-    ->accessCheck(TRUE)
-    ->addTag('random')
-    ->execute();
-
-  if ($spruch_nids) {
-    $spruch_nodes = $storage->loadMultiple($spruch_nids);
-    $spruch = reset($spruch_nodes);
-    if ($spruch && !$spruch->get('body')->isEmpty()) {
-      $body_field = $spruch->get('body');
-      $render_array = $view_builder->viewField($body_field, ['label' => 'hidden']);
-      $render_array['#cache']['max-age'] = 0;
-      $variables['spruch_highlight'] = $render_array;
-    }
+  $view = Views::getView('spruch');
+  if ($view && $view->access('block_1')) {
+    $view->setDisplay('block_1');
+    $render_array = $view->render();
+    $render_array['#cache']['max-age'] = 0;
+    $variables['spruch_highlight'] = [
+      '#type' => 'container',
+      '#attributes' => [
+        'class' => ['front-section', 'front-section--spruch'],
+      ],
+      'inner' => [
+        '#type' => 'container',
+        '#attributes' => ['class' => ['front-section__inner']],
+        'content' => [
+          '#type' => 'container',
+          '#attributes' => ['class' => ['front-section__content']],
+          'view' => $render_array,
+        ],
+      ],
+      '#cache' => [
+        'max-age' => 0,
+      ],
+    ];
   }
 
   // Featured projects (field_auf_der_startseite == 1).

@@ -3,13 +3,7 @@
 {% block content %}
   <div class="front-page">
     {% if spruch_highlight %}
-      <section class="front-section front-section--spruch">
-        <div class="front-section__inner">
-          <div class="front-section__content">
-            {{ spruch_highlight }}
-          </div>
-        </div>
-      </section>
+      {{ spruch_highlight }}
     {% endif %}
 
     {% if featured_projects %}
