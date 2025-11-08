@@ -157,8 +157,8 @@
 }
 
 .work-item__title {
-  font-size: 1.4rem;
-  font-weight: 700;
+  font-size: 1.2rem;
+  font-weight: 600;
   margin-bottom: 0;
   line-height: 1.2;
 }
@@ -228,7 +228,7 @@
 .work-teaser__title {
   font-size: 1.35rem;
   font-weight: 600;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0rem;
   line-height: 1.2em;
 }
 
@@ -245,6 +245,12 @@
 
 .work-teaser__divider {
   margin: 0.5rem 0;
+}
+
+.work-item--card-title p {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+  padding: 0;
 }
 .drawer {
   z-index: 1200;
