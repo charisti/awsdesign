@@ -37,3 +37,4 @@ composer.lock
 
 # Ignore node_modules if you have JS in theme
 **/node_modules/
+web/sites/default/settings.php
