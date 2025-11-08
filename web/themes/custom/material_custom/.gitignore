@@ -1,3 +1,6 @@
 node_modules
 dist/**/*.map
 .DS_Store
+
+web/sites/default/files/
+web/sites/default/files.zip
