@@ -49,4 +49,67 @@ class EntityQueryTest extends TrashKernelTestBase {
     $this->assertCount(5, $result);
   }
 
+  /**
+   * Test entity queries with OR conjunction.
+   */
+  public function testQueryWithOrConjunction(): void {
+    $entity_storage = \Drupal::entityTypeManager()->getStorage('trash_test_entity');
+
+    // Create six test entities, three of which will be deleted.
+    $ham = TrashTestEntity::create(['label' => 'ham']);
+    $ham->save();
+    $cheese = TrashTestEntity::create(['label' => 'cheese']);
+    $cheese->save();
+    $tomato = TrashTestEntity::create(['label' => 'tomato']);
+    $tomato->save();
+
+    $salad = TrashTestEntity::create(['label' => 'salad']);
+    $salad->save();
+    $salad->delete();
+    $ketchup = TrashTestEntity::create(['label' => 'ketchup']);
+    $ketchup->save();
+    $ketchup->delete();
+    $bread = TrashTestEntity::create(['label' => 'bread']);
+    $bread->save();
+    $bread->delete();
+
+    // Check entity queries for non-deleted entities.
+    $query = $entity_storage->getQuery('OR')
+      ->accessCheck()
+      ->condition('label', 'ham')
+      ->condition('label', 'cheese');
+    $this->assertCount(2, $query->execute());
+
+    $aggregate_query = $entity_storage->getAggregateQuery('OR')
+      ->accessCheck()
+      ->condition('label', 'ham')
+      ->condition('label', 'tomato')
+      ->groupBy('label');
+    $this->assertCount(2, $aggregate_query->execute());
+
+    // Check that deleted entities can still be retrieved by an entity query if
+    // the trash context is disabled.
+    $result = $this->getTrashManager()->executeInTrashContext('ignore', function () use ($entity_storage) {
+      return $entity_storage
+        ->getQuery('OR')
+        ->accessCheck()
+        ->condition('label', 'ham')
+        ->condition('label', 'salad')
+        ->condition('label', 'ketchup')
+        ->execute();
+    });
+    $this->assertCount(3, $result);
+
+    $result = $this->getTrashManager()->executeInTrashContext('ignore', function () use ($entity_storage) {
+      return $entity_storage->getAggregateQuery('OR')
+        ->accessCheck()
+        ->condition('label', 'cheese')
+        ->condition('label', 'salad')
+        ->condition('label', 'bread')
+        ->groupBy('label')
+        ->execute();
+    });
+    $this->assertCount(3, $result);
+  }
+
 }

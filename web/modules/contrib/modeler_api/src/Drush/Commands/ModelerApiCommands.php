@@ -58,12 +58,21 @@ final class ModelerApiCommands extends DrushCommands {
   #[Usage(name: 'modeler_api:update', description: 'Update all models if plugins got changed.')]
   public function updateAllModels(): void {
     $this->update->updateAllModels();
-    if ($infos = $this->update->getInfos()) {
+    $infos = $this->update->getInfos();
+    $errors = $this->update->getErrors();
+    $warnings = $this->update->getWarnings();
+    if ($infos) {
       $this->io()->info(implode(PHP_EOL, $infos));
     }
-    if ($errors = $this->update->getErrors()) {
+    if ($errors) {
       $this->io()->error(implode(PHP_EOL, $errors));
     }
+    if ($warnings) {
+      $this->io()->warning(implode(PHP_EOL, $warnings));
+    }
+    $this->io()->info("Models not requiring updates: " . count($infos));
+    $this->io()->info("Models updated: " . count($warnings));
+    $this->io()->info("Errors reported: " . count($errors));
   }
 
   /**

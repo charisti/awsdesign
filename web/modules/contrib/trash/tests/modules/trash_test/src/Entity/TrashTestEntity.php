@@ -5,6 +5,7 @@ namespace Drupal\trash_test\Entity;
 use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 
 /**
  * Provides a trash test entity.
@@ -48,9 +49,15 @@ class TrashTestEntity extends ContentEntityBase {
   public static function baseFieldDefinitions(EntityTypeInterface $entity_type) {
     $fields = parent::baseFieldDefinitions($entity_type);
 
+    $fields['label'] = BaseFieldDefinition::create('string')
+      ->setLabel(new TranslatableMarkup('Label'))
+      ->setRevisionable(TRUE)
+      ->setSetting('max_length', 128)
+      ->setRequired(FALSE);
+
     $fields['reference'] = BaseFieldDefinition::create('entity_reference')
-      ->setLabel(t('Reference'))
-      ->setDescription(t('Reference to another TrashTestEntity.'))
+      ->setLabel(new TranslatableMarkup('Reference'))
+      ->setDescription(new TranslatableMarkup('Reference to another TrashTestEntity.'))
       ->setSetting('target_type', 'trash_test_entity')
       ->setRequired(FALSE);
 

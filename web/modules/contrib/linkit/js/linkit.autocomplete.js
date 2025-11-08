@@ -76,7 +76,7 @@
       const linkSelector = event.target.getAttribute('data-drupal-selector');
       if (linkSelector && linkSelector.endsWith('-uri')) {
         const titleSelector = linkSelector.slice(0, -4) + '-title';
-        const $linkTitle = $(`[data-drupal-selector="${titleSelector}"]`, $context);
+        const $linkTitle = $(`[data-linkit-widget-title-autofill-enabled][data-drupal-selector="${titleSelector}"]`, $context);
         // Don't overwrite an existing label unless we already replaced it
         // before.
         if ($linkTitle.length > 0 && (!$linkTitle.val() || $linkTitle.hasClass('link-widget-title--auto'))) {

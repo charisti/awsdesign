@@ -1,18 +1,15 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { findAttributeRange } from 'ckeditor5/src/typing';
+
 /**
-* Returns a link model element if one is selected or is among the selection's ancestors.
-*/
-export function getClosestSelectedLinkElement(selection) {
-  let ancestors = selection.getFirstPosition().getAncestors();
-  for (const ancestor of ancestors) {
-    let children = ancestor.getChildren();
-    for (const child of children) {
-      if (child.hasAttribute('linkHref')) {
-        return child;
-      }
-    }
-  }
-  return '';
-}
+ * Returns a link range based on selection from
+ *  href attribute at selection's first position.
+ */
+export function getCurrentLinkRange(model, selection, hrefSourceValue) {
+  const position = selection.getFirstPosition();
+  const range = findAttributeRange(position, 'linkHref', hrefSourceValue, model);
+  return range;
+};
 
 /**
  * Returns a text of a link range.
@@ -30,3 +27,29 @@ export function extractTextFromLinkRange(range) {
   return text;
 }
 
+/**
+ * Returns the major version number from a semantic version string.
+ * Examples:
+ *  - "45.0.0" -> 45
+ *  - "45" -> 45
+ *  - "v45.2.1" -> 45
+ *  - "  45.0.0-alpha  " -> 45
+ *  - "abc" -> null
+ *
+ * @param {string|number} version
+ * @returns {number|null} Major version number, or null if not found
+ */
+export function getMajorVersion(version) {
+  if (version === null || version === undefined) return null;
+
+  // Normalize input to string and trim whitespace
+  const str = String(version).trim();
+
+  // Take the part before the first full stop
+  const firstSegment = str.split('.')[0];
+
+  // Extract leading digits from the first segment (handles "v45", "45", etc.)
+  const match = firstSegment.match(/\d+/);
+
+  return match ? Number(match[0]) : null;
+}

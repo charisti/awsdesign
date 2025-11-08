@@ -20,7 +20,7 @@ linkit.autocomplete:
   js:
     js/linkit.autocomplete.js: {}
   css:
-    component:
+    theme:
       css/linkit.autocomplete.css: {}
   dependencies:
     - linkit/linkit.base

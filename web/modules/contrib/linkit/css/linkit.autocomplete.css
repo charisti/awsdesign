@@ -23,17 +23,18 @@
   background-position: center left 10px;
 }
 
-/* Override the default jQuery UI theme */
-.linkit-ui-autocomplete {
-  position: relative;
-  overflow: auto;
-  max-height: calc((100vh - 80px) / 2);
-}
-
-:not(.ck) > .linkit-ui-autocomplete.ui-widget {
+/* Default positioning for Linkit fields and Linkit in CKEditor */
+.linkit-ui-autocomplete.ui-widget {
   position: absolute;
   max-width: inherit;
   font-size: 0.9em;
+}
+
+/* Positioning needs to be adjusted for Linkit in CKEditor */
+.ck > .linkit-ui-autocomplete.ui-widget {
+  position: relative;
+  overflow: auto;
+  max-height: calc((100vh - 80px) / 2);
   &.ck-reset_all-excluded {
     white-space: break-spaces;
   }

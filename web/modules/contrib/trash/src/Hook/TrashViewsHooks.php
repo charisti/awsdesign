@@ -2,57 +2,38 @@
 
 declare(strict_types=1);
 
-namespace Drupal\trash;
+namespace Drupal\trash\Hook;
 
-use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\Sql\DefaultTableMapping;
 use Drupal\Core\Entity\Sql\SqlEntityStorageInterface;
-use Drupal\views\Plugin\ViewsHandlerManager;
+use Drupal\Core\Hook\Attribute\Hook;
+use Drupal\trash\TrashManagerInterface;
 use Drupal\views\Plugin\views\query\QueryPluginBase;
 use Drupal\views\Plugin\views\query\Sql;
+use Drupal\views\Plugin\ViewsHandlerManager;
 use Drupal\views\ViewExecutable;
-use Drupal\views\ViewsData;
-use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
- * Defines a class for altering views queries.
- *
- * @internal
+ * Views hook implementations for Trash.
  */
-class ViewsQueryAlter implements ContainerInjectionInterface {
+class TrashViewsHooks {
 
-  /**
-   * Constructor.
-   */
   public function __construct(
     protected EntityTypeManagerInterface $entityTypeManager,
     protected EntityFieldManagerInterface $entityFieldManager,
     protected TrashManagerInterface $trashManager,
-    protected ViewsData $viewsData,
-    protected ViewsHandlerManager $joinHandler,
+    #[Autowire(service: 'plugin.manager.views.join')]
+    protected ?ViewsHandlerManager $joinHandler = NULL,
   ) {}
 
   /**
-   * {@inheritdoc}
+   * Implements hook_views_query_alter().
    */
-  public static function create(ContainerInterface $container): static {
-    return new static(
-      $container->get('entity_type.manager'),
-      $container->get('entity_field.manager'),
-      $container->get('trash.manager'),
-      $container->get('views.views_data'),
-      $container->get('plugin.manager.views.join')
-    );
-  }
-
-  /**
-   * Implements a hook bridge for hook_views_query_alter().
-   *
-   * @see hook_views_query_alter()
-   */
-  public function alterQuery(QueryPluginBase $query): void {
+  #[Hook('views_query_alter')]
+  public function viewsQueryAlter(ViewExecutable $view, QueryPluginBase $query): void {
     // Don't alter any non-sql views queries.
     if (!$query instanceof Sql || !$this->trashManager->shouldAlterQueries()) {
       return;
@@ -173,11 +154,10 @@ class ViewsQueryAlter implements ContainerInjectionInterface {
   }
 
   /**
-   * Implements a hook bridge for hook_views_post_render().
-   *
-   * @see hook_views_post_render()
+   * Implements hook_views_post_render().
    */
-  public function postRender(ViewExecutable $view): void {
+  #[Hook('views_post_render')]
+  public function viewsPostRender(ViewExecutable $view): void {
     $query = $view->getQuery();
     if ($query instanceof Sql && in_array('ignore_trash', $query->tags, TRUE)) {
       // Enable trash again after the view has been built.

@@ -14,18 +14,25 @@ use Drupal\modeler_api\Plugin\ModelOwnerPluginManager;
 final class Update {
 
   /**
-   * List of errors.
-   *
-   * @var array
-   */
-  protected array $errors;
-
-  /**
    * List of info messages.
    *
    * @var array
    */
   protected array $infos;
+
+  /**
+   * List of warning messages.
+   *
+   * @var array
+   */
+  protected array $warnings;
+
+  /**
+   * List of errors.
+   *
+   * @var array
+   */
+  protected array $errors;
 
   /**
    * Constructs an Update object.
@@ -41,6 +48,7 @@ final class Update {
    */
   public function updateAllModels(): void {
     $this->errors = [];
+    $this->warnings = [];
     $this->infos = [];
     foreach ($this->modelOwnerPluginManager->getAllInstances() as $owner) {
       $ownerPlugins = [];
@@ -73,7 +81,7 @@ final class Update {
             }
           }
           if ($modelChanged) {
-            $this->infos[] = '[' . $owner->label() . ' / ' . $model->label() . '] Model has been updated.';
+            $this->warnings[] = '[' . $owner->label() . ' / ' . $model->label() . '] Model has been updated.';
             $model->save();
           }
           else {
@@ -125,6 +133,16 @@ final class Update {
   }
 
   /**
+   * Gets the list of all collected warning messages.
+   *
+   * @return array
+   *   The list of all collected warning messages.
+   */
+  public function getWarnings(): array {
+    return $this->warnings;
+  }
+
+  /**
    * Gets the list of all collected info messages.
    *
    * @return array
@@ -135,15 +153,21 @@ final class Update {
   }
 
   /**
-   * Outputs all messages (info and error) to the user.
+   * Outputs all warning and error messages to user, plus a summary.
    */
   public function displayMessages(): void {
     foreach ($this->infos ?? [] as $info) {
       $this->messenger->addMessage($info);
     }
+    foreach ($this->warnings ?? [] as $warning) {
+      $this->messenger->addWarning($warning);
+    }
     foreach ($this->errors ?? [] as $error) {
       $this->messenger->addError($error);
     }
+    $this->messenger->addMessage("Models not requiring updates: " . count($this->infos ?? []));
+    $this->messenger->addMessage("Models updated: " . count($this->warnings ?? []));
+    $this->messenger->addMessage("Errors reported: " . count($this->errors ?? []));
   }
 
 }

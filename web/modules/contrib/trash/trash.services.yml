@@ -7,6 +7,7 @@ services:
   trash.entity_purger:
     class: Drupal\trash\TrashEntityPurger
     arguments: ['@entity_type.manager', '@trash.manager', '@config.factory', '@datetime.time', '@queue', '@settings']
+  Drupal\trash\TrashEntityPurger: '@trash.entity_purger'
 
   trash.config_subscriber:
     class: Drupal\trash\EventSubscriber\TrashConfigSubscriber
@@ -46,6 +47,16 @@ services:
     lazy: true
     tags:
       - { name: module_install.uninstall_validator }
+
+  # Hook implementations.
+  Drupal\trash\Hook\TrashEntityHooks:
+    autowire: true
+  Drupal\trash\Hook\TrashEntityInfoHooks:
+    autowire: true
+  Drupal\trash\Hook\TrashHooks:
+    autowire: true
+  Drupal\trash\Hook\TrashViewsHooks:
+    autowire: true
 
   # Trash handlers.
   trash.handler_configurator:

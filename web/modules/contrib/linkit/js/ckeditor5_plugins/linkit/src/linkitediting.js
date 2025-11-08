@@ -1,6 +1,6 @@
 import { Plugin } from 'ckeditor5/src/core';
 import { findAttributeRange } from 'ckeditor5/src/typing';
-import { getClosestSelectedLinkElement, extractTextFromLinkRange } from './utils.js';
+import { getCurrentLinkRange, getMajorVersion, extractTextFromLinkRange } from './utils.js';
 
 export default class LinkitEditing extends Plugin {
   init() {
@@ -88,8 +88,11 @@ export default class LinkitEditing extends Plugin {
       const extraAttributeValues = linkitAttributes;
       const model = this.editor.model;
       const selection = model.document.selection;
-      const displayedText = args[3] || args[1]['linkit_attributes']['displayedText'];
-
+      const displayedText = args[args.length - 1] || args[1]['linkit_attributes']['displayedText'];
+      // Linkit can update the Href value, so we need to know what the updated
+      // value is to properly target ranges when the selection is collapsed. See
+      // ...if (selection.isCollapsed)... below.
+      const currentHref = args[0];
       // Wrapping the original command execution in a model.change() block to
       // make sure there's a single undo step when the extra attribute is added.
       model.change((writer) => {
@@ -102,7 +105,20 @@ export default class LinkitEditing extends Plugin {
               writer.removeAttribute(attribute, range);
             }
             if (removeSelection) {
-              writer.removeSelectionAttribute(attribute);
+              writer.setSelection(range.end);
+              const { plugins } = this.editor;
+              if (plugins.has('TwoStepCaretMovement') && getMajorVersion(CKEDITOR_VERSION) >= 45) {
+                // After replacing the text of the link, we need to move the caret to the end of the link,
+                // override it's gravity to forward to prevent keeping e.g. bold attribute on the caret
+                // which was previously inside the link.
+                //
+                // If the plugin is not available, the caret will be placed at the end of the link and the
+                // bold attribute will be kept even if command moved caret outside the link.
+                plugins.get('TwoStepCaretMovement')._handleForwardMovement();
+              } else {
+                // Remove any attributes to prevent link splitting.
+                writer.removeSelectionAttribute(attribute);
+              }
             }
           });
         };
@@ -112,14 +128,26 @@ export default class LinkitEditing extends Plugin {
           if (!linkText) {
             return range;
           }
-          let newRange = writer.createRange(range.start, range.start.getShiftedBy(displayedText.length));
+          // In case target attributes are updated or
+          // Legacy check for CKEditor < v45 storage; Once Drupal < 10.3/11.2
+          // are unsupported, this can be removed.
+          if (getMajorVersion(CKEDITOR_VERSION) < 45 && typeof displayedText == "object") {
+            displayedText = linkText;
+          }
+          // In a scenario where the displayedText is blank, fall back on the
+          // linkText, and if that is empty, use the href from args[0].
+          let newText = displayedText || linkText || args[0];
+          let newRange = writer.createRange(range.start, range.start.getShiftedBy(newText.length));
           return newRange;
         };
 
         editor.execute('link', ...args);
         if (selection.isCollapsed) {
-          const link = getClosestSelectedLinkElement(selection);
-          let range = writer.createRangeOn(link);
+          let range = getCurrentLinkRange(model, selection, currentHref);
+          if (!range) {
+            console.info('No link range found');
+            return;
+          }
           range = updateLinkTextIfNeeded(range, displayedText);
           updateAttributes(range, true);
         } else {
