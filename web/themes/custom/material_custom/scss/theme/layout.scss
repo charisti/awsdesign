@@ -35,14 +35,17 @@
   backdrop-filter: blur(20px);
   position: relative;
   z-index: 1200;
+  width: 100%;
 
   .navbar__container {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1.5rem;
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
+    padding-left: 0rem;
+    padding-right: 0rem;
+    max-width: 1320px;
+    margin: 0 auto;
   }
 
   a,
@@ -186,19 +189,24 @@
 }
 
 .front-section__inner {
-  max-width: 1680px;
+  max-width: 1320px;
   margin: 0 auto;
 }
 
 .layout-container,
 .layout-container--page .main-content__container,
 .container {
-  max-width: 1680px;
+  max-width: none;
   margin-left: auto;
   margin-right: auto;
   width: 100%;
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
+  padding-left: 0rem;
+  padding-right: 0rem;
+}
+
+.main-content__container {
+  padding-left: 2rem !important;
+  padding-right: 2rem !important;
 }
 
 .front-section__title {
