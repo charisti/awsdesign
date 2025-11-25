@@ -1,0 +1,42 @@
+{#
+/**
+ * @file
+ * Theme override for a 'Work' node in 'card' view mode.
+ *
+ * This is a simplified version of the full node, designed to be displayed
+ * in grids or lists like the work archive.
+ */
+#}
+{% set card_attributes = create_attribute() %}
+{% set card_classes = [
+  'work-item-card',
+  'h-100',
+] %}
+
+<article{{ attributes.addClass(card_classes) }}>
+  <a href="{{ url }}" class="work-item-card__link">
+    {% if content.field_bilder is defined and content.field_bilder|length > 0 %}
+      <div class="work-item-card__media">
+        <div class="work-item-card__media-item work-item-card__media-item--primary">
+          {{ content.field_bilder[0] }}
+        </div>
+        {% if content.field_bilder|length > 1 %}
+          <div class="work-item-card__media-item work-item-card__media-item--secondary">
+            {{ content.field_bilder[1] }}
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+    <div class="work-item-card__text">
+      <h3 class="work-item-card__title">{{ label }}</h3>
+      <div class="work-item-card__meta">
+        {% if content.field_kunde_tags|render %}
+          <span class="work-item-card__client">{{ content.field_kunde_tags }}</span>
+        {% endif %}
+        {% if content.field_jahr|render %}
+          <span class="work-item-card__year">{{ content.field_jahr }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </a>
+</article>

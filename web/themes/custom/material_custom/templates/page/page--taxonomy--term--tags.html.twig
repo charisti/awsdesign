@@ -1,0 +1,27 @@
+{#
+/**
+ * @file
+ * Vocabulary-specific override for Tags taxonomy terms.
+ */
+#}
+{% extends "@material_base/layout/page.html.twig" %}
+
+{% set sidebar_view = drupal_view('taxonomie_seitenleiste', 'block_1') %}
+{% set has_sidebar = (page.sidebar_first is not empty) or (sidebar_view|render|trim is not empty) %}
+{% set _sidebar_first = page.sidebar_first %}
+{% set page = page|merge({'sidebar_first': []}) %}
+
+{% block content %}
+  <div class="sidebar-content-layout{{ has_sidebar ? '' : ' sidebar-content-layout--no-sidebar' }}">
+    {% if has_sidebar %}
+      <aside class="sidebar-content-layout__sidebar" role="complementary">
+        {{ _sidebar_first }}
+        {{ sidebar_view }}
+      </aside>
+    {% endif %}
+
+    <div class="sidebar-content-layout__main-content">
+      {{ page.content }}
+    </div>
+  </div>
+{% endblock %}

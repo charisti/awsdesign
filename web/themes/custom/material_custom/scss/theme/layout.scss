@@ -27,12 +27,134 @@
   clear: both;
 }
 
+.work-template__layout {
+  margin-top: 2rem;
+}
+
+.work-template__filters {
+  margin-bottom: 1.5rem;
+}
+
+.work-template__filters .view {
+  margin-bottom: 1.5rem;
+}
+
+.work-archive {
+  padding: 2rem;
+  background-color: #f5f5f5;
+  border: 1px solid #e0e0e0;
+}
+
+.work-archive__columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.work-item-card {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.work-item-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
+
+.work-item-card__text {
+  padding: 1rem 1.25rem;
+}
+
+.work-item-card__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+.work-item-card__link {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.work-item-card__meta {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+  display: flex;
+  justify-content: space-between;
+}
+
+.work-item-card__client .field__item,
+.work-item-card__year .field__item {
+  display: inline;
+}
+
+.work-item-card__client .field__items {
+  display: inline;
+}
+
+.work-item-card__media {
+  position: relative;
+  overflow: hidden;
+}
+
+.work-item-card__media-item {
+  display: block;
+}
+
+.work-item-card__media-item img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.work-item-card__media-item--secondary {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 2s ease;
+}
+
+.work-item-card__media-item--primary {
+  transition: opacity 2s ease;
+}
+
+.work-item-card__media:hover .work-item-card__media-item--secondary {
+  opacity: 1;
+}
+
+.work-item-card__media:hover .work-item-card__media-item--primary {
+  opacity: 0;
+}
+
+.work-template__content {
+  min-width: 0;
+}
+
+.work-template__content--full {
+  width: 100%;
+}
+
 .navbar {
-  background: rgba(255, 255, 255, 0.25);
+  background: linear-gradient(
+    to top,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.18) 55%,
+    rgba(255, 255, 255, 0.35) 100%
+  );
   color: #111;
-  box-shadow: none;
+  box-shadow: none !important;
   border-bottom: none;
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(10px);
   position: relative;
   z-index: 1200;
   width: 100%;
@@ -61,11 +183,16 @@
 }
 
 .mdc-top-app-bar {
-  background: rgba(255, 255, 255, 0.25) !important;
+  background: linear-gradient(
+    to top,
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.18),
+    rgba(255, 255, 255, 0.35)
+  ) !important;
   color: #111;
-  box-shadow: none;
+  box-shadow: none !important;
   border-bottom: none;
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(10px);
   position: relative;
   z-index: 1200;
 }
@@ -94,6 +221,13 @@
 
   &__item-text {
     font-weight: 500;
+  }
+
+  &__item.is-active .navbar-menu__item-text,
+  &__item.is-active .navbar-menu__item-icon,
+  &__item-text.is-active,
+  &__item-icon.is-active {
+    font-weight: 700;
   }
 }
 
@@ -217,12 +351,6 @@
   padding-right: 0rem;
 }
 
-.main-content__container {
-  max-width: 1360px !important;
-  padding-left: 2rem !important;
-  padding-right: 2rem !important;
-}
-
 .front-section__title {
   font-size: 1.25rem;
   font-weight: 600;
@@ -270,6 +398,8 @@
 
 .work-teaser__media {
   flex: 1 1 auto;
+  position: relative;
+  overflow: hidden;
 }
 
 .work-teaser__title {
@@ -294,6 +424,193 @@
   margin: 0.5rem 0;
 }
 
+.work-teaser__media-item {
+  display: block;
+}
+
+.work-teaser__media-item img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.work-teaser__media-item--secondary {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 2s ease;
+}
+
+.work-teaser__media-item--primary {
+  transition: opacity 2s ease;
+}
+
+.work-teaser__media:hover .work-teaser__media-item--secondary {
+  opacity: 1;
+}
+
+.work-teaser__media:hover .work-teaser__media-item--primary {
+  opacity: 0;
+}
+
+.page-tags .views-field-field-bilder,
+.page-tags .views-field-field-bilder,
+[class*="page-tags-"] .views-field-field-bilder,
+.page-clients .views-field-field-bilder,
+[class*="page-clients-"] .views-field-field-bilder,
+[class*="page-kunden"] .views-field-field-bilder {
+  position: relative;
+  overflow: hidden;
+  display: block;
+  aspect-ratio: 16 / 9;
+  min-height: 220px;
+  transition: transform 0.6s ease;
+}
+
+.page-tags .views-field-field-bilder .field-content,
+.page-tags .views-field-field-bilder .field-content,
+[class*="page-tags-"] .views-field-field-bilder .field-content,
+.page-clients .views-field-field-bilder .field-content,
+[class*="page-clients-"] .views-field-field-bilder .field-content,
+[class*="page-kunden"] .views-field-field-bilder .field-content {
+  position: relative;
+  display: block;
+  height: 100%;
+}
+
+.page-tags .views-field-field-bilder img,
+.page-tags .views-field-field-bilder img,
+[class*="page-tags-"] .views-field-field-bilder img,
+.page-clients .views-field-field-bilder img,
+[class*="page-clients-"] .views-field-field-bilder img,
+[class*="page-kunden"] .views-field-field-bilder img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.page-tags .views-field-field-bilder .field-content > *,
+.page-tags .views-field-field-bilder .field-content > *,
+[class*="page-tags-"] .views-field-field-bilder .field-content > *,
+.page-clients .views-field-field-bilder .field-content > *,
+[class*="page-clients-"] .views-field-field-bilder .field-content > *,
+[class*="page-kunden"] .views-field-field-bilder .field-content > * {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 2s ease;
+}
+
+.page-tags .views-field-field-bilder .field-content > *:nth-child(2),
+.page-tags .views-field-field-bilder .field-content > *:nth-child(2),
+[class*="page-tags-"] .views-field-field-bilder .field-content > *:nth-child(2),
+.page-clients .views-field-field-bilder .field-content > *:nth-child(2),
+[class*="page-clients-"] .views-field-field-bilder .field-content > *:nth-child(2),
+[class*="page-kunden"] .views-field-field-bilder .field-content > *:nth-child(2) {
+  z-index: 2;
+}
+
+.page-tags .views-field-field-bilder .field-content > *:first-child,
+.page-tags .views-field-field-bilder .field-content > *:first-child,
+[class*="page-tags-"] .views-field-field-bilder .field-content > *:first-child,
+.page-clients .views-field-field-bilder .field-content > *:first-child,
+[class*="page-clients-"] .views-field-field-bilder .field-content > *:first-child,
+[class*="page-kunden"] .views-field-field-bilder .field-content > *:first-child {
+  opacity: 1;
+  z-index: 1;
+}
+
+.page-tags .views-field-field-bilder:hover .field-content > *:first-child,
+.page-tags .views-field-field-bilder:hover .field-content > *:first-child,
+[class*="page-tags-"] .views-field-field-bilder:hover .field-content > *:first-child,
+.page-clients .views-field-field-bilder:hover .field-content > *:first-child,
+[class*="page-clients-"] .views-field-field-bilder:hover .field-content > *:first-child,
+[class*="page-kunden"] .views-field-field-bilder:hover .field-content > *:first-child {
+  opacity: 0;
+}
+
+.page-tags .views-field-field-bilder:hover .field-content > *:nth-child(2),
+.page-tags .views-field-field-bilder:hover .field-content > *:nth-child(2),
+[class*="page-tags-"] .views-field-field-bilder:hover .field-content > *:nth-child(2),
+.page-clients .views-field-field-bilder:hover .field-content > *:nth-child(2),
+[class*="page-clients-"] .views-field-field-bilder:hover .field-content > *:nth-child(2),
+[class*="page-kunden"] .views-field-field-bilder:hover .field-content > *:nth-child(2) {
+  opacity: 1;
+}
+
+.page-tags .views-field-field-bilder:hover,
+.page-tags .views-field-field-bilder:hover,
+[class*="page-tags-"] .views-field-field-bilder:hover,
+.page-clients .views-field-field-bilder:hover,
+[class*="page-clients-"] .views-field-field-bilder:hover,
+[class*="page-kunden"] .views-field-field-bilder:hover {
+  transform: scale(1.02);
+}
+
+.page-tags .views-field-field-projekttitel .field-content,
+.page-tags .views-field-field-projekttitel .field-content,
+[class*="page-tags-"] .views-field-field-projekttitel .field-content,
+.page-clients .views-field-field-projekttitel .field-content,
+[class*="page-clients-"] .views-field-field-projekttitel .field-content,
+[class*="page-kunden"] .views-field-field-projekttitel .field-content,
+.page-tags .views-field-title .field-content,
+.page-clients .views-field-title .field-content,
+[class*="page-clients-"] .views-field-title .field-content,
+[class*="page-kunden"] .views-field-title .field-content {
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.page-tags .views-field-field-projekttitel .field-content > *,
+.page-tags .views-field-field-projekttitel .field-content > *,
+[class*="page-tags-"] .views-field-field-projekttitel .field-content > *,
+.page-clients .views-field-field-projekttitel .field-content > *,
+[class*="page-clients-"] .views-field-field-projekttitel .field-content > *,
+[class*="page-kunden"] .views-field-field-projekttitel .field-content > *,
+.page-tags .views-field-title .field-content > *,
+.page-clients .views-field-title .field-content > *,
+[class*="page-clients-"] .views-field-title .field-content > *,
+[class*="page-kunden"] .views-field-title .field-content > * {
+  margin: 0;
+  line-height: 1.1;
+  display: block;
+  padding-top: 5px;
+  transition: transform 0.6s ease;
+}
+
+.page-tags .views-field-field-projekttitel:hover .field-content,
+.page-tags .views-field-field-projekttitel:hover .field-content,
+[class*="page-tags-"] .views-field-field-projekttitel:hover .field-content,
+.page-clients .views-field-field-projekttitel:hover .field-content,
+[class*="page-clients-"] .views-field-field-projekttitel:hover .field-content,
+[class*="page-kunden"] .views-field-field-projekttitel:hover .field-content,
+.page-tags .views-field-title:hover .field-content,
+.page-clients .views-field-title:hover .field-content,
+[class*="page-clients-"] .views-field-title:hover .field-content,
+[class*="page-kunden"] .views-field-title:hover .field-content {
+  transform: scale(1.02);
+}
+
+.sidebar-content-layout__sidebar a {
+  display: inline-block;
+  transition: transform 0.2s ease, font-weight 0.2s ease;
+}
+
+.sidebar-content-layout__sidebar a:hover {
+  transform: scale(1.06);
+  font-weight: 600;
+}
+
+.sidebar-content-layout__sidebar a.is-active,
+.sidebar-content-layout__sidebar .menu-item--active > a,
+.sidebar-content-layout__sidebar .active > a {
+  font-weight: 700;
+}
+
 .work-item--card-title p {
   margin: 0 0 0.5rem;
   font-weight: 700;
@@ -302,23 +619,129 @@
 
 .drawer {
   z-index: 1400;
+  display: block !important; /* prevent hidden drawer */
 }
 
 .drawer--modal {
   position: fixed;
   top: 0;
   right: 0;
+  left: auto;
   height: 100vh;
   width: min(90vw, 380px);
   background: rgba(255, 255, 255, 0.95);
-  box-shadow: -6px 0 30px rgba(0, 0, 0, 0.15);
+  box-shadow: none !important;
   transform: translateX(100%);
-  transition: transform 0.4s ease;
+  transition: transform 0.5s ease-in-out;
+  will-change: transform;
   z-index: 1400;
 }
 
 .mdc-drawer {
   width: min(90vw, 380px) !important;
+  left: auto !important;
+  right: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Force MDC modal drawer to slide from the right with higher specificity. */
+body .mdc-drawer--modal {
+  left: auto !important;
+  right: 0 !important;
+  transform: translateX(100%) !important;
+  transition: transform 0.5s ease-in-out !important;
+  width: min(90vw, 380px) !important;
+  box-shadow: none !important;
+  will-change: transform;
+}
+
+body .mdc-drawer--modal.mdc-drawer--open,
+body .mdc-drawer--modal.mdc-drawer--opening,
+body .mdc-drawer--modal.mdc-drawer--animate.mdc-drawer--opening {
+  transform: translateX(0) !important;
+}
+
+body .mdc-drawer--modal.mdc-drawer--closing,
+body .mdc-drawer--modal.mdc-drawer--animate.mdc-drawer--closing {
+  transform: translateX(100%) !important;
+}
+
+body .mdc-drawer--modal.mdc-drawer--animate {
+  left: auto !important;
+  right: 0 !important;
+  transform: translateX(100%) !important;
+}
+
+/* Hard override for the specific drawer instance in DOM, regardless of MDC classes. */
+body > .dialog-off-canvas-main-canvas > .layout-container > .page-container > .page-drawer.mdc-drawer--modal {
+  left: auto !important;
+  right: 0 !important;
+  transform: translateX(100%) !important;
+  transition: transform 0.35s ease !important;
+  width: min(90vw, 380px) !important;
+  box-shadow: none !important;
+}
+
+body > .dialog-off-canvas-main-canvas > .layout-container > .page-container > .page-drawer.mdc-drawer--modal.mdc-drawer--open,
+body > .dialog-off-canvas-main-canvas > .layout-container > .page-container > .page-drawer.mdc-drawer--modal.mdc-drawer--opening,
+body > .dialog-off-canvas-main-canvas > .layout-container > .page-container > .page-drawer.mdc-drawer--modal.mdc-drawer--animate.mdc-drawer--opening {
+  transform: translateX(0) !important;
+}
+
+body > .dialog-off-canvas-main-canvas > .layout-container > .page-container > .page-drawer.mdc-drawer--modal.mdc-drawer--closing,
+body > .dialog-off-canvas-main-canvas > .layout-container > .page-container > .page-drawer.mdc-drawer--modal.mdc-drawer--animate.mdc-drawer--closing {
+  transform: translateX(100%) !important;
+}
+
+.mdc-drawer__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  color: #000;
+  border: none;
+  border-radius: 0;
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 32px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+  z-index: 3;
+}
+
+.mdc-drawer__close .close-line {
+  position: absolute;
+  width: 24px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+  transition: transform 0.2s ease;
+}
+
+.mdc-drawer__close .close-line--one {
+  transform: rotate(45deg);
+}
+
+.mdc-drawer__close .close-line--two {
+  transform: rotate(-45deg);
+}
+
+.mdc-drawer__close:hover .close-line--one {
+  transform: rotate(55deg);
+}
+
+.mdc-drawer__close:hover .close-line--two {
+  transform: rotate(-55deg);
+}
+
+.mdc-drawer-scrim {
+  background-color: rgba(0, 0, 0, 0.08);
+  transition: background-color 0.2s ease;
+  pointer-events: auto !important;
 }
 
 .mdc-drawer__content {
@@ -327,6 +750,7 @@
 
 .drawer-open .drawer--modal {
   transform: translateX(0);
+  visibility: visible;
 }
 
 .drawer__overlay {
@@ -337,6 +761,40 @@
 .drawer-menu__item-text {
   font-size: 1.3rem;
   line-height: 1.6;
+}
+
+.drawer .menu-item a,
+.drawer-menu .mdc-deprecated-list-item {
+  color: inherit !important;
+  fill: currentColor;
+  background: transparent !important;
+  transition: transform 0.3s ease;
+  text-transform: lowercase;
+  font-weight: 400;
+}
+
+.drawer .menu-item a:hover,
+.drawer-menu .mdc-deprecated-list-item:hover {
+  transform: scale(1.04);
+}
+
+.drawer .menu-item a.is-active,
+.drawer-menu .mdc-deprecated-list-item.is-active {
+  color: inherit !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+  font-weight: 700;
+  text-transform: none;
+}
+
+/* Kill MDC default active ripple/background in drawer items. */
+.drawer-menu .mdc-deprecated-list-item.is-active:not(.mdc-deprecated-list-item--disabled)::before,
+.drawer-menu .mdc-deprecated-list-item.is-active:not(.mdc-deprecated-list-item--disabled)::after,
+.drawer-menu .mdc-deprecated-list-item.is-active:not(.mdc-deprecated-list-item--disabled) .mdc-deprecated-list-item__ripple::before,
+.drawer-menu .mdc-deprecated-list-item.is-active:not(.mdc-deprecated-list-item--disabled) .mdc-deprecated-list-item__ripple::after {
+  background: transparent !important;
+  opacity: 0 !important;
 }
 
 .mdc-top-app-bar--prominent-fixed-adjust {
@@ -378,4 +836,170 @@
 #block-material-custom-kleinelogos {
   display: flex;
   gap: 1rem;
+}
+
+.sidebar-content-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+@media (min-width: 960px) {
+  .sidebar-content-layout {
+    grid-template-columns: minmax(180px, 216px) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.sidebar-content-layout--no-sidebar {
+  grid-template-columns: 1fr;
+}
+
+.sidebar-content-layout__sidebar {
+  order: 1;
+}
+
+.sidebar-content-layout__main-content {
+  order: 2;
+  min-width: 0; /* Prevents overflow when the grid shrinks */
+}
+
+// Fallback layout for taxonomy pages when default page markup is used.
+.page-clients .page-content__wrapper,
+.page-tags .page-content__wrapper,
+.page-kunden .page-content__wrapper {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "content"
+    "sidebar";
+  gap: 2rem;
+  align-items: start;
+}
+
+
+
+
+.page-clients .page-content-primary,
+.page-tags .page-content-primary,
+.page-kunden .page-content-primary {
+  grid-area: content;
+}
+
+.page-clients .page-sidebar--first,
+.page-tags .page-sidebar--first,
+.page-kunden .page-sidebar--first {
+  grid-area: sidebar;
+  order: -1; // Ensure sidebar comes first even if grid is overridden elsewhere.
+}
+
+.page-clients .view-content,
+.page-tags .view-content,
+.page-kunden .view-content {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+.page-clients .work-archive__columns,
+.page-tags .work-archive__columns,
+.page-kunden .work-archive__columns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+.page-clients .view-content .views-row,
+.page-tags .view-content .views-row {
+  margin: 0;
+}
+
+.page-kunden .block-system-main-block .views-element-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .page-kunden .block-system-main-block .views-element-container {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+}
+
+.page-kunden .views-element-container .views-row {
+  margin: 0;
+}
+
+.views-element-container {
+  transition: opacity 0.25s ease;
+}
+
+.views-element-container.is-updating {
+  opacity: 0.35;
+}
+
+.page-kunden .work-teaser {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: #fff;
+  border: 1px solid #e6e6e6;
+  border-radius: 12px;
+  overflow: hidden;
+  height: 100%;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+}
+
+.page-kunden .work-teaser__media img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.page-kunden .work-teaser__text {
+  padding: 1rem 1.25rem;
+}
+
+.page-kunden .work-teaser__title {
+  font-size: 1.1rem;
+  margin: 0 0 0.35rem;
+}
+
+.page-kunden .work-teaser__divider {
+  display: none;
+}
+
+// Multi-column listing for Clients taxonomy term pages.
+.vocabulary-clients .view-taxonomy-term .view-content {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+.vocabulary-clients .view-taxonomy-term .views-row {
+  margin: 0;
+}
+
+// Multi-column listing for Tags taxonomy term pages.
+.vocabulary-tags .view-taxonomy-term .view-content {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+.vocabulary-tags .view-taxonomy-term .views-row {
+  margin: 0;
+}
+
+@media (min-width: 768px) {
+  .page-clients .view-content,
+  .page-tags .view-content,
+  .page-clients .work-archive__columns,
+  .page-tags .work-archive__columns,
+  .page-kunden .block-system-main-block .views-element-container,
+  .vocabulary-clients .view-taxonomy-term .view-content,
+  .vocabulary-tags .view-taxonomy-term .view-content {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

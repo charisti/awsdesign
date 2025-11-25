@@ -46,7 +46,14 @@
 
   {% if content.field_bilder is defined and content.field_bilder|length > 0 %}
     <div class="work-teaser__media">
-      {{ content.field_bilder[0] }}
+      <div class="work-teaser__media-item work-teaser__media-item--primary">
+        {{ content.field_bilder[0] }}
+      </div>
+      {% if content.field_bilder|length > 1 %}
+        <div class="work-teaser__media-item work-teaser__media-item--secondary">
+          {{ content.field_bilder[1] }}
+        </div>
+      {% endif %}
     </div>
   {% endif %}
 </article>

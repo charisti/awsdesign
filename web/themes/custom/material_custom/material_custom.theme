@@ -102,3 +102,25 @@ function material_custom_preprocess_page(array &$variables): void {
     }
   }
 }
+
+/**
+ * Ensure /kunden/* paths use the Clients layout.
+ */
+function material_custom_theme_suggestions_page_alter(array &$suggestions, array $variables): void {
+  /** @var \Drupal\Core\Path\CurrentPathStack $current_path */
+  $current_path = \Drupal::service('path.current');
+  /** @var \Drupal\path_alias\AliasManagerInterface $alias_manager */
+  $alias_manager = \Drupal::service('path_alias.manager');
+
+  $alias = $alias_manager->getAliasByPath($current_path->getPath());
+  $trimmed_alias = ltrim($alias, '/');
+  // Allow language prefixes like "de/kunden/...".
+  $parts = explode('/', $trimmed_alias);
+  $first_segment = $parts[0] ?? '';
+  $second_segment = $parts[1] ?? '';
+
+  if ($first_segment === 'kunden' || ($second_segment && $second_segment === 'kunden')) {
+    // Use page--kunden--subpage.html.twig for any /kunden/* URL.
+    $suggestions[] = 'page__kunden__subpage';
+  }
+}

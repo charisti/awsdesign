@@ -1,0 +1,57 @@
+{#
+/**
+ * @file
+ * Theme override for the Work Archive view.
+ *
+ * Available variables:
+ * - view: The view object.
+ * - rows: A render array of the view's rows.
+ * - title: The title of the view.
+ * - header: The optional header.
+ * - footer: The optional footer.
+ * - pager: The optional pager.
+ * - exposed: The exposed form if it exists.
+ * - empty: The content to display if there are no rows.
+ * - more: An optional link to display more results.
+ * - attachment_before: An optional attachment view to be displayed before the rows.
+ * - attachment_after: An optional attachment view to be displayed after the rows.
+ * - feed_icons: A render array of feed icons.
+ * - attributes: HTML attributes for the container.
+ * - css_name: A CSS-safe version of the view name.
+ * - css_class: The user-specified classes names, if any.
+ */
+#}
+{%
+  set classes = [
+    'view',
+    'view-' ~ view.id()|clean_class,
+    'view-id-' ~ view.id(),
+    'view-display-id-' ~ view.current_display,
+    'work-archive',
+  ]
+%}
+<div{{ attributes.addClass(classes) }}>
+  <div class="work-archive__controls" style="justify-content: flex-end;">
+    <div class="work-archive__layout-switcher">
+      <button class="layout-button is-active" data-layout="list" aria-label="{{ 'List view'|t }}">List</button>
+      <button class="layout-button" data-layout="grid" aria-label="{{ 'Grid view'|t }}">Grid</button>
+    </div>
+  </div>
+
+  {% if rows %}
+    {# Add a default layout class, e.g., 'layout-list' #}
+    <div class="work-archive__items">
+      {{ rows }}
+    </div>
+  {% elseif empty %}
+    {{ empty }}
+  {% endif %}
+
+  {{ pager }}
+</div>
+
+{#
+  Attach the library that will contain our JavaScript for the layout switcher.
+  You will need to create this library in your material_custom.info.yml file.
+#}
+{{ attach_library('material_custom/work-archive') }}

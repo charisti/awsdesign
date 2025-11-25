@@ -1,0 +1,38 @@
+{#
+/**
+ * @file
+ * Theme override for the Work Archive page.
+ *
+ * This template provides a two-column layout for the /work/archive path.
+ * The left column is for the sidebar (filters), and the right is for the main content (view results).
+ */
+#}
+<div class="layout-container">
+
+
+  <div class="page-container page-container--work-archive">
+    <main role="main" class="page-main">
+      <a id="main-content" tabindex="-1"></a>{# link is in html.html.twig #}
+
+      <div class="work-archive-layout">
+        {% if page.sidebar_first %}
+          <aside class="work-archive-layout__sidebar" role="complementary">
+            {{ page.sidebar_first }}
+          </aside>
+        {% endif %}
+
+        <div class="work-archive-layout__main-content">
+          {{ page.content }}
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  {% if page.footer %}
+    <footer class="site-footer" role="contentinfo">
+      {{ page.footer }}
+    </footer>
+  {% endif %}
+
+</div>{# /.layout-container #}

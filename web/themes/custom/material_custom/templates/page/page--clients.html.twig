@@ -1,0 +1,24 @@
+{#
+/**
+ * @file
+ * Page override for the /clients path.
+ */
+#}
+{% extends "@material_base/layout/page.html.twig" %}
+
+{% set _sidebar_first = page.sidebar_first %}
+{% set page = page|merge({'sidebar_first': []}) %}
+
+{% block content %}
+  <div class="sidebar-content-layout">
+    {% if _sidebar_first %}
+      <aside class="sidebar-content-layout__sidebar" role="complementary">
+        {{ _sidebar_first }}
+      </aside>
+    {% endif %}
+
+    <div class="sidebar-content-layout__main-content">
+      {{ page.content }}
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,43 @@
+{#
+/**
+ * @file
+ * Path-based override for /kunden pages.
+ *
+ * Mirrors the Clients taxonomy layout so German aliases under /kunden keep the
+ * same two-column structure with sidebar filters and main content.
+ */
+#}
+<div class="layout-container">
+
+  <div class="page-container page-container--taxonomy-term page-clients">
+    <main role="main" class="page-main">
+      <a id="main-content" tabindex="-1"></a>{# link is in html.html.twig #}
+
+      {% if page.header %}
+        <header class="site-header" role="banner">
+          {{ page.header }}
+        </header>
+      {% endif %}
+
+      <div class="sidebar-content-layout{{ page.sidebar_first ? '' : ' sidebar-content-layout--no-sidebar' }}">
+        {% if page.sidebar_first %}
+          <aside class="sidebar-content-layout__sidebar" role="complementary">
+            {{ page.sidebar_first }}
+          </aside>
+        {% endif %}
+
+        <div class="sidebar-content-layout__main-content">
+          {{ page.content }}
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  {% if page.footer %}
+    <footer class="site-footer" role="contentinfo">
+      {{ page.footer }}
+    </footer>
+  {% endif %}
+
+</div>{# /.layout-container #}

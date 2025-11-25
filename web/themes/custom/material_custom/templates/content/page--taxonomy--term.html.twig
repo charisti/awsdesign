@@ -1,0 +1,31 @@
+{#
+/**
+ * @file
+ * Theme override for taxonomy term pages.
+ *
+ * This template provides a two-column layout for taxonomy term pages.
+ * The left column is for the sidebar (filters), and the right is for the main content (view results).
+ */
+#}
+<div class="layout-container">
+
+  <div class="page-container page-container--taxonomy-term">
+    <main role="main" class="page-main">
+      <a id="main-content" tabindex="-1"></a>{# link is in html.html.twig #}
+
+      <div class="sidebar-content-layout">
+        {% if page.sidebar_first %}
+          <aside class="sidebar-content-layout__sidebar" role="complementary">
+            {{ page.sidebar_first }}
+          </aside>
+        {% endif %}
+
+        <div class="sidebar-content-layout__main-content">
+          {{ page.content }}
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+</div>{# /.layout-container #}

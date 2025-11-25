@@ -1,0 +1,28 @@
+{#
+/**
+ * @file
+ * Theme override for taxonomy term pages.
+ *
+ * Keeps the global chrome from the base page template while enforcing a
+ * left sidebar + main content layout. Sidebar is captured and removed from the
+ * parent rendering to avoid duplicate sidebars below the loop.
+ */
+#}
+{% extends "@material_base/layout/page.html.twig" %}
+
+{% set _sidebar_first = page.sidebar_first %}
+{% set page = page|merge({'sidebar_first': []}) %}
+
+{% block content %}
+  <div class="sidebar-content-layout">
+    {% if _sidebar_first %}
+      <aside class="sidebar-content-layout__sidebar" role="complementary">
+        {{ _sidebar_first }}
+      </aside>
+    {% endif %}
+
+    <div class="sidebar-content-layout__main-content">
+      {{ page.content }}
+    </div>
+  </div>
+{% endblock %}

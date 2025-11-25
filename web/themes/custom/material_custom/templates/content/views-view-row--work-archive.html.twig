@@ -1,0 +1,11 @@
+{#
+/**
+ * @file
+ * Theme override for a single row in the Work Archive view.
+ *
+ * This template ensures that each row is rendered using the full node--work.html.twig
+ * template, allowing it to pick up the correct styling for work items.
+ */
+#}
+{% set view_mode = 'card' %}
+{{ drupal_entity('node', row._entity.id(), view_mode) }}
