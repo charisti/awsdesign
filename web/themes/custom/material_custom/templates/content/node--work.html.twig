@@ -17,8 +17,14 @@
         <h1 class="work-item__title">{{ label }}</h1>
       </header>
 
-      {% if content.field_kunde_tags %}
-        <div class="work-item__row work-item__row--kunde">{{ content.field_kunde_tags }}</div>
+      {% if node.field_kunde_tags is defined and node.field_kunde_tags|length %}
+        <div class="work-item__row work-item__row--kunde">
+          <em>
+            {% for item in node.field_kunde_tags %}
+              {{ item.entity.label }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          </em>
+        </div>
       {% endif %}
 
       {% if content.field_trennstrich1 %}
@@ -64,4 +70,8 @@
       {% endif %}
     </div>
   </div>
+
+  {% if related_work is defined and related_work is not empty %}
+    {% include '@material_custom/content/node--work--related.html.twig' with { related_work: related_work } %}
+  {% endif %}
 </article>

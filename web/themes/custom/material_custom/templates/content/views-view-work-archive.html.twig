@@ -31,12 +31,6 @@
   ]
 %}
 <div{{ attributes.addClass(classes) }}>
-  <div class="work-archive__controls" style="justify-content: flex-end;">
-    <div class="work-archive__layout-switcher">
-      <button class="layout-button is-active" data-layout="list" aria-label="{{ 'List view'|t }}">List</button>
-      <button class="layout-button" data-layout="grid" aria-label="{{ 'Grid view'|t }}">Grid</button>
-    </div>
-  </div>
 
   {% if rows %}
     {# Add a default layout class, e.g., 'layout-list' #}
