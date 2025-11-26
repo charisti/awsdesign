@@ -7,6 +7,13 @@
   margin-bottom: 1.5rem;
 }
 
+.layout-container,
+.layout-container--page .main-content__container,
+.container {
+  padding-left: clamp(1rem, 2vw, 1.5rem);
+  padding-right: clamp(1rem, 2vw, 1.5rem);
+}
+
 @media (min-width: 768px) {
   .linke_spalte,
   .rechte_spalte {
@@ -25,6 +32,12 @@
 
 .clear_both {
   clear: both;
+}
+
+.page-node-type-work:not(.path-frontpage) .layout-container--page .main-content__container,
+.page-node-type-page:not(.path-frontpage) .layout-container--page .main-content__container {
+  /* Give standard pages and work detail views extra breathing room under the navbar. */
+  margin-top: clamp(72px, 12vw, 144px);
 }
 
 .work-template__layout {
@@ -421,8 +434,8 @@
   margin-left: auto;
   margin-right: auto;
   width: 100%;
-  padding-left: 0rem;
-  padding-right: 0rem;
+  padding-left: clamp(1rem, 2vw, 1.5rem);
+  padding-right: clamp(1rem, 2vw, 1.5rem);
 }
 
 .front-section__title {
@@ -714,6 +727,17 @@
   height: 2px;
   background: currentColor;
   border-radius: 1px;
+}
+
+.page-clients .sidebar-content-layout__sidebar .block-title,
+.page-tags .sidebar-content-layout__sidebar .block-title {
+  font-weight: 700;
+}
+
+.page-clients .sidebar-content-layout__sidebar .titel2,
+.page-tags .sidebar-content-layout__sidebar .titel2 {
+  font-weight: 700;
+  display: block;
 }
 
 .work-item--card-title p {
