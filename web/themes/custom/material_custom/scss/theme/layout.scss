@@ -63,6 +63,7 @@
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.5rem;
   margin-top: 1.5rem;
+  justify-items: center;
 }
 
 .work-item-card {
@@ -74,6 +75,15 @@
   flex-direction: column;
   height: 100%;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  width: 100%;
+  max-width: 360px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.work-item-card__media,
+.work-item-card__media img {
+  width: 100%;
 }
 
 .work-item-card:hover {
@@ -147,6 +157,16 @@
 
 .work-item-card__media:hover .work-item-card__media-item--primary {
   opacity: 0;
+}
+
+.work-archive__columns {
+  justify-items: center;
+}
+
+.work-item-card {
+  max-width: 360px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .work-template__content {
@@ -256,6 +276,11 @@
 .navbar__section--left {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+.page-navbar-adjust {
+  /* Prevent fixed navbar from overlapping content on inner pages. */
+  padding-top: clamp(3.5rem, 8vw, 5.5rem);
 }
 
 .navbar-icon-button {
@@ -423,6 +448,17 @@
   display: flex;
   flex-direction: column;
   gap: 2.5rem;
+}
+
+@media (max-width: 768px) {
+  .work-archive__columns {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .work-item-card {
+    max-width: 100%;
+  }
 }
 
 .front-section__inner {
