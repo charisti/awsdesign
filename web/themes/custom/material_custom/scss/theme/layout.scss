@@ -171,14 +171,16 @@
   position: relative;
   z-index: 1200;
   width: 100%;
+  margin-left: calc(-1 * clamp(1rem, 2vw, 1.5rem));
+  margin-right: calc(-1 * clamp(1rem, 2vw, 1.5rem));
 
   .navbar__container {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1.5rem;
-    padding-left: 0rem;
-    padding-right: 0rem;
+    padding-left: clamp(1rem, 2vw, 1.5rem);
+    padding-right: clamp(1rem, 2vw, 1.5rem);
     max-width: 1320px;
     margin: 0 auto;
   }
@@ -249,10 +251,11 @@
 
 .navbar__section--right {
   justify-content: flex-end;
-  width: auto;
+  flex: 0 0 auto;
 }
 .navbar__section--left {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .navbar-icon-button {
@@ -1005,6 +1008,11 @@ body > .dialog-off-canvas-main-canvas > .layout-container > .page-container > .p
     "sidebar";
   gap: 2rem;
   align-items: start;
+}
+
+.page-container--taxonomy-term {
+  /* Add breathing room below navbar on taxonomy term pages. */
+  padding-top: clamp(1.5rem, 6vw, 2.5rem);
 }
 
 
