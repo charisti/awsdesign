@@ -759,7 +759,7 @@
 
 @media (max-width: 768px) {
   .work-archive__columns {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     justify-items: center;
   }
 
@@ -1587,7 +1587,7 @@ body > .dialog-off-canvas-main-canvas > .layout-container > .page-container > .p
 .page-tags .work-archive__columns,
 .page-kunden .work-archive__columns {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.5rem;
 }
 
