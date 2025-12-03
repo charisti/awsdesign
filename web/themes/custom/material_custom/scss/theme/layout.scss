@@ -766,6 +766,31 @@
   .work-item-card {
     max-width: 100%;
   }
+
+  /* Stack all work teasers on mobile (image above text). */
+  .work-teaser {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .work-teaser__media,
+  .work-teaser__text {
+    width: 100%;
+    padding: 0;
+    order: initial;
+  }
+
+  /* Ensure alt items also stack on mobile. */
+  .front-projects__item--alt .work-teaser {
+    flex-direction: column !important;
+  }
+
+  /* Keep highlight items fully flexed with original spacing on mobile. */
+  .front-projects__item--highlight .work-teaser {
+    flex-direction: column !important;
+  
+  }
 }
 
 .front-section__inner {
