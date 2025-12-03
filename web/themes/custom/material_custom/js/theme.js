@@ -128,6 +128,20 @@
         });
       });
 
+      // Mobile filter toggle: show/hide sidebars.
+      once('filterToggle', '.filter-toggle', context).forEach(toggle => {
+        const targetSelector = toggle.getAttribute('data-target');
+        const target = targetSelector ? document.querySelector(targetSelector) : null;
+        if (!target) {
+          return;
+        }
+        toggle.addEventListener('click', () => {
+          const isOpen = target.classList.toggle('is-filters-open');
+          toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+        toggle.setAttribute('aria-expanded', 'false');
+      });
+
       // Put your common functions and handlers here. For example:
       //
       // const myCommonFunction = (element, event) => {

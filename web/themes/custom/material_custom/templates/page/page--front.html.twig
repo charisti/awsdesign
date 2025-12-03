@@ -1,6 +1,7 @@
 {% extends "@material_base/layout/page.html.twig" %}
 
 {% block content %}
+  {% set projects_grid = featured_projects|length > 5 %}
   <div class="front-page">
     {% if spruch_highlight %}
       {{ spruch_highlight }}
@@ -9,9 +10,9 @@
     {% if featured_projects %}
       <section class="front-section front-section--projects">
         <div class="front-section__inner">
-          <ul class="front-projects__list">
+          <ul class="front-projects__list{% if projects_grid %} front-projects__list--grid{% endif %}">
             {% for project in featured_projects %}
-              <li class="front-projects__item front-projects__item--highlight">
+              <li class="front-projects__item front-projects__item--highlight{% if loop.index is odd %} front-projects__item--alt{% endif %}{% if projects_grid %} front-projects__item--compact{% endif %}">
                 {{ project }}
               </li>
             {% endfor %}

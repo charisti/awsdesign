@@ -18,14 +18,16 @@
   <header{{ attributes.addClass(classes).setAttribute('data-mdc-auto-init', 'MDCTopAppBar') }}>
     <div class="navbar__container mdc-top-app-bar__row">
       <section class="navbar__section mdc-top-app-bar__section navbar__section--left">
-        {{ content }}
-      </section>
-      <section class="navbar__section mdc-top-app-bar__section navbar__section--right">
-        <button class="navbar-icon-button navbar-icon-button--animated mdc-icon-button drawer-toggle__button" type="button" aria-label="{{ 'Menu'|t }}">
-          <span class="burger-line burger-line--top"></span>
-          <span class="burger-line burger-line--middle"></span>
-          <span class="burger-line burger-line--bottom"></span>
-        </button>
+        <div class="navbar__content">
+          {{ content }}
+        </div>
+        <div class="navbar__actions">
+          <button class="navbar-icon-button navbar-icon-button--animated mdc-icon-button drawer-toggle__button" type="button" aria-label="{{ 'Menu'|t }}">
+            <span class="burger-line burger-line--top"></span>
+            <span class="burger-line burger-line--middle"></span>
+            <span class="burger-line burger-line--bottom"></span>
+          </button>
+        </div>
       </section>
     </div>
   </header>

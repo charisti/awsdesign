@@ -14,6 +14,12 @@
     <main role="main" class="page-main">
       <a id="main-content" tabindex="-1"></a>{# link is in html.html.twig #}
 
+      {% if page.sidebar_first %}
+        <button class="filter-toggle" type="button" data-target=".work-archive-layout">
+          Filter anzeigen
+        </button>
+      {% endif %}
+
       <div class="work-archive-layout">
         {% if page.sidebar_first %}
           <aside class="work-archive-layout__sidebar" role="complementary">
