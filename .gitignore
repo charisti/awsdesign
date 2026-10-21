@@ -9,7 +9,6 @@ Thumbs.db
 # Ignore Composer vendor and other generated files
 /vendor/
 */vendor/
-composer.lock
 
 # Ignore DDEV config if you prefer not to share local setup
 .ddev/.import/
