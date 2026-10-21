@@ -37,3 +37,7 @@ Thumbs.db
 # Ignore node_modules if you have JS in theme
 **/node_modules/
 web/sites/default/settings.php
+
+# Composer-managed code: installed on each deploy via `composer install`
+/web/core/
+/web/modules/contrib/

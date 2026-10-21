@@ -1,4 +1,0 @@
-geocoder_presave_disabled: false
-cache: true
-queue: false
-geocode_country_only_address: true

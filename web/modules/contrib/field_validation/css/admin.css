@@ -1,8 +1,0 @@
-/**
- * Field validation configuration pages.
- */
-.field-validation-rule-new,
-.field-validation-rule-new div,
-.field-validation-rule-new label {
-  display: inline;
-}
