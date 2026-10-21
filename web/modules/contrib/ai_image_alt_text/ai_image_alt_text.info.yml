@@ -1,6 +1,6 @@
 name: AI Image Alt Text
 type: module
-description: 'Provided the possibility to fill out the alt text of an image field using AI.'
+description: 'Provides the possibility to fill out the alt text of an image field using AI.'
 package: AI Tools
 core_version_requirement: ^10.2 || ^11
 configure: ai_image_alt_text.settings_form
@@ -9,7 +9,7 @@ dependencies:
   - drupal:image
   - ai:ai
 
-# Information added by Drupal.org packaging script on 2025-02-05
-version: '1.0.1'
+# Information added by Drupal.org packaging script on 2026-10-01
+version: '1.0.3'
 project: 'ai_image_alt_text'
-datestamp: 1738761809
+datestamp: 1790851128

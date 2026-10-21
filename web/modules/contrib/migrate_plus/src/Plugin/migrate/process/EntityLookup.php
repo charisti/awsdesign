@@ -10,6 +10,7 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\Query\QueryInterface;
 use Drupal\Core\Field\FieldItemList;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateException;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\Plugin\MigrationInterface;
@@ -91,18 +92,17 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * @codingStandardsIgnoreEnd
  *
  * @see \Drupal\Core\Entity\Query\QueryInterface::condition()
- *
- * @MigrateProcessPlugin(
- *   id = "entity_lookup",
- *   handle_multiples = TRUE
- * )
  */
+#[MigrateProcess(
+  id: 'entity_lookup',
+  handle_multiples: TRUE,
+)]
 class EntityLookup extends ProcessPluginBase implements ContainerFactoryPluginInterface {
 
   /**
    * The entity type manager.
    */
-  protected ?EntityTypeManagerInterface $entityTypeManager;
+  protected ?EntityTypeManagerInterface $entityTypeManager = NULL;
 
   /**
    * The field manager.
@@ -122,7 +122,7 @@ class EntityLookup extends ProcessPluginBase implements ContainerFactoryPluginIn
   /**
    * The destination entity type.
    */
-  protected ?string $destinationEntityType;
+  protected ?string $destinationEntityType = NULL;
 
   /**
    * The destination bundle key.
@@ -152,7 +152,7 @@ class EntityLookup extends ProcessPluginBase implements ContainerFactoryPluginIn
   /**
    * The destination property.
    */
-  protected ?string $destinationProperty;
+  protected ?string $destinationProperty = NULL;
 
   /**
    * Is access check required.
@@ -172,7 +172,7 @@ class EntityLookup extends ProcessPluginBase implements ContainerFactoryPluginIn
     $instance->entityTypeManager = $container->get('entity_type.manager');
     $instance->entityFieldManager = $container->get('entity_field.manager');
     $instance->selectionPluginManager = $container->get('plugin.manager.entity_reference_selection');
-    $pluginIdParts = explode(':', $instance->migration->getDestinationPlugin()->getPluginId());
+    $pluginIdParts = explode(':', (string) $instance->migration->getDestinationPlugin()->getPluginId());
     $instance->destinationEntityType = empty($pluginIdParts[1]) ? NULL : $pluginIdParts[1];
     $instance->destinationBundleKey = $instance->destinationEntityType ? $instance->entityTypeManager->getDefinition($instance->destinationEntityType)->getKey('bundle') : NULL;
     return $instance;
@@ -189,7 +189,7 @@ class EntityLookup extends ProcessPluginBase implements ContainerFactoryPluginIn
 
     // In case of subfields ('field_reference/target_id'), extract the field
     // name only.
-    $parts = explode('/', $destination_property);
+    $parts = explode('/', (string) $destination_property);
     $destination_property = reset($parts);
     $this->determineLookupProperties($destination_property);
 
@@ -293,7 +293,7 @@ class EntityLookup extends ProcessPluginBase implements ContainerFactoryPluginIn
   /**
    * Actually get the query.
    */
-  private function doGetQuery($value): QueryInterface {
+  protected function doGetQuery($value): QueryInterface {
     $operator = !empty($this->configuration['operator']) ? $this->configuration['operator'] : '=';
     $multiple = is_array($value);
 
@@ -321,7 +321,7 @@ class EntityLookup extends ProcessPluginBase implements ContainerFactoryPluginIn
   /**
    * Process results.
    */
-  private function processResults($results, $original_value) {
+  protected function processResults($results, $original_value) {
     if (empty($results)) {
       return NULL;
     }

@@ -1,6 +1,8 @@
 trash.settings:
   type: config_object
   strict: true
+  constraints:
+    FullyValidatable: ~
   mapping:
     enabled_entity_types:
       label: 'Enabled entity types'
@@ -25,4 +27,11 @@ trash.settings:
             ValidAutoPurgePeriod: []
     compact_overview:
       label: 'Simplify the Trash overview page when there are many entity types enabled'
+      type: boolean
+
+field.formatter.settings.trash_label:
+  type: field.formatter.settings.string
+  mapping:
+    show_entity_id:
+      label: 'Show the entity ID'
       type: boolean

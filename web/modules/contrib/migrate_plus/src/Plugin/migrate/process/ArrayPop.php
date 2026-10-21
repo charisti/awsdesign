@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateException;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\ProcessPluginBase;
@@ -31,6 +32,10 @@ use Drupal\migrate\Row;
  *     source: authors
  * @endcode
  */
+#[MigrateProcess(
+  id: 'array_pop',
+  handle_multiples: TRUE,
+)]
 class ArrayPop extends ProcessPluginBase {
 
   /**

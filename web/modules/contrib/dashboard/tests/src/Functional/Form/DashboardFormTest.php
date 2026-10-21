@@ -183,6 +183,11 @@ class DashboardFormTest extends BrowserTestBase {
    * Tests discarding dashboard layout changes.
    */
   public function testDiscardDashboardLayout() {
+    $confirmation_message = 'Any unsaved changes to the layout will be discarded. This action cannot be undone.';
+    if (version_compare(\Drupal::VERSION, '11.3', '<')) {
+      $confirmation_message = 'Are you sure you want to discard your layout changes?';
+    }
+
     $this->drupalLogin($this->adminUser);
 
     $dashboard = Dashboard::create([
@@ -196,7 +201,7 @@ class DashboardFormTest extends BrowserTestBase {
     $this->clickLink('Discard changes');
 
     $this->assertSession()->addressEquals('/admin/structure/dashboard/test_dashboard/layout/discard-changes');
-    $this->assertSession()->pageTextContains('Are you sure you want to discard your layout changes?');
+    $this->assertSession()->pageTextContains($confirmation_message);
 
     $this->assertSession()->elementExists('xpath', '//input[@type="submit" and @value="Confirm"]');
     $this->submitForm([], 'Confirm');

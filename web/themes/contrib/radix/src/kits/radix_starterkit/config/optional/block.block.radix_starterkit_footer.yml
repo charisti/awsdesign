@@ -12,11 +12,11 @@ theme: radix_starterkit
 region: footer
 weight: -5
 provider: null
-plugin: "system_menu_block:footer"
+plugin: 'system_menu_block:footer'
 settings:
-  id: "system_menu_block:footer"
-  label: "Footer menu"
-  label_display: "0"
+  id: 'system_menu_block:footer'
+  label: 'Footer menu'
+  label_display: '0'
   provider: system
   level: 1
   depth: 0

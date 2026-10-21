@@ -1,0 +1,44 @@
+site_name: Layout Builder Restrictions
+repo_url: https://git.drupalcode.org/project/layout_builder_restrictions
+repo_name: drupal/layout_builder_restrictions
+edit_uri: /-/edit/3.x/docs/
+theme:
+  name: material
+  logo: icon-w-drupal.png
+  favicon: logo.png
+  palette:
+    # Palette toggle for automatic mode
+    - media: '(prefers-color-scheme)'
+      primary: blue
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    # Palette toggle for light mode
+    - media: '(prefers-color-scheme: light)'
+      primary: blue
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: '(prefers-color-scheme: dark)'
+      primary: blue
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  features:
+    - navigation.expand
+plugins:
+  - search
+  - privacy:
+      enabled: !ENV [CI, false]
+nav:
+  - Introduction: index.md
+  - Quick Start: quick-start.md
+  - Terminology: terminology.md
+  - Restricting blocks to specific layouts & regions: by-region.md
+  - Restrictions by role: by-role.md
+  - Developers:
+      - Custom restrictions using hooks: hooks.md
+      - Adding new restrictions via plugins: plugins.md

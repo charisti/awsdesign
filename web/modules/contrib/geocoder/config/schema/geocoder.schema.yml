@@ -10,12 +10,16 @@ geocoder.settings:
       description: "Check to globally disable Geocoding and Reverse Geocoding operations when inserting and updating entities (useful, for example, to temporary prevent geocoding operations during content migration)."
     cache:
       type: boolean
-      label: "Should we cache the results ?"
+      label: "Should we cache the results?"
       description: "To prevent sending multiple times the same request, you can enable to cache to save temporarily the result of the geocode and reverse geocode in the cache."
     queue:
       type: boolean
       label: 'Should we Queue the Geocode processes?'
       description: 'Enable this to use Queue Worker ("Geocoder Field Queue Process") & Cron to process the geocoder data to reduce delays while saving the entity.'
+    geocode_country_only_address:
+      type: boolean
+      label: "Geocode country-only addresses"
+      description: "When an address carries only a country (no street, locality, etc.), geocode it to the country name. Disable to treat such a value as empty, so no country-centroid result is produced (e.g. for optional address fields with a pre-selected country)."
 
 geocoder.geocoder_provider.*:
   type: config_entity
@@ -73,7 +77,7 @@ geocoder_provider.configuration.googlemaps:
     apiKey:
       type: string
       label: "Google Geocoding API key"
-      description: '<a href="https://developers.google.com/maps/documentation/javascript/get-api-key#standard-auth" target="blank">Follow these steps to get an API key</a>'
+      description: '<div><a href="https://developers.google.com/maps/documentation/javascript/get-api-key#standard-auth" target="blank">Follow these steps to get an API key</a> - <b>Note: </b>This need to be an API Key without referrer restrictions. As working on server side API calls, this is not going to be exposed in clear on your browser</div>'
     region:
       type: string
       nullable: true

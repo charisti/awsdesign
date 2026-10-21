@@ -1,14 +1,23 @@
 <?php
 
-namespace Drupal\ai_ckeditor\Plugin\AICKEditor;
+namespace Drupal\ai_ckeditor\Plugin\AiCKEditor;
 
+use Drupal\ai\Utility\Textarea;
+use Drupal\ai\AiProviderPluginManager;
 use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Language\LanguageManagerInterface;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\ai_ckeditor\AiCKEditorPluginBase;
 use Drupal\ai_ckeditor\Attribute\AiCKEditor;
 use Drupal\ai_ckeditor\Command\AiRequestCommand;
+use Drupal\Core\Template\TwigEnvironment;
 use Drupal\taxonomy\Entity\Term;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Plugin to translate the language of selected text.
@@ -24,7 +33,43 @@ final class Translate extends AiCKEditorPluginBase {
   /**
    * {@inheritdoc}
    */
-  public function defaultConfiguration() {
+  public function __construct(
+    array $configuration,
+    $plugin_id,
+    $plugin_definition,
+    AiProviderPluginManager $ai_provider_manager,
+    EntityTypeManagerInterface $entity_type_manager,
+    AccountProxyInterface $account,
+    RequestStack $requestStack,
+    LoggerChannelFactoryInterface $logger_factory,
+    LanguageManagerInterface $language_manager,
+    protected TwigEnvironment $twig,
+  ) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition, $ai_provider_manager, $entity_type_manager, $account, $requestStack, $logger_factory, $language_manager);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition): static {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('ai.provider'),
+      $container->get('entity_type.manager'),
+      $container->get('current_user'),
+      $container->get('request_stack'),
+      $container->get('logger.factory'),
+      $container->get('language_manager'),
+      $container->get('twig'),
+    );
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function defaultConfiguration(): array {
     return [
       'autocreate' => FALSE,
       'provider' => NULL,
@@ -68,6 +113,11 @@ final class Translate extends AiCKEditorPluginBase {
       '#options' => $vocabulary_options,
       '#description' => $this->t('Select the vocabulary that contains translation options.'),
       '#default_value' => $this->configuration['translate_vocabulary'],
+      '#states' => [
+        'visible' => [
+          'select[name="editor[settings][plugins][ai_ckeditor_ai][plugins][ai_ckeditor_translate][language_source]"]' => ['value' => 'tax'],
+        ],
+      ],
     ];
 
     $form['autocreate'] = [
@@ -75,6 +125,11 @@ final class Translate extends AiCKEditorPluginBase {
       '#title' => $this->t('Allow autocreate'),
       '#description' => $this->t('If enabled, users with access to this format are able to autocreate new terms in the chosen vocabulary, instead of a select list..'),
       '#default_value' => $this->configuration['autocreate'] ?? FALSE,
+      '#states' => [
+        'visible' => [
+          'select[name="editor[settings][plugins][ai_ckeditor_ai][plugins][ai_ckeditor_translate][language_source]"]' => ['value' => 'tax'],
+        ],
+      ],
     ];
 
     $form['use_description'] = [
@@ -82,11 +137,14 @@ final class Translate extends AiCKEditorPluginBase {
       '#title' => $this->t('Use term description for translation context'),
       '#description' => $this->t('If enabled and a description field is filled out, the translation will use this description to explain things the AI should think about when translating.'),
       '#default_value' => $this->configuration['use_description'] ?? FALSE,
+      '#states' => [
+        'visible' => [
+          'select[name="editor[settings][plugins][ai_ckeditor_ai][plugins][ai_ckeditor_translate][language_source]"]' => ['value' => 'tax'],
+        ],
+      ],
     ];
 
-    $options = $this->aiProviderManager->getSimpleProviderModelOptions('chat');
-    array_shift($options);
-    array_splice($options, 0, 1);
+    $options = $this->aiProviderManager->getSimpleProviderModelOptions('chat', FALSE);
     $form['provider'] = [
       '#type' => 'select',
       "#empty_option" => $this->t('-- Default from AI module (chat) --'),
@@ -98,15 +156,32 @@ final class Translate extends AiCKEditorPluginBase {
     $prompts_config = $this->getConfigFactory()->get('ai_ckeditor.settings');
     $prompt_translate = $prompts_config->get('prompts.translate');
     $form['prompt'] = [
-      '#type' => 'textarea',
+      '#type' => 'ai_prompt',
       '#title' => $this->t('Change translation prompt'),
+      '#prompt_types' => ['ai_ckeditor_translate'],
       '#default_value' => $prompt_translate,
-      '#description' => $this->t('This prompt will be used to translate the text. {{ lang }} is the target language that is chosen.'),
+      '#parents' => [
+        'editor',
+        'settings',
+        'plugins',
+        'ai_ckeditor_ai',
+        'plugins',
+        'ai_ckeditor_translate',
+        'prompt',
+      ],
       '#states' => [
         'required' => [
           ':input[name="editor[settings][plugins][ai_ckeditor_ai][plugins][ai_ckeditor_translate][enabled]"]' => ['checked' => TRUE],
         ],
       ],
+      // This property will land into core soon, see
+      // https://www.drupal.org/project/drupal/issues/3202631. It can stay
+      // after this is added to Drupal core.
+      '#normalize_newlines' => TRUE,
+      // Until that the custom value callback is needed. Should be removed
+      // after the issue mentioned above is merged into core and the minimum
+      // supported Drupal version includes `#normalize_newlines` property.
+      '#value_callback' => [Textarea::class, 'valueCallback'],
     ];
 
     return $form;
@@ -150,11 +225,26 @@ final class Translate extends AiCKEditorPluginBase {
   /**
    * {@inheritdoc}
    */
+  protected function getNoSelectedTextMessage(): TranslatableMarkup {
+    return $this->t('You must select some text before you can translate it.');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function buildCkEditorModalForm(array $form, FormStateInterface $form_state, array $settings = []) {
-    $form = parent::buildCkEditorModalForm($form, $form_state);
+    $form = parent::buildCkEditorModalForm($form, $form_state, $settings);
+
+    // If no text was selected, don't append plugin-specific fields.
+    $storage = $form_state->getStorage();
+    if (empty($storage['selected_text'])) {
+      return $form;
+    }
+
+    $autocreate = $this->configuration['autocreate'] && $this->configuration['language_source'] == 'tax';
 
     $form['language'] = [
-      '#type' => $this->configuration['autocreate'] ? 'entity_autocomplete' : 'select',
+      '#type' => $autocreate ? 'entity_autocomplete' : 'select',
       '#title' => $this->t('Choose language'),
       '#tags' => FALSE,
       '#required' => TRUE,
@@ -162,7 +252,7 @@ final class Translate extends AiCKEditorPluginBase {
       '#description' => $this->t('Selecting one of the options will translate the selected text.'),
     ];
 
-    if ($this->configuration['autocreate']) {
+    if ($autocreate) {
       $form['language']['#target_type'] = 'taxonomy_term';
       $form['language']['#selection_settings'] = [
         'target_bundles' => [$this->configuration['translate_vocabulary']],
@@ -175,7 +265,20 @@ final class Translate extends AiCKEditorPluginBase {
       }
     }
     else {
-      $form['language']['#options'] = $this->getTermOptions($this->configuration['translate_vocabulary']);
+      if ($this->configuration['language_source'] == 'tax') {
+        $form['language']['#options'] = $this->getTermOptions($this->configuration['translate_vocabulary']);
+      }
+      else {
+        $site_languages = $this->languageManager->getLanguages();
+        $form['language']['#options'] = [];
+        foreach ($site_languages as $langcode => $language) {
+          $form['language']['#options'][$langcode] = $language->getName();
+        }
+        // Set default value if only one language is available.
+        if (count($form['language']['#options']) === 1) {
+          $form['language']['#default_value'] = key($form['language']['#options']);
+        }
+      }
     }
 
     return $form;
@@ -197,12 +300,14 @@ final class Translate extends AiCKEditorPluginBase {
 
     try {
       $prompts_config = $this->getConfigFactory()->get('ai_ckeditor.settings');
-      $prompt = $prompts_config->get('prompts.translate');
+      $promptId = $prompts_config->get('prompts.translate');
+      $promptText = $this->getConfigFactory()->get('ai.ai_prompt.' . $promptId)?->get('prompt') ?? '';
 
-      if ($this->configuration['language_source'] == 'lang') {
+      $promptContext = NULL;
+      if ($this->configuration['language_source'] === 'lang') {
         $site_languages = $this->languageManager->getLanguages();
         $langName = $site_languages[$values['plugin_config']['language']]->getName();
-        $prompt = str_replace('{{ lang }}', $langName . ' (' . $values['plugin_config']['language'] . ')', $prompt);
+        $promptLanguage = $langName . ' (' . $values['plugin_config']['language'] . ')';
       }
       else {
         // Handle taxonomy terms.
@@ -222,15 +327,29 @@ final class Translate extends AiCKEditorPluginBase {
           $term->save();
         }
 
-        $prompt = str_replace('{{ lang }}', $term->label(), $prompt);
+        $promptLanguage = $term->label();
         if ($this->configuration['use_description'] && !empty($term->getDescription())) {
-          $prompt .= ' Translation context: ' . strip_tags($term->getDescription());
+          $promptContext = strip_tags($term->getDescription());
         }
       }
 
-      $prompt .= "\n\nThe text that we want to translate is the following:\n" . $values['plugin_config']['selected_text'];
+      // Use Twig to render the prompt with conditional logic for
+      // the use_description setting. This must happen before the
+      // placeholders are replaced, so that the selected text, the language
+      // name and the context are never evaluated as a Twig template.
+      $promptText = (string) $this->twig->renderInline($promptText, [
+        'use_description' => (bool) $this->configuration['use_description'],
+      ]);
+
+      $promptText = strtr($promptText, [
+        '{lang}' => $promptLanguage,
+        '{context}' => $promptContext,
+        '{inputText}' => $values['plugin_config']['selected_text'],
+      ]);
+
+      assert(is_array($this->pluginDefinition));
       $response = new AjaxResponse();
-      $response->addCommand(new AiRequestCommand($prompt, $values["editor_id"], $this->pluginDefinition['id'], 'ai-ckeditor-response'));
+      $response->addCommand(new AiRequestCommand($promptText, $values["editor_id"], $this->pluginDefinition['id'], 'ai-ckeditor-response'));
       return $response;
     }
     catch (\Exception $e) {

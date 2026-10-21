@@ -30,6 +30,20 @@
         settings.klaro.config.services.forEach(function (service, a_index) {
           // Set callback for each service.
           settings.klaro.config.services[a_index].callback = Drupal.behaviors.klaro.serviceCallback;
+          // Wrap onInit/onAccept/onDecline string code as error-safe functions.
+          ['onInit', 'onAccept', 'onDecline'].forEach(function (hook) {
+            const code = service[hook];
+            if (code && code.length > 0) {
+              settings.klaro.config.services[a_index][hook] = function (opts) {
+                try {
+                  Function('opts', code)(opts);
+                }
+                catch (error) {
+                  console.error('Error executing ' + hook + ' code for service "' + service.name + '":', error);
+                }
+              };
+            }
+          });
           // Create regular expressions from config.
           service.cookies.forEach(function (cookie, c_index) {
             settings.klaro.config.services[a_index]['cookies'][c_index] = [new RegExp(cookie[0], 'i'), cookie[1] || '/', cookie[2] || location.host];
@@ -106,7 +120,7 @@
       // Set preview image for contextual consent.
       var elements = once('klaro-thumbnail', '.klaro.cm-as-context-notice', context);
       Array.prototype.forEach.call(elements, function (el) {
-        let klaro_elem = (el.closest('.field'))?.querySelector('[data-modified-by-klaro]');
+        let klaro_elem = el.closest('[data-type="placeholder"]')?.nextElementSibling;
         let thumbnail = klaro_elem?.getAttribute('data-thumbnail');
         let title = klaro_elem?.getAttribute('title');
 
@@ -168,7 +182,12 @@
 
       // Execute callbackCode from config form.
       if (service.callbackCode.length > 0) {
-        Function('consent', 'service', service.callbackCode)(consent, service);
+        try {
+          Function('consent', 'service', service.callbackCode)(consent, service);
+        }
+        catch (error) {
+          console.error('Error executing callback code for service "' + service.name + '":', error);
+        }
       }
 
       // Do the behaviors only for consent.
@@ -291,7 +310,8 @@
             labels[i].removeAttribute('tabindex');
           }
         }
-        labels[0].focus();
+        // Set focus to first possible label.
+        document.querySelector('#klaro input:not(:disabled)+label')?.focus();
       }
       // Add accessibility features to the preferences dialog : role dialog, aria-modal and aria-labelledby.
       if (document.querySelector('.cm-modal.cm-klaro')) {
@@ -341,7 +361,7 @@
    */
   Drupal.behaviors.klaroLink = {
     attach: function (context, settings) {
-      var elements = once('klaroLink', '[rel*="open-consent-manager"]', context);
+      var elements = once('klaroLink', '[rel*="open-consent-manager"], [href*="#klaro"], .open-consent-manager', context);
       Array.prototype.forEach.call(elements, function(element) {
         element.addEventListener('click', function (event) {
           klaro.show(Drupal.behaviors.klaro.config);

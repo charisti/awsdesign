@@ -8,7 +8,7 @@ label: trash_test_view_relationship
 module: views
 description: 'Tests relationships interaction with trash.'
 tag: ''
-base_table: trash_test
+base_table: trash_test_field_data
 base_field: id
 display:
   default:
@@ -20,7 +20,7 @@ display:
       fields:
         id:
           id: id
-          table: trash_test
+          table: trash_test_field_data
           field: id
           relationship: referenced_by
           group_type: group
@@ -108,7 +108,7 @@ display:
       sorts:
         id:
           id: id
-          table: trash_test
+          table: trash_test_field_data
           field: id
           relationship: referenced_by
           group_type: group
@@ -124,7 +124,7 @@ display:
       arguments:
         id:
           id: id
-          table: trash_test
+          table: trash_test_field_data
           field: id
           relationship: none
           group_type: group
@@ -184,7 +184,7 @@ display:
       relationships:
         referenced_by:
           id: referenced_by
-          table: trash_test
+          table: trash_test_field_data
           field: referenced_by
           relationship: none
           group_type: group

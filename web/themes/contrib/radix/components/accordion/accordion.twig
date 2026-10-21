@@ -36,7 +36,7 @@
 {% set title_attributes = title_attributes ?: create_attribute() %}
 {% set id = id|default('accordion-' ~ random(1000)) %}
 {% set flush = flush ?? false %}
-{% set items = items|default([]) %}
+{% set items = items ?? [] %}
 {% set open_item_id = open_item_id|default(0) %}
 
 {%
@@ -93,6 +93,7 @@
             {%
               set button_attributes = create_attribute()
                 .addClass(button_classes)
+                .setAttribute('type', 'button')
                 .setAttribute('data-bs-toggle', 'collapse')
                 .setAttribute('autocomplete', 'off')
                 .setAttribute('data-bs-target', '#collapse-' ~ id ~ '-' ~ loop.index)
@@ -104,6 +105,7 @@
               include 'radix:button' with {
                 content: item.title,
                 button_attributes,
+                id: '',
               }
             %}
           </{{item_title_tag}}>

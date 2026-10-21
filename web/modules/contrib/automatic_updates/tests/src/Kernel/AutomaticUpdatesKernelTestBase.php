@@ -123,7 +123,7 @@ abstract class AutomaticUpdatesKernelTestBase extends PackageManagerKernelTestBa
 }
 
 /**
- * A test-only version of the cron update runner to override and expose internals.
+ * Test-only version of the cron update runner to override and expose internals.
  */
 class TestCronUpdateRunner extends CronUpdateRunner {
 

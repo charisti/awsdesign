@@ -2,6 +2,7 @@
 
 namespace Drupal\checklistapi\Storage;
 
+use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 
 /**
@@ -29,13 +30,23 @@ class ConfigStorage extends StorageBase {
   private $configFactory;
 
   /**
+   * The cache tags invalidator.
+   *
+   * @var \Drupal\Core\Cache\CacheTagsInvalidatorInterface
+   */
+  private CacheTagsInvalidatorInterface $cacheTagsInvalidator;
+
+  /**
    * Constructs a class instance.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The config factory.
+   * @param \Drupal\Core\Cache\CacheTagsInvalidatorInterface $cache_tags_invalidator
+   *   The cache tags invalidator.
    */
-  public function __construct(ConfigFactoryInterface $config_factory) {
+  public function __construct(ConfigFactoryInterface $config_factory, CacheTagsInvalidatorInterface $cache_tags_invalidator) {
     $this->configFactory = $config_factory;
+    $this->cacheTagsInvalidator = $cache_tags_invalidator;
   }
 
   /**
@@ -50,6 +61,7 @@ class ConfigStorage extends StorageBase {
    */
   public function setSavedProgress(array $progress) {
     $this->getConfig()->set(self::CONFIG_KEY, $progress)->save();
+    $this->cacheTagsInvalidator->invalidateTags($this->getCacheTags());
   }
 
   /**
@@ -57,6 +69,7 @@ class ConfigStorage extends StorageBase {
    */
   public function deleteSavedProgress() {
     $this->getConfig()->delete();
+    $this->cacheTagsInvalidator->invalidateTags($this->getCacheTags());
   }
 
   /**

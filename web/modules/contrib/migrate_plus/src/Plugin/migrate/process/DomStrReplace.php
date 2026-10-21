@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
 use Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException;
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\Row;
 
@@ -80,11 +81,8 @@ use Drupal\migrate\Row;
  *       plugin: dom
  *       method: export
  * @endcode
- *
- * @MigrateProcessPlugin(
- *   id = "dom_str_replace"
- * )
  */
+#[MigrateProcess(id: 'dom_str_replace')]
 class DomStrReplace extends DomProcessBase {
 
   /**

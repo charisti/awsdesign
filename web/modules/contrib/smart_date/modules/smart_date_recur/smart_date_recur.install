@@ -7,6 +7,8 @@
 
 declare(strict_types=1);
 
+use Drupal\Component\Utility\DeprecationHelper;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Drupal\Core\Field\BaseFieldDefinition;
 
 /**
@@ -21,7 +23,7 @@ function smart_date_recur_requirements($phase) {
       'description' => \t('Smart Date Recur has unmet Composer dependencies. Read the <a href="@url">documentation</a> on how to install them.', [
         '@url' => 'https://www.drupal.org/node/2627292',
       ]),
-      'severity' => \REQUIREMENT_ERROR,
+      'severity' => DeprecationHelper::backwardsCompatibleCall(\Drupal::VERSION, '11.2.0', fn() => RequirementSeverity::Error, fn() => \REQUIREMENT_ERROR),
     ];
   }
 

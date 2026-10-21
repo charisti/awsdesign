@@ -27,6 +27,7 @@ function editoria11y_install() {
 
   // Display a help message once after it is installed:
   \Drupal::state()->set('editoria11y.show_help_message', TRUE);
+
 }
 
 /**

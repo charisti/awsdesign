@@ -12,33 +12,35 @@ dependencies:
     - node.type.person
     - workflows.workflow.basic_editorial
   module:
+    - content_moderation
     - media_library
     - path
-    - text
-    - content_moderation
     - scheduler
+    - tagify
+    - telephone
+    - text
 id: node.person.default
 targetEntityType: node
 bundle: person
 mode: default
 content:
+  created:
+    type: datetime_timestamp
+    weight: 15
+    region: content
+    settings: {  }
+    third_party_settings: {  }
   field_content:
     type: text_textarea
-    weight: 6
+    weight: 12
     region: content
     settings:
       rows: 9
       placeholder: ''
     third_party_settings: {  }
-  created:
-    type: datetime_timestamp
-    weight: 10
-    region: content
-    settings: {  }
-    third_party_settings: {  }
   field_description:
     type: string_textarea
-    weight: 1
+    weight: 7
     region: content
     settings:
       rows: 5
@@ -46,73 +48,75 @@ content:
     third_party_settings: {  }
   field_featured_image:
     type: media_library_widget
-    weight: 2
+    weight: 8
     region: content
     settings:
       media_types: {  }
     third_party_settings: {  }
   field_person__email:
     type: email_default
-    weight: 5
+    weight: 11
     region: content
     settings:
       placeholder: ''
       size: 60
     third_party_settings: {  }
   field_person__phone_number:
-    type: string_textfield
-    weight: 4
+    type: telephone_default
+    weight: 10
     region: content
     settings:
-      size: 60
       placeholder: ''
     third_party_settings: {  }
   field_person__role_job_title:
-    type: text_textfield
-    weight: 3
+    type: string_textarea
+    weight: 9
     region: content
     settings:
-      size: 60
+      rows: 5
       placeholder: ''
     third_party_settings: {  }
   field_tags:
     type: tagify_entity_reference_autocomplete_widget
-    weight: 7
+    weight: 13
     region: content
     settings:
       match_operator: CONTAINS
       match_limit: 10
       placeholder: ''
-    third_party_settings: {  }
-  langcode:
-    type: language_select
-    weight: 8
-    region: content
-    settings:
-      include_locked: true
+      suggestions_dropdown: 1
+      show_entity_id: 0
+      show_info_label: 0
+      info_label: ''
     third_party_settings: {  }
   moderation_state:
     type: moderation_state_default
-    weight: -7
+    weight: 0
     region: content
     settings: {  }
     third_party_settings: {  }
   path:
     type: path
-    weight: 13
+    weight: 18
     region: content
     settings: {  }
     third_party_settings: {  }
   promote:
     type: boolean_checkbox
-    weight: 11
+    weight: 16
     region: content
     settings:
       display_label: true
     third_party_settings: {  }
   publish_on:
     type: datetime_timestamp_no_default
-    weight: -5
+    weight: 2
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  publish_state:
+    type: options_select
+    weight: 3
     region: content
     settings: {  }
     third_party_settings: {  }
@@ -123,27 +127,27 @@ content:
     settings: {  }
     third_party_settings: {  }
   scheduler_settings:
-    weight: -6
+    weight: 1
     region: content
     settings: {  }
     third_party_settings: {  }
   status:
     type: boolean_checkbox
-    weight: 15
+    weight: 19
     region: content
     settings:
       display_label: true
     third_party_settings: {  }
   sticky:
     type: boolean_checkbox
-    weight: 12
+    weight: 17
     region: content
     settings:
       display_label: true
     third_party_settings: {  }
   title:
     type: string_textfield
-    weight: 0
+    weight: 6
     region: content
     settings:
       size: 60
@@ -151,7 +155,7 @@ content:
     third_party_settings: {  }
   uid:
     type: entity_reference_autocomplete
-    weight: 9
+    weight: 14
     region: content
     settings:
       match_operator: CONTAINS
@@ -161,10 +165,15 @@ content:
     third_party_settings: {  }
   unpublish_on:
     type: datetime_timestamp_no_default
-    weight: -3
+    weight: 4
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  unpublish_state:
+    type: options_select
+    weight: 5
     region: content
     settings: {  }
     third_party_settings: {  }
 hidden:
-  publish_state: true
-  unpublish_state: true
+  url_redirects: true

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Drupal\geocoder_geofield\Geocoder\Provider;
 
 /**
- * Providers GeometryProvider interface..
+ * Defines the GeometryProvider interface.
  */
 interface GeometryProviderInterface {
 

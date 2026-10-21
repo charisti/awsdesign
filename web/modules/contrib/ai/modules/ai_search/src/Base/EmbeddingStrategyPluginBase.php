@@ -3,7 +3,7 @@
 namespace Drupal\ai_search\Base;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Entity\EntityTypeManager;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleExtensionList;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Messenger\MessengerInterface;
@@ -12,6 +12,7 @@ use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\ai\AiProviderPluginManager;
 use Drupal\ai\Plugin\ProviderProxy;
 use Drupal\ai\Utility\TextChunker;
+use Drupal\ai\Utility\TokenizerInterface;
 use Drupal\ai_search\EmbeddingStrategyInterface;
 use League\HTMLToMarkdown\Converter\TableConverter;
 use League\HTMLToMarkdown\HtmlConverter;
@@ -46,6 +47,24 @@ abstract class EmbeddingStrategyPluginBase implements EmbeddingStrategyInterface
   protected int $chunkSize;
 
   /**
+   * If we should skip moderation (mostly NO!).
+   *
+   * @var bool
+   */
+  protected bool $skipModeration;
+
+  /**
+   * Maximum number of texts to send in a single embeddings collection request.
+   *
+   * Used only when the provider supports multi embeddings. Providers have
+   * different limits on the number of inputs per request, so this is
+   * configurable per strategy with a conservative default.
+   *
+   * @var int
+   */
+  protected int $embeddingCollectionSize = 50;
+
+  /**
    * The chunk minimum overlap.
    *
    * @var int
@@ -60,6 +79,13 @@ abstract class EmbeddingStrategyPluginBase implements EmbeddingStrategyInterface
   protected ProviderProxy $embeddingLlm;
 
   /**
+   * The tokenizer.
+   *
+   * @var \Drupal\ai\Utility\TokenizerInterface
+   */
+  protected TokenizerInterface $tokenizer;
+
+  /**
    * Constructs a new Embedding Strategy abstract class.
    *
    * @param string $pluginId
@@ -72,7 +98,7 @@ abstract class EmbeddingStrategyPluginBase implements EmbeddingStrategyInterface
    *   The html to markdown converter.
    * @param \Drupal\ai\Utility\TextChunker $textChunker
    *   The text chunker.
-   * @param \Drupal\Core\Entity\EntityTypeManager $entityTypeManager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
    * @param \Drupal\Core\Extension\ModuleExtensionList $extensionList
    *   The module extension list.
@@ -89,7 +115,7 @@ abstract class EmbeddingStrategyPluginBase implements EmbeddingStrategyInterface
     protected AiProviderPluginManager $aiProviderManager,
     protected HtmlConverter $converter,
     protected TextChunker $textChunker,
-    protected EntityTypeManager $entityTypeManager,
+    protected EntityTypeManagerInterface $entityTypeManager,
     protected ModuleExtensionList $extensionList,
     protected ConfigFactoryInterface $configFactory,
     protected LoggerChannelFactoryInterface $loggerChannelFactory,
@@ -116,8 +142,19 @@ abstract class EmbeddingStrategyPluginBase implements EmbeddingStrategyInterface
     $chat_model_id = $this->aiProviderManager->getModelNameFromSimpleOption($chat_model);
     $chat_model_id = $chat_model_id ?: 'gpt-3.5';
     $this->textChunker->setModel($chat_model_id);
+
+    // Dependency injection in 2.x branch, but loaded manually here to avoid
+    // breaking changes.
+    // phpcs:ignore DrupalPractice.Objects.GlobalDrupal.GlobalDrupal
+    // @phpstan-ignore-next-line
+    $this->tokenizer = \Drupal::service('ai.tokenizer');
+    $this->tokenizer->setModel($chat_model_id);
     /** @var \Drupal\ai\OperationType\Embeddings\EmbeddingsInterface $embeddingLlm */
     $this->embeddingLlm = $this->aiProviderManager->createInstance($this->providerId);
+    $this->skipModeration = !empty($configuration['skip_moderation']);
+    if (!empty($configuration['embedding_collection_size']) && is_numeric($configuration['embedding_collection_size'])) {
+      $this->embeddingCollectionSize = max(1, (int) $configuration['embedding_collection_size']);
+    }
     if (!empty($configuration['chunk_size']) && is_numeric($configuration['chunk_size'])) {
       $this->chunkSize = (int) $configuration['chunk_size'];
     }
@@ -179,6 +216,14 @@ abstract class EmbeddingStrategyPluginBase implements EmbeddingStrategyInterface
     if (empty($configuration)) {
       $configuration = $this->getDefaultConfigurationValues();
     }
+
+    $form['skip_moderation'] = [
+      '#title' => $this->t('Skip moderation for embeddings (only for advanced use cases).'),
+      '#description' => $this->t('This means that the moderation layer will not check for any possible flagged content. Only do this when the moderation provider is different from the LLM provider for the chatbot or when you are using pure vector search without and LLM. Only check this if you are 100% sure what you are doing.'),
+      '#type' => 'checkbox',
+      '#default_value' => $configuration['skip_moderation'] ?? FALSE,
+    ];
+
     $form['chunk_size'] = [
       '#title' => $this->t('Maximum chunk size allowed when breaking up larger content'),
       '#description' => $this->t('When the content is longer than this in tokens (which roughly equates to syllables when oversimplified), the content should be broken into smaller "Chunks". This setting defines how to segment or break up the larger text. When configuring Fields for this Index, the fields with the indexing option "Main Content" will be split into chunks no greater than this size. This includes any added "Contextual Content" as well as the "Title" to ensure an accurate vectorized representation of the content. More details are provided when configuring the Fields within your Index. Leave this blank to use the maximum size provided by the selected model.'),
@@ -195,6 +240,14 @@ abstract class EmbeddingStrategyPluginBase implements EmbeddingStrategyInterface
     $file = $path . '/assets/html/chunk-size-advice.html';
     $form['chunk_size_details']['content'] = [
       '#markup' => file_get_contents($file),
+    ];
+    $form['embedding_collection_size'] = [
+      '#title' => $this->t('Embedding Collection size'),
+      '#description' => $this->t('When the embeddings provider supports multi embeddings, this many text chunks are sent per request to reduce the number of API calls during indexing. Providers limit how many inputs they accept per request, so lower this if you hit request-size or rate limits. Ignored by providers that do not support multi embeddings.'),
+      '#required' => TRUE,
+      '#type' => 'number',
+      '#min' => 1,
+      '#default_value' => $configuration['embedding_collection_size'] ?? 50,
     ];
     $form['chunk_min_overlap'] = [
       '#title' => $this->t("Minimum chunk overlap for 'Main Content'"),
@@ -217,6 +270,7 @@ abstract class EmbeddingStrategyPluginBase implements EmbeddingStrategyInterface
     return [
       'chunk_size' => 500,
       'chunk_min_overlap' => 100,
+      'embedding_collection_size' => 50,
     ];
   }
 

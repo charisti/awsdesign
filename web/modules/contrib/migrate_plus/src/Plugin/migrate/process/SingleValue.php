@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\ProcessPluginBase;
 use Drupal\migrate\Row;
@@ -29,12 +30,11 @@ use Drupal\migrate\Row;
  * need to send all the values to a callable together as an array of author
  * names. Calling the "single_value" plugin in such a case will combine all the
  * values into a single array for the next plugin.
- *
- * @MigrateProcessPlugin(
- *   id = "single_value",
- *   handle_multiples = TRUE
- * )
  */
+#[MigrateProcess(
+  id: 'single_value',
+  handle_multiples: TRUE,
+)]
 class SingleValue extends ProcessPluginBase {
 
   /**

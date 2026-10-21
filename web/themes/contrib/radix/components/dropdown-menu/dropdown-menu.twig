@@ -4,6 +4,7 @@
  * Template for a Dropdown menu component.
  */
 #}
+{% set dropdown_direction = dropdown_direction ?? '' %}
 {%
   set dropdown_menu_classes = [
     'dropdown-menu',
@@ -27,12 +28,27 @@
           {%
             include 'radix:dropdown-menu' with {
               items: item.below,
-            }
+              dropdown_direction: dropdown_direction,
+              dropdown_menu_utility_classes: dropdown_menu_utility_classes ?: [],
+            } only
           %}
-        {% elseif item.url|render is empty %}
-          <hr class="dropdown-divider">
         {% else %}
-          {{ link(item.title, item.url, { 'class': nav_link_classes }) }}
+          {% set route_name = item.url.routed ? item.url.routeName : '' %}
+          {% if route_name == '<nolink>' and item.title == '-' %}
+            <hr class="dropdown-divider">
+          {% elseif route_name == '<button>' %}
+            {%
+              include 'radix:button' with {
+                button_html_tag: 'button',
+                color: 'primary',
+                content: item.title,
+                button_utility_classes: nav_link_classes,
+                url: item.url
+              }
+            %}
+          {% else %}
+            {{ link(item.title, item.url, { 'class': nav_link_classes }) }}
+          {% endif %}
         {% endif %}
       </li>
     {% endfor %}

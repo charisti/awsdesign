@@ -18,7 +18,7 @@ use Drupal\ai_agents\PluginInterfaces\AiAgentInterface;
 use Drupal\ai_agents\Service\AgentHelper;
 use Drupal\ai_agents_extra\Service\WebformAgent\WebformActions;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\Yaml\Yaml;
+use Drupal\Component\Serialization\Yaml;
 
 /**
  * The Webform agent.
@@ -82,8 +82,8 @@ class Webform extends AiAgentBase implements ContainerFactoryPluginInterface {
     protected WebformActions $webformActions,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $agentHelper, $fileSystem, $configFactory, $currentUser, $extensionPathResolver, $promptJsonDecoder, $aiProvider, $entityTypeManager);
-    $this->baseYaml = Yaml::parse(file_get_contents($extensionPathResolver->getPath('module', 'ai_agents') . '/resources/webform_example.yml'));
-    $this->exampleYaml = Yaml::parse(file_get_contents($extensionPathResolver->getPath('module', 'ai_agents') . '/resources/webform_example.yml'));
+    $this->baseYaml = Yaml::decode(file_get_contents($extensionPathResolver->getPath('module', 'ai_agents') . '/resources/webform_example.yml'));
+    $this->exampleYaml = Yaml::decode(file_get_contents($extensionPathResolver->getPath('module', 'ai_agents') . '/resources/webform_example.yml'));
   }
 
   /**

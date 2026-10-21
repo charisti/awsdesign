@@ -248,6 +248,13 @@ class Date extends Formula implements ContainerFactoryPluginInterface {
    */
   public function getFormula() {
     $this->formula = $this->getDateFormat($this->argFormat);
+    // The table alias can be NULL if this is invoked before the relationship
+    // join has been fully resolved (e.g. metatag_views_get_view_tags()
+    // calling ViewExecutable::buildTitle() ahead of full query execution).
+    // Avoid a PHP 8.1+ deprecation from passing NULL to str_replace().
+    // @see https://www.drupal.org/project/metatag/issues/3401733
+    // @see https://www.drupal.org/project/drupal/issues/3294680
+    $this->tableAlias = $this->tableAlias ?? '';
     return parent::getFormula();
   }
 

@@ -1,5 +1,5 @@
 $schema: https://git.drupalcode.org/project/drupal/-/raw/10.1.x/core/modules/sdc/src/metadata.schema.json
-name: Filed
+name: Field
 status: experimental
 description: Field container divisions with attributes.
 props:

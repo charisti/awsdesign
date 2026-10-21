@@ -83,7 +83,6 @@ final class ProjectBrowserEndpointController extends ControllerBase {
    */
   public function uninstall(string $name, Request $request): RedirectResponse {
     $return_to = $request->query->get('return_to', Url::fromRoute('<front>')->toString());
-    assert(is_string($return_to));
 
     // Ensure this module CAN be uninstalled. If it can't, redirect back to the
     // return URL with the messages set as errors.
@@ -192,9 +191,8 @@ final class ProjectBrowserEndpointController extends ControllerBase {
    *   A response that can be used by the client-side AJAX system.
    */
   public function activate(Request $request): AjaxResponse {
-    $projects = $request->query->get('projects') ?? [];
-    if ($projects) {
-      assert(is_string($projects));
+    $projects = $request->query->all('projects') ?: $request->query->get('projects');
+    if (is_string($projects)) {
       $projects = explode(',', $projects);
     }
     assert(is_array($projects));

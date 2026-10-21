@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\automatic_updates\FunctionalJavascript;
 
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use Drupal\package_manager\Event\PreCreateEvent;
 
@@ -84,7 +85,9 @@ class UpdateErrorTest extends WebDriverTestBase {
    * Tests that the update error page is displayed.
    */
   public function testUpdateErrorPage(): void {
-    $error = ValidationResult::createError([t('Error during pre-create event')]);
+    $error = ValidationResult::createError([
+      new TranslatableMarkup('Error during pre-create event'),
+    ]);
     TestSubscriber::setTestResult([$error], PreCreateEvent::class);
     $page = $this->getSession()->getPage();
     $this->drupalGet('/admin/reports/updates/update');

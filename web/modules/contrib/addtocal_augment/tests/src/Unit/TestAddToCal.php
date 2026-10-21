@@ -2,8 +2,8 @@
 
 namespace Drupal\Tests\addtocal_augment\Unit;
 
-use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\addtocal_augment\Plugin\DateAugmenter\AddToCal;
+use Drupal\Core\Datetime\DrupalDateTime;
 
 /**
  * Override methods for testing.

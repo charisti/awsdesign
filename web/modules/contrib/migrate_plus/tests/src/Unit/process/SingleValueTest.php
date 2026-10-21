@@ -6,11 +6,14 @@ namespace Drupal\Tests\migrate_plus\Unit\process;
 
 use Drupal\migrate_plus\Plugin\migrate\process\SingleValue;
 use Drupal\Tests\migrate\Unit\process\MigrateProcessTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\SingleValue
- * @group migrate
+ * Tests single_value process plugin.
  */
+#[CoversClass(SingleValue::class)]
+#[Group('migrate_plus')]
 final class SingleValueTest extends MigrateProcessTestCase {
 
   /**

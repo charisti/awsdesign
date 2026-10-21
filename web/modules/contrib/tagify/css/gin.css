@@ -3,6 +3,16 @@
   --tagify-dd-bg-color: var(--gin-bg-layer2);
 }
 
+.tagify__tag {
+  margin-block: 0 !important;
+}
+
+.tagify.form-element {
+  transition:
+    border-color var(--gin-transition),
+    box-shadow var(--gin-transition) !important;
+}
+
 .tagify.form-element--api-entity-autocomplete-tagify-user-list:focus,
 .tagify.form-element--type-select-multiple:focus,
 .tagify.form-element--type-select:focus,
@@ -31,7 +41,12 @@
     0 0 0 4px var(--gin-color-focus);
 }
 
+.tagify__dropdown__item {
+  color: var(--gin-color-text);
+}
+
 .tagify__dropdown__item--active {
+  color: var(--gin-color-button-text) !important;
   background: var(--gin-color-primary) !important;
 }
 
@@ -68,6 +83,37 @@
   box-shadow: 0 0 0 2px var(--gin-color-primary-light-hover) inset !important;
 }
 
+.tagify.form-element--api-entity-autocomplete-tagify-hierarchical-term-list:focus,
+.tagify.form-element--api-entity-autocomplete-tagify-hierarchical-term-list:focus-within {
+  box-shadow:
+    0 0 0 1px var(--gin-color-focus-border),
+    0 0 0 4px var(--gin-color-focus) !important;
+}
+
+.tagify__dropdown__itemsGroup .dropdown_group {
+  color: var(--gin-color-primary) !important;
+}
+
+.tagify__dropdown__item--parent {
+  padding: 0.2rem 0.4rem !important;
+  cursor: pointer;
+}
+
+.tagify__dropdown__item--parent .dropdown_group {
+  padding: 0;
+}
+
+.tagify__dropdown__item--parent:hover,
+.tagify__dropdown__item--parent.tagify__dropdown__item--active {
+  background: var(--gin-color-primary) !important;
+}
+
+.tagify__dropdown__item--parent:hover .dropdown_group,
+.tagify__dropdown__item--parent.tagify__dropdown__item--active .dropdown_group {
+  color: #fff !important;
+  font-weight: 600;
+}
+
 /* Gin dark mode */
 .gin--dark-mode .tagify {
   --tag-text-color--edit: var(--gin-color-text);
@@ -86,6 +132,19 @@
 .gin--dark-mode .tagify__dropdown__item--active {
   color: var(--gin-color-primary-hover) !important;
   background-color: var(--gin-bg-item-hover) !important;
+}
+
+.gin--dark-mode .tagify__dropdown__item--parent:hover,
+.gin--dark-mode .tagify__dropdown__item--parent.tagify__dropdown__item--active {
+  background: var(--gin-color-primary-hover) !important;
+}
+
+.gin--dark-mode .tagify__dropdown__item--parent:hover .dropdown_group,
+.gin--dark-mode
+  .tagify__dropdown__item--parent.tagify__dropdown__item--active
+  .dropdown_group {
+  color: var(--gin-color-text) !important;
+  font-weight: 600;
 }
 
 .gin--dark-mode #tagify__tag-remove-button:hover {
@@ -190,4 +249,28 @@
     justify-content: space-between;
     white-space: unset !important;
   }
+}
+
+/* Fix tag styling in gin sidebar */
+#gin_sidebar .tagify__tag > div {
+  max-width: 85%;
+}
+
+#gin_sidebar .tagify__tag > div > * {
+  white-space: nowrap;
+}
+
+#gin_sidebar .tagify__tag {
+  max-width: 85%;
+}
+
+/* Fix dropdown suggestions overflow in gin sidebar */
+.tagify__dropdown--gin-sidebar .tagify__dropdown__item-highlighted,
+.tagify__dropdown--gin-sidebar .dropdown_group {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }

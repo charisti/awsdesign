@@ -19,11 +19,11 @@
         "composer/composer": "^2.8",
         "composer/installers": "^2.3",
         "drupal/adaptivetheme": "^7.1",
-        "drupal/core-composer-scaffold": "11.2.8",
-        "drupal/core-project-message": "11.2.8",
-        "drupal/core-recipe-unpack": "11.2.8",
-        "drupal/core-recommended": "11.2.8",
-        "drupal/core-vendor-hardening": "11.2.8",
+        "drupal/core-composer-scaffold": "11.4.9",
+        "drupal/core-project-message": "11.4.9",
+        "drupal/core-recipe-unpack": "11.4.9",
+        "drupal/core-recommended": "11.4.9",
+        "drupal/core-vendor-hardening": "11.4.9",
         "drupal/drupal_cms_accessibility_tools": "^1.2",
         "drupal/drupal_cms_ai": "^1.2",
         "drupal/drupal_cms_blog": "^1.2",
@@ -66,11 +66,15 @@
             "drupal/core-project-message": true,
             "drupal/core-recipe-unpack": true,
             "php-http/discovery": true,
-            "drupal/core-vendor-hardening": true
+            "drupal/core-vendor-hardening": true,
+            "symfony/runtime": true
         },
         "bin-dir": "vendor/bin",
         "sort-packages": true,
-        "optimize-autoloader": true
+        "optimize-autoloader": true,
+        "platform": {
+            "php": "8.3.25"
+        }
     },
     "extra": {
         "drupal-scaffold": {

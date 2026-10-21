@@ -2,6 +2,7 @@
 
 namespace Drupal\eca_modeller_bpmn;
 
+use Drupal\Component\Plugin\ConfigurableInterface;
 use Drupal\Component\Plugin\PluginInspectionInterface;
 use Drupal\Component\Utility\Random;
 use Drupal\Core\Action\ActionInterface;
@@ -813,13 +814,14 @@ abstract class ModellerBpmnBase extends ModellerBase {
   protected function prepareConfigFields(PluginInspectionInterface $plugin, array $form, array &$extraDescriptions): array {
     // @todo Add support for nested form fields like e.g. in container/fieldset.
     $fields = [];
+    $default_configuration = $plugin instanceof ConfigurableInterface ? $plugin->defaultConfiguration() : [];
     foreach ($form as $key => $definition) {
       if (!is_array($definition)) {
         continue;
       }
       $label = $definition['#title'] ?? Modellers::convertKeyToLabel($key);
       $description = $definition['#description'] ?? NULL;
-      $value = $definition['#default_value'] ?? '';
+      $value = $definition['#default_value'] ?? $default_configuration[$key] ?? NULL;
       $weight = $definition['#weight'] ?? 0;
       $type = 'String';
       $required = $definition['#required'] ?? FALSE;
@@ -841,10 +843,12 @@ abstract class ModellerBpmnBase extends ModellerBase {
           continue 2;
 
         case 'textarea':
+          $value = $value ?? '';
           $type = 'Text';
           break;
 
         case 'checkbox':
+          $value = $value ?? FALSE;
           if (!is_bool($value)) {
             $this->logger->error('Found config field %field in %plugin with non-supported value.', [
               '%field' => $key,
@@ -859,6 +863,7 @@ abstract class ModellerBpmnBase extends ModellerBase {
         case 'checkboxes':
         case 'radios':
         case 'select':
+          $value = $value ?? [];
           if (!is_array($value)) {
             $options = $this->normalizeOptions(form_select_options($definition));
             $fields[] = $this->optionsField($key, $label, $weight, $description, $options, (string) $value, $required);

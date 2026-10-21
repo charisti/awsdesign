@@ -157,7 +157,7 @@ class Editoria11ySettings extends ConfigFormBase {
       '#type' => 'textarea',
       '#rows' => 1,
       '#placeholder' => "a[href$='.pdf'], a[href*='.pdf?']",
-      '#description' => $this->t("Add or remove filetypes. Set to \"false\" to disable the test altogether. Providing any value will override the default, which is <code><em>a[href$='.pdf'], a[href*='.pdf?']</em></code>. <br>To test for more document types, use <code>a[href$='.pdf'], a[href*='.pdf?'], a[href$='.doc'], a[href$='.docx'], a[href*='.doc?'], a[href*='.docx?'], a[href$='.ppt'], a[href$='.pptx'], a[href*='.ppt?'], a[href*='.pptx?'], a[href^='https://docs.google']</code>"),
+      '#description' => $this->t("Add or remove filetypes. Set to \"false\" to disable the test altogether. Providing any value will override the default, which is <code><em>a[href$='.pdf'], a[href*='.pdf?']</em></code>."),
       '#default_value' => $config->get('download_links'),
     ];
 

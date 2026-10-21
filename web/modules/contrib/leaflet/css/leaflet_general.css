@@ -8,11 +8,11 @@
  */
 /* line 8, ../sass/leaflet_general.scss */
 .leaflet-ajax-popup {
-  height: 140px;
   width: 180px;
-  background-position: center;
-  background-repeat: no-repeat;
+  height: 140px;
   background-image: url("../assets/spin.gif");
+  background-repeat: no-repeat;
+  background-position: center;
 }
 
 /* line 16, ../sass/leaflet_general.scss */

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Drupal\eca;
 
 use Drupal\Core\Entity\EntityStorageException;
-use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\eca\Service\Actions;
@@ -18,11 +17,18 @@ use Drupal\eca\Service\Modellers;
 final class EcaUpdate {
 
   /**
-   * ECA config entity storage manager.
+   * List of info messages.
    *
-   * @var \Drupal\Core\Entity\EntityStorageInterface
+   * @var array
    */
-  protected EntityStorageInterface $configStorage;
+  protected array $infos;
+
+  /**
+   * List of warning messages.
+   *
+   * @var array
+   */
+  protected array $warnings;
 
   /**
    * List of errors.
@@ -30,13 +36,6 @@ final class EcaUpdate {
    * @var array
    */
   protected array $errors;
-
-  /**
-   * List of info messages.
-   *
-   * @var array
-   */
-  protected array $infos;
 
   /**
    * Constructs an EcaUpdate object.
@@ -48,18 +47,17 @@ final class EcaUpdate {
     private readonly Modellers $modellerServices,
     private readonly Conditions $conditionServices,
     private readonly Actions $actionServices,
-  ) {
-    $this->configStorage = $this->entityTypeManager->getStorage('eca');
-  }
+  ) {}
 
   /**
    * Updates all existing ECA entities calling ::updateModel in their modeller.
    */
   public function updateAllModels(): void {
     $this->errors = [];
+    $this->warnings = [];
     $this->infos = [];
     /** @var \Drupal\eca\Entity\Eca $eca */
-    foreach ($this->configStorage->loadMultiple() as $eca) {
+    foreach ($this->entityTypeManager->getStorage('eca')->loadMultiple() as $eca) {
       if ($eca->hasModel()) {
         $modeller = $this->ecaServiceModeller->getModeller($eca->get('modeller'));
         if ($modeller === NULL) {
@@ -75,7 +73,7 @@ final class EcaUpdate {
           }
           try {
             $modeller->save($model->getModeldata(), $filename);
-            $this->infos[] = '[' . $eca->label() . '] Model has been updated.';
+            $this->warnings[] = '[' . $eca->label() . '] Model has been updated.';
           }
           catch (\LogicException | EntityStorageException $e) {
             $this->errors[] = '[' . $eca->label() . '] Error while updating this model: ' . $e->getMessage();
@@ -112,7 +110,7 @@ final class EcaUpdate {
         }
         if ($changed) {
           $eca->save();
-          $this->infos[] = '[' . $eca->label() . '] Model has been updated.';
+          $this->warnings[] = '[' . $eca->label() . '] Model has been updated.';
         }
         else {
           $this->infos[] = '[' . $eca->label() . '] Model does not require any updates.';
@@ -132,6 +130,16 @@ final class EcaUpdate {
   }
 
   /**
+   * Gets the list of all collected warning messages.
+   *
+   * @return array
+   *   The list of all collected warning messages.
+   */
+  public function getWarnings(): array {
+    return $this->warnings;
+  }
+
+  /**
    * Gets the list of all collected info messages.
    *
    * @return array
@@ -142,15 +150,21 @@ final class EcaUpdate {
   }
 
   /**
-   * Outputs all messages (info and error) to the user.
+   * Outputs all warning and error messages to user, plus a summary.
    */
   public function displayMessages(): void {
     foreach ($this->infos ?? [] as $info) {
       $this->messenger->addMessage($info);
     }
+    foreach ($this->warnings ?? [] as $warning) {
+      $this->messenger->addWarning($warning);
+    }
     foreach ($this->errors ?? [] as $error) {
       $this->messenger->addError($error);
     }
+    $this->messenger->addMessage("Models not requiring updates: " . count($this->infos ?? []));
+    $this->messenger->addMessage("Models updated: " . count($this->warnings ?? []));
+    $this->messenger->addMessage("Errors reported: " . count($this->errors ?? []));
   }
 
 }

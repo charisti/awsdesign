@@ -6,6 +6,7 @@ namespace Drupal\Tests\project_browser\Functional;
 
 use Drupal\Tests\BrowserTestBase;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests project_browser module installation.
@@ -13,6 +14,7 @@ use PHPUnit\Framework\Attributes\Group;
  * @group project_browser
  */
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class InstallTest extends BrowserTestBase {
 
   /**
@@ -38,7 +40,7 @@ final class InstallTest extends BrowserTestBase {
   protected function setUp(): void {
     parent::setUp();
     $this->drupalLogin($this->drupalCreateUser(['administer modules']));
-    $this->moduleHandler = $this->container->get('module_handler');
+    $this->moduleHandler = \Drupal::service('module_handler');
   }
 
   /**
@@ -46,7 +48,7 @@ final class InstallTest extends BrowserTestBase {
    */
   protected function reloadServices(): void {
     $this->rebuildContainer();
-    $this->moduleHandler = $this->container->get('module_handler');
+    $this->moduleHandler = \Drupal::service('module_handler');
   }
 
   /**

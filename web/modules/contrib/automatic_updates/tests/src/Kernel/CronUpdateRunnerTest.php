@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace Drupal\Tests\automatic_updates\Kernel;
 
 use Drupal\automatic_updates\CronUpdateRunner;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @coversDefaultClass  \Drupal\automatic_updates\CronUpdateRunner
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(CronUpdateRunner::class)]
+#[RunTestsInSeparateProcesses]
 class CronUpdateRunnerTest extends AutomaticUpdatesKernelTestBase {
 
   /**
@@ -25,8 +29,6 @@ class CronUpdateRunnerTest extends AutomaticUpdatesKernelTestBase {
 
   /**
    * Tests that hook_cron implementations are always invoked.
-   *
-   * @covers ::run
    */
   public function testHookCronInvoked(): void {
     // Delete the state value set when cron runs to ensure next asserts start

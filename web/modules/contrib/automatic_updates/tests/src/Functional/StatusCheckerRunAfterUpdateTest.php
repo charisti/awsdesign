@@ -4,38 +4,32 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\automatic_updates\Functional;
 
+use Drupal\automatic_updates\Form\UpdaterForm;
 use Drupal\automatic_updates_test\EventSubscriber\TestSubscriber1;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\package_manager\Event\StatusCheckEvent;
 use Drupal\package_manager\ValidationResult;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+use PHPUnit\Framework\Attributes\TestWith;
 
 /**
- * @covers \Drupal\automatic_updates\Form\UpdaterForm
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(UpdaterForm::class)]
+#[RunTestsInSeparateProcesses]
 class StatusCheckerRunAfterUpdateTest extends UpdaterFormTestBase {
-
-  /**
-   * Data provider for testStatusCheckerRunAfterUpdate().
-   *
-   * @return bool[][]
-   *   The test cases.
-   */
-  public static function providerStatusCheckerRunAfterUpdate(): array {
-    return [
-      'has database updates' => [TRUE],
-      'does not have database updates' => [FALSE],
-    ];
-  }
 
   /**
    * Tests status checks are run after an update.
    *
    * @param bool $has_database_updates
    *   Whether the site has database updates or not.
-   *
-   * @dataProvider providerStatusCheckerRunAfterUpdate
    */
+  #[TestWith([TRUE])]
+  #[TestWith([FALSE])]
   public function testStatusCheckerRunAfterUpdate(bool $has_database_updates) {
     $this->getStageFixtureManipulator()->setCorePackageVersion('9.8.1');
     $assert_session = $this->assertSession();
@@ -51,7 +45,11 @@ class StatusCheckerRunAfterUpdateTest extends UpdaterFormTestBase {
     // Set an error before completing the update. This error should be visible
     // on admin pages after completing the update without having to explicitly
     // run the status checks.
-    TestSubscriber1::setTestResult([ValidationResult::createError([t('Error before continue.')])], StatusCheckEvent::class);
+    TestSubscriber1::setTestResult([
+      ValidationResult::createError([
+        new TranslatableMarkup('Error before continue.'),
+      ]),
+    ], StatusCheckEvent::class);
     if ($has_database_updates) {
       // Simulate a staged database update in the automatic_updates_test module.
       // We must do this after the update has started, because the pending

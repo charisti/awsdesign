@@ -39,6 +39,10 @@ field.formatter.settings.smartdate_recurring:
       type: boolean
       label: 'Treat current events as upcoming'
       translation context: 'Smart date display'
+    filter_parameter_key:
+      type: string
+      label: 'Filter parameter key'
+      translation_context: 'Smart date display'
 
 field.formatter.settings.smartdate_dailyrange:
   type: field.formatter.settings.datetime_default

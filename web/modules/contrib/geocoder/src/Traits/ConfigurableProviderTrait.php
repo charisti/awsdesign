@@ -102,7 +102,7 @@ trait ConfigurableProviderTrait {
       '#type' => 'details',
       '#title' => $this->t("Throttle"),
       '#description' => $this->t("Limit the number of geocoding requests sent by a process for a given period of time.
-      Be aware that if you bulk geocode with a hard throttle, it may take a long time or even reach the maximum execution time."),
+      Be aware that if you bulk geocode with a hard throttle, it may take a long time or even reach the maximum execution time (Token replacements un-supported)."),
       '#open' => FALSE,
       '#tree' => TRUE,
       '#weight' => 10,
@@ -133,10 +133,9 @@ trait ConfigurableProviderTrait {
     $form['options']['geocoder']['locale'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Locale'),
-      '#maxlength' => 4,
       '#placeholder' => $this->languageManager->getCurrentLanguage()->getId(),
       '#default_value' => $this->configuration['geocoder']['locale'] ?? '',
-      '#description' => $this->t('Define your specific language code (en, fr, de, it, es ... etc.) that should be used / forced in the @geocoder_query_link.<br>Alter this only if specifically aware of its functionality.<br><u>If left empty the Current Interface Language code/id will be used.</u>', [
+      '#description' => $this->t('Define your specific language code (en, fr, de, it, es ... etc.) that should be used / forced in the @geocoder_query_link.<br>Tokens replacements supported. Alter this only if specifically aware of its functionality.<br><u>If left empty the Current Interface Language code/id will be used.</u>', [
         '@geocoder_query_link' => Link::fromTextAndUrl('Geocoder Query withLocale() method', Url::fromUri('https://github.com/geocoder-php/php-common/blob/master/Query/GeocodeQuery.php#L81'))->toString(),
       ]),
     ];

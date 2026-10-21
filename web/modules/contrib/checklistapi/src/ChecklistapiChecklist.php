@@ -2,6 +2,7 @@
 
 namespace Drupal\checklistapi;
 
+use Drupal\Core\Cache\CacheableDependencyInterface;
 use Drupal\Core\Render\Element;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
@@ -10,7 +11,7 @@ use Drupal\user\Entity\User;
 /**
  * Defines the checklist class.
  */
-class ChecklistapiChecklist {
+class ChecklistapiChecklist implements CacheableDependencyInterface {
 
   use StringTranslationTrait;
 
@@ -325,6 +326,27 @@ class ChecklistapiChecklist {
    */
   public function userHasAccess($operation = 'any') {
     return checklistapi_checklist_access($this->id, $operation);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getCacheContexts() {
+    return $this->storage->getCacheContexts();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getCacheTags() {
+    return $this->storage->getCacheTags();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getCacheMaxAge() {
+    return $this->storage->getCacheMaxAge();
   }
 
 }

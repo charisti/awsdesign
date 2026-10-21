@@ -25,7 +25,7 @@ trait PackageManagerFixtureUtilityTrait {
    * Initializes Package Manager.
    */
   protected function initPackageManager(): void {
-    $pm_path = $this->container->get('extension.list.module')->getPath('package_manager');
+    $pm_path = \Drupal::service('extension.list.module')->getPath('package_manager');
     $this->useFixtureDirectoryAsActive($pm_path . '/tests/fixtures/fake_site');
   }
 
@@ -40,7 +40,7 @@ trait PackageManagerFixtureUtilityTrait {
     // unique for each test run. This will enable changing files in the
     // directory and not affect other tests.
     $active_dir = $this->copyFixtureToTempDirectory($fixture_directory);
-    $path_locator = $this->container->get(PathLocator::class);
+    $path_locator = \Drupal::service(PathLocator::class);
     assert($path_locator instanceof MockPathLocator);
     $path_locator->setPaths($active_dir, $active_dir . '/vendor', '', NULL);
   }

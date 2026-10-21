@@ -77,7 +77,7 @@ class GetCurrentContentEntityValues extends FunctionCallBase implements Executab
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Collect the context values.
     $entity_type = $this->getContextValue('entity_type');
     $entity_id = $this->getContextValue('entity_id');
@@ -103,11 +103,18 @@ class GetCurrentContentEntityValues extends FunctionCallBase implements Executab
     $field_information = [];
     if (!empty($field_names)) {
       foreach ($field_names as $field_name) {
-        $field_information[$field_name] = $entity->get($field_name)->getValue();
+        $field = $entity->get($field_name);
+        if (!$field->access('view')) {
+          throw new \Exception('Access denied to field: ' . $field_name);
+        }
+        $field_information[$field_name] = $field->getValue();
       }
     }
     else {
       foreach ($entity->getFields() as $field_name => $field) {
+        if (!$field->access('view')) {
+          continue;
+        }
         $field_information[$field_name] = $field->getValue();
       }
     }

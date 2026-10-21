@@ -338,6 +338,12 @@ field.formatter.settings.leaflet_formatter_default:
         options:
           type: text
           label: 'Popup Options'
+        value:
+          type: string
+          label: 'Popup Source'
+        view_mode:
+          type: string
+          label: 'Popup Source View mode'
     map_position:
       type: mapping
       label: 'Map Position'
@@ -461,6 +467,9 @@ field.formatter.settings.leaflet_formatter_default:
         include_path:
           type: boolean
           label: 'Enable Markeclustering of Paths elements'
+        excluded:
+          type: boolean
+          label: 'Exclude flag'
     fullscreen:
       type: mapping
       label: 'Leaflet Fullscreen'
@@ -536,6 +545,9 @@ field.formatter.settings.leaflet_formatter_default:
             options:
               type: string
               label: 'Options'
+            set_marker:
+              type: boolean
+              label: 'Marker'
     map_lazy_load:
       type: mapping
       label: Map lazy load

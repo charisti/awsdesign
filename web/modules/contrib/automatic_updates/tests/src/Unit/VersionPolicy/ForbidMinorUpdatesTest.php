@@ -7,12 +7,15 @@ namespace Drupal\Tests\automatic_updates\Unit\VersionPolicy;
 use Drupal\automatic_updates\Validator\VersionPolicy\ForbidMinorUpdates;
 use Drupal\Tests\automatic_updates\Traits\VersionPolicyTestTrait;
 use Drupal\Tests\UnitTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
- * @covers \Drupal\automatic_updates\Validator\VersionPolicy\ForbidMinorUpdates
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(ForbidMinorUpdates::class)]
 class ForbidMinorUpdatesTest extends UnitTestCase {
 
   use VersionPolicyTestTrait;
@@ -83,9 +86,8 @@ class ForbidMinorUpdatesTest extends UnitTestCase {
    *   The target version of Drupal core, or NULL if not known.
    * @param string[] $expected_errors
    *   The expected error messages, if any.
-   *
-   * @dataProvider providerMinorUpdateForbidden
    */
+  #[DataProvider('providerMinorUpdateForbidden')]
   public function testMinorUpdateForbidden(string $installed_version, ?string $target_version, array $expected_errors): void {
     $rule = new ForbidMinorUpdates();
     $this->assertPolicyErrors($rule, $installed_version, $target_version, $expected_errors);

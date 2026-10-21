@@ -4,8 +4,13 @@ namespace Drupal\simple_search_form\Plugin\Block;
 
 use Drupal\Component\Serialization\Json;
 use Drupal\Core\Block\BlockBase;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\path_alias\AliasManagerInterface;
+use Drupal\views\Plugin\views\display\DisplayRouterInterface;
+use Drupal\views\Plugin\views\filter\FilterPluginBase;
+use Drupal\views\ViewExecutable;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Form\FormStateInterface;
 
@@ -20,28 +25,23 @@ use Drupal\Core\Form\FormStateInterface;
  */
 class SimpleSearchFormBlock extends BlockBase implements ContainerFactoryPluginInterface {
 
-  /**
-   * The module handler.
-   *
-   * @var \Drupal\Core\Extension\ModuleHandlerInterface
-   */
-  protected $moduleHandler;
-
-  /**
-   * {@inheritdoc}
-   *
-   * @param array $configuration
-   *   A configuration array containing information about the plugin instance.
-   * @param string $plugin_id
-   *   The plugin_id for the plugin instance.
-   * @param string $plugin_definition
-   *   The plugin implementation definition.
-   * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
-   *   The module handler.
-   */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, ModuleHandlerInterface $module_handler) {
+  public function __construct(
+    array $configuration,
+    $plugin_id,
+    $plugin_definition,
+    protected ModuleHandlerInterface $moduleHandler,
+    protected ?EntityTypeManagerInterface $entityTypeManager = NULL,
+    protected ?AliasManagerInterface $pathAliasManager = NULL,
+  ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->moduleHandler = $module_handler;
+    if ($this->entityTypeManager === NULL) {
+      @trigger_error('Calling ' . __METHOD__ . '() without the $entityTypeManager parameter is deprecated in simple_search_form:8.x-1.9 and will break in simple_search_form:2.0.0. See https://www.drupal.org/node/3565748', E_USER_DEPRECATED);
+      $this->entityTypeManager = \Drupal::entityTypeManager();
+    }
+    if ($this->pathAliasManager === NULL) {
+      @trigger_error('Calling ' . __METHOD__ . '() without the $pathAliasManager parameter is deprecated in simple_search_form:8.x-1.9 and will break in simple_search_form:2.0.0. See https://www.drupal.org/node/3565748', E_USER_DEPRECATED);
+      $this->pathAliasManager = \Drupal::service(AliasManagerInterface::class);
+    }
   }
 
   /**
@@ -52,7 +52,9 @@ class SimpleSearchFormBlock extends BlockBase implements ContainerFactoryPluginI
       $configuration,
       $plugin_id,
       $plugin_definition,
-      $container->get('module_handler')
+      $container->get(ModuleHandlerInterface::class),
+      $container->get(EntityTypeManagerInterface::class),
+      $container->get(AliasManagerInterface::class),
     );
   }
 
@@ -98,21 +100,20 @@ class SimpleSearchFormBlock extends BlockBase implements ContainerFactoryPluginI
   /**
    * {@inheritdoc}
    */
-  public function blockForm($form, FormStateInterface $form_state) {
-
+  public function blockForm($form, FormStateInterface $form_state): array {
     $form['action_path'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Path'),
       '#description' => $this->t('The path to redirect to.'),
       '#required' => TRUE,
-      '#default_value' => $this->configuration['action_path'],
+      '#default_value' => $this->configuration['action_path'] ?: $this->guessActionPath(),
     ];
     $form['get_parameter'] = [
       '#type' => 'textfield',
       '#title' => $this->t('GET parameter'),
       '#description' => $this->t('The $_GET parameter name.'),
       '#required' => TRUE,
-      '#default_value' => $this->configuration['get_parameter'],
+      '#default_value' => $this->configuration['get_parameter'] ?: $this->guessGetParameter(),
     ];
     $form['input_type'] = [
       '#type' => 'select',
@@ -228,6 +229,78 @@ class SimpleSearchFormBlock extends BlockBase implements ContainerFactoryPluginI
     ];
 
     return $form;
+  }
+
+  /**
+   * Tries to guess the action path of the search URL.
+   *
+   * @return string
+   *   The search URL, or an empty string if it cannot be determined.
+   */
+  protected function guessActionPath(): string {
+    $view = $this->findSearchView();
+
+    if ($view?->display_handler instanceof DisplayRouterInterface) {
+      return (string) $view->display_handler->getUrlInfo()->toString();
+    }
+    // Fall back to finding a static path (i.e., a node or Canvas page) called
+    // `/search`, in the current language. This looks a little exotic, but using
+    // the word 'Search', which is a word that appears in core already and
+    // is therefore translated, should allow this to work more seamlessly.
+    $path = '/' . mb_strtolower($this->t('Search'));
+    if ($this->pathAliasManager->getPathByAlias($path) !== $path) {
+      return $path;
+    }
+    // We couldn't find anything sensible.
+    return '';
+  }
+
+  /**
+   * Tries to guess the query string parameter for the search URL.
+   *
+   * @return string
+   *   The name of the query string parameter to append to the search URL, if
+   *   one can be determined. If not, empty string.
+   */
+  protected function guessGetParameter(): string {
+    // @todo Use array_find() when PHP 8.4 is required.
+    $filters = array_filter(
+      $this->findSearchView()?->display_handler->getHandlers('filter') ?? [],
+      fn (FilterPluginBase $filter): bool => $filter->getPluginId() === 'search_api_fulltext' && $filter->isExposed(),
+    );
+    $filter = reset($filters) ?: NULL;
+    return $filter?->options['expose']['identifier'] ?? '';
+  }
+
+  /**
+   * Tries to find a view that can be used for search.
+   *
+   * This will look for a view tagged with `simple_search_form`, and if found,
+   * and will initialize it with its first available routable display (i.e., a
+   * page) if possible.
+   *
+   * @return \Drupal\views\ViewExecutable|null
+   *   The initialized view, or NULL if no appropriate view was found.
+   */
+  protected function findSearchView(): ?ViewExecutable {
+    if ($this->moduleHandler->moduleExists('views')) {
+      $views = $this->entityTypeManager->getStorage('view')->loadByProperties([
+        'tag' => 'simple_search_form',
+      ]);
+      // @todo Use array_first() when PHP 8.5 is required.
+      $view = reset($views) ?: NULL;
+      $view = $view?->getExecutable();
+      $view?->initDisplay();
+
+      // If the view has a routable display (i.e., a page), point to it.
+      foreach ($view?->displayHandlers ?? [] as $display_id => $handler) {
+        if ($handler instanceof DisplayRouterInterface) {
+          $view->setDisplay($display_id);
+        }
+      }
+      return $view;
+    }
+    return NULL;
   }
 
   /**

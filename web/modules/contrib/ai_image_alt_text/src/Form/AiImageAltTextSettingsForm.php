@@ -6,7 +6,6 @@ use Drupal\ai\Enum\AiModelCapability;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Link;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -81,6 +80,7 @@ class AiImageAltTextSettingsForm extends ConfigFormBase {
       '#items' => [
         $this->t('Prompt is rendered using Twig rendering engine and supports the following tokens:'),
         '{{ entity_lang_name }} - ' . $this->t('Human readable name of the entity language'),
+        '{{ filename }} - ' . $this->t('The original filename of the uploaded image'),
       ],
     ];
 

@@ -5,6 +5,9 @@ namespace Drupal\ai_image_alt_text;
 use Drupal\ai\AiProviderPluginManager;
 use Drupal\Core\Config\ConfigFactoryInterface;
 
+/**
+ * Helper class for AI provider operations.
+ */
 class ProviderHelper {
 
   /**
@@ -48,7 +51,8 @@ class ProviderHelper {
     if ($preferred_model) {
       $provider = $this->aiProviderManager->loadProviderFromSimpleOption($preferred_model);
       $model = $this->aiProviderManager->getModelNameFromSimpleOption($preferred_model);
-    } else {
+    }
+    else {
       // Get the default provider.
       $default_provider = $this->aiProviderManager->getDefaultProviderForOperationType('chat_with_image_vision');
       if (empty($default_provider['provider_id'])) {

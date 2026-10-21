@@ -102,7 +102,8 @@ block.settings.project_browser_block:*:
       label: 'Page sizes'
       constraints:
         # A comma-separated list of numbers with fuzzy spacing, e.g. `32, 64,88`.
-        Regex: '/^([0-9]+\s*,?\s*)+$/'
+        Regex:
+          pattern: '/^([0-9]+\s*,?\s*)+$/'
     sort_options:
       type: sequence
       label: 'Sort options'

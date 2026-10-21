@@ -7,6 +7,8 @@
 
 declare(strict_types=1);
 
+use Drupal\Core\Hook\Attribute\LegacyHook;
+use Drupal\Core\Hook\Attribute\LegacyModuleImplementsAlter;
 use Drupal\migrate\Plugin\MigrateSourceInterface;
 use Drupal\migrate\Plugin\Migration;
 use Drupal\migrate\Plugin\MigrationInterface;
@@ -18,6 +20,7 @@ use Drupal\migrate_plus\Event\MigratePrepareRowEvent;
 /**
  * Implements hook_migration_plugins_alter().
  */
+#[LegacyHook]
 function migrate_plus_migration_plugins_alter(array &$migrations): void {
   foreach (array_keys($migrations) as $id) {
     // Add the default class where empty.
@@ -89,6 +92,7 @@ function migrate_plus_migration_plugins_alter(array &$migrations): void {
 /**
  * Implements hook_migrate_prepare_row().
  */
+#[LegacyHook]
 function migrate_plus_migrate_prepare_row(Row $row, MigrateSourceInterface $source, MigrationInterface $migration): void {
   \Drupal::service('event_dispatcher')->dispatch(new MigratePrepareRowEvent($row, $source, $migration), MigrateEvents::PREPARE_ROW);
 }
@@ -96,11 +100,19 @@ function migrate_plus_migrate_prepare_row(Row $row, MigrateSourceInterface $sour
 /**
  * Implements hook_module_implements_alter().
  */
-function migrate_plus_module_implements_alter(array &$implementations, string $hook): void {
+#[LegacyModuleImplementsAlter]
+function migrate_plus_module_implements_alter(array &$implementations, int|string $hook): void {
+  // Early return if $hook is not a string, as we only process
+  // 'migration_plugins_alter'. Prevents TypeError when core passes integers
+  // (see core issue #3508292).
+  if (!is_string($hook)) {
+    return;
+  }
   // Merge shared_configuration early so it is available in other
   // migration_plugins_alters.
   if ($hook === 'migration_plugins_alter') {
     unset($implementations['migrate_plus']);
-    $implementations = array_merge(['migrate_plus' => FALSE], $implementations);
+    // Ensure migrate_plus runs first for this hook.
+    $implementations = ['migrate_plus' => FALSE] + $implementations;
   }
 }

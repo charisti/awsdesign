@@ -80,7 +80,7 @@ class ListFieldTypes extends FunctionCallBase implements ExecutableFunctionCallI
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Load all the content entity types.
     $entity_types = $this->entityTypeManager->getDefinitions();
     $has_permission = FALSE;

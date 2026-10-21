@@ -8,11 +8,13 @@ use Drupal\KernelTests\KernelTestBase;
 use Drupal\project_browser\Plugin\ProjectBrowserSourceManager;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the source plugin manager service.
  */
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 #[CoversClass(ProjectBrowserSourceManager::class)]
 final class ProjectBrowserSourceManagerTest extends KernelTestBase {
 
@@ -33,7 +35,7 @@ final class ProjectBrowserSourceManagerTest extends KernelTestBase {
       ])
       ->save();
 
-    $sources = $this->container->get(ProjectBrowserSourceManager::class)
+    $sources = \Drupal::service(ProjectBrowserSourceManager::class)
       ->getAllEnabledSources();
     ['order' => $order] = $sources['drupal_core']->getConfiguration();
     $this->assertSame(['views', 'jsonapi'], $order);

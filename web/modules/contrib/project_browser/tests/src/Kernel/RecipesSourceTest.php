@@ -13,6 +13,7 @@ use Drupal\project_browser\Plugin\ProjectBrowserSourceManager;
 use Drupal\project_browser\ProjectType;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Symfony\Component\Filesystem\Filesystem as SymfonyFilesystem;
 use Symfony\Component\Finder\Finder;
 
@@ -23,6 +24,7 @@ use Symfony\Component\Finder\Finder;
  */
 #[CoversClass(Recipes::class)]
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class RecipesSourceTest extends KernelTestBase {
 
   /**
@@ -85,10 +87,12 @@ final class RecipesSourceTest extends KernelTestBase {
       $generated_recipe_name,
       // Our test recipes should be discovered too.
       'test_recipe',
+      'recipe_conflicting_config',
       'recipe_with_tasks',
+      'feedback_contact_form',
     ];
     $finder = Finder::create()
-      ->in($this->getDrupalRoot() . '/core/recipes')
+      ->in($this->root . '/core/recipes')
       ->directories()
       ->notName('example')
       ->depth(0);
@@ -108,7 +112,11 @@ final class RecipesSourceTest extends KernelTestBase {
     // The `example` recipe (from core) should always be hidden.
     $this->assertNotContains('example', $expected_recipe_names);
 
+    $expected_recipe_names = array_unique($expected_recipe_names);
+    $expected_recipe_names = array_values($expected_recipe_names);
     sort($expected_recipe_names);
+    $found_recipe_names = array_unique($found_recipe_names);
+    $found_recipe_names = array_values($found_recipe_names);
     sort($found_recipe_names);
     $this->assertSame($expected_recipe_names, $found_recipe_names);
 
@@ -235,7 +243,7 @@ final class RecipesSourceTest extends KernelTestBase {
     $this->generatedRecipeDir = FileSystem::getOsTemporaryDirectory() . '/' . $generated_recipe_name;
     $this->fileSystem->symlink($this->generatedRecipeDir, $this->installedRecipesDir . '/' . $generated_recipe_name);
 
-    $source = $this->container->get(ProjectBrowserSourceManager::class)->createInstance('recipes', [
+    $source = \Drupal::service(ProjectBrowserSourceManager::class)->createInstance('recipes', [
       'additional_directories' => [
         __DIR__ . '/../../fixtures',
         $this->installedRecipesDir,

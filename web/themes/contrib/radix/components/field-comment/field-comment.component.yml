@@ -9,11 +9,11 @@ props:
       type: Drupal\Core\Template\Attribute
       description: The attributes for the field comment section.
     title_prefix:
-      type: array
+      type: ['array', 'null', 'string', 'object']
       title: title prefix
       description: The prefix for the title of the field comment section.
     title_suffix:
-      type: array
+      type: ['array', 'null', 'string', 'object']
       title: title suffix
       description: The suffix for the title of the field comment section.
     comments:

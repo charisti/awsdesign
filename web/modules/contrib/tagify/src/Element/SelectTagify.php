@@ -2,6 +2,7 @@
 
 namespace Drupal\tagify\Element;
 
+use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element\Select;
 
@@ -97,6 +98,8 @@ class SelectTagify extends Select {
     $info['#match_limit'] = 20;
     $info['#match_operator'] = 'CONTAINS';
     $info['#placeholder'] = '';
+    $info['#show_entity_id'] = 0;
+    $info['#parent_selection'] = 1;
     return $info;
   }
 
@@ -119,13 +122,21 @@ class SelectTagify extends Select {
    *   The form element.
    */
   public static function processSelectTagify(&$element, FormStateInterface $form_state, &$complete_form) {
-    $element['#attached'] = [
+    // Present the element as a plain select for the rest of the form
+    // lifecycle. FormValidator::performRequiredValidation() only flattens
+    // optgroups when #type is literally 'select', so without this every value
+    // submitted from inside an option group is rejected as "not allowed".
+    // Side effect: the form_element wrapper is classed form-type-select rather
+    // than form-type-select-tagify. Rendering is unaffected, because #theme,
+    // #pre_render and #value_callback are all resolved before this runs.
+    // @see https://git.drupalcode.org/project/tagify/-/issues/3590693
+    $element['#type'] = 'select';
+
+    $element['#attached'] = NestedArray::mergeDeep($element['#attached'] ?? [], [
       'library' => [
-        'tagify/tagify',
         'tagify/default',
-        'tagify/tagify_polyfils',
       ],
-    ];
+    ]);
 
     if (_tagify_is_gin_theme_active()) {
       $element['#attached']['library'][] = 'tagify/gin';
@@ -142,6 +153,8 @@ class SelectTagify extends Select {
     $element['#attributes']['data-match-operator'] = ($element['#match_operator'] === 'CONTAINS') ? 1 : 0;
     $element['#attributes']['data-match-limit'] = $element['#match_limit'];
     $element['#attributes']['data-placeholder'] = $element['#placeholder'];
+    $element['#attributes']['data-show-entity-id'] = $element['#show_entity_id'] ?? '';
+    $element['#attributes']['data-parent-selection'] = $element['#parent_selection'] ?? '';
 
     // Information text.
     $element['#attached']['drupalSettings']['tagify_select']['information_message'] = [
@@ -149,8 +162,13 @@ class SelectTagify extends Select {
       'no_matching_suggestions' => t('No matching suggestions found for:'),
     ];
 
-    // Modify sorting for select multiple (unlimited).
-    if ($element['#multiple']) {
+    // Modify sorting for select multiple (unlimited). Without input and
+    // without a #default_value the form builder falls back to '' for #value,
+    // in which case nothing is selected and there is nothing to sort.
+    // Scoped to flat option lists on purpose: with optgroups the keys are
+    // group labels, never submitted values, so the sort degrades to a no-op
+    // and grouped selects keep their declared order.
+    if ($element['#multiple'] && is_array($element['#value'] ?? NULL)) {
       $selected_values = array_values($element['#value']);
       // Sort options based on selection order.
       uksort($element['#options'], function ($a, $b) use ($selected_values) {

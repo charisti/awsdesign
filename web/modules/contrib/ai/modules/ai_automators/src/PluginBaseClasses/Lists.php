@@ -40,8 +40,8 @@ class Lists extends RuleBase {
     $keys = array_keys($config['allowed_values']);
     $values = array_values($config['allowed_values']);
 
-    $tokens['min'] = min($keys) ?? NULL;
-    $tokens['max'] = max($keys) ?? NULL;
+    $tokens['min'] = min($keys);
+    $tokens['max'] = max($keys);
     $tokens['options_comma'] = implode(', ', $keys);
     $tokens['options_nl'] = implode("\n", $keys);
     $tokens['value_options_comma'] = implode(', ', $values);
@@ -81,6 +81,10 @@ class Lists extends RuleBase {
     $values = array_values($config['allowed_values']);
     $values = array_merge($keys, $values);
 
+    if (is_string($value)) {
+      $value = $this->decodeLabel($value);
+    }
+
     // Has to be in the list.
     if (!in_array($value, $values)) {
       return FALSE;
@@ -98,6 +102,9 @@ class Lists extends RuleBase {
     $realValues = [];
     // If it's not in the keys, go through values.
     foreach ($values as $value) {
+      if (is_string($value)) {
+        $value = $this->decodeLabel($value);
+      }
       $realValue = '';
       if (!in_array($value, $keys)) {
         foreach ($config['allowed_values'] as $key => $name) {

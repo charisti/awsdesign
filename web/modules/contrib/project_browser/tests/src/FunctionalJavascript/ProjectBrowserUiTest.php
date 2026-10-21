@@ -10,6 +10,8 @@ use Drupal\Core\Extension\MissingDependencyException;
 use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use Drupal\project_browser\ProjectBrowser\Filter\TextFilter;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+use PHPUnit\Framework\Attributes\TestWith;
 
 // cspell:ignore coverageall doomer eggman quiznos statusactive statusmaintained
 // cspell:ignore vetica
@@ -25,6 +27,7 @@ use PHPUnit\Framework\Attributes\Group;
  * @group project_browser
  */
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class ProjectBrowserUiTest extends WebDriverTestBase {
 
   use ProjectBrowserUiTestTrait;
@@ -51,7 +54,7 @@ final class ProjectBrowserUiTest extends WebDriverTestBase {
       ->set('enabled_sources', [
         'project_browser_test_mock' => [],
       ])
-      ->save(TRUE);
+      ->save();
     $this->drupalLogin($this->drupalCreateUser([
       'administer modules',
       'administer site configuration',
@@ -682,7 +685,7 @@ final class ProjectBrowserUiTest extends WebDriverTestBase {
   public function testTabledrag(): void {
     $page = $this->getSession()->getPage();
     $assert_session = $this->assertSession();
-    $this->container->get('module_installer')->install(['block']);
+    \Drupal::service('module_installer')->install(['block']);
     $this->drupalPlaceBlock('local_tasks_block');
 
     $this->config('project_browser.admin_settings')
@@ -746,10 +749,9 @@ final class ProjectBrowserUiTest extends WebDriverTestBase {
 
   /**
    * Tests the visibility of categories in list and grid view.
-   *
-   * @testWith ["Grid"]
-   *           ["List"]
    */
+  #[TestWith(['Grid'])]
+  #[TestWith(['List'])]
   public function testCategoriesVisibility(string $display_type): void {
     $this->getSession()->resizeWindow(1300, 1300);
     $this->drupalGet('admin/modules/browse/project_browser_test_mock');
@@ -840,7 +842,7 @@ final class ProjectBrowserUiTest extends WebDriverTestBase {
 
     // @todo Remove try/catch in https://www.drupal.org/i/3349193.
     try {
-      $this->container->get('module_installer')->install(['package_manager']);
+      \Drupal::service('module_installer')->install(['package_manager']);
     }
     catch (MissingDependencyException $e) {
       $this->markTestSkipped($e->getMessage());
@@ -918,7 +920,7 @@ final class ProjectBrowserUiTest extends WebDriverTestBase {
     assert(is_string($command));
     // A full path to the PHP executable should be in the command.
     $this->assertMatchesRegularExpression('/[^\s]+\/php /', $command);
-    $drupal_root = $this->getDrupalRoot();
+    $drupal_root = $this->root;
     $this->assertStringStartsWith("cd $drupal_root\n", $command);
     $this->assertStringEndsWith("php $drupal_root/core/scripts/drupal recipe $drupal_root/core/recipes/image_media_type", $command);
   }
@@ -1110,6 +1112,37 @@ final class ProjectBrowserUiTest extends WebDriverTestBase {
     // Svelte to re-render.
     sleep(1);
     $this->assertElementIsVisible('css', '.pb-search-results');
+  }
+
+  /**
+   * Tests that a block with pagination disabled does not show results count.
+   */
+  public function testBlockWithoutPaginationHasNoResultsCount(): void {
+    // Load a mock page with 1 instance, no pagination.
+    $this->drupalGet('/project-browser/project_browser_test_mock', [
+      'query' => [
+        'instances' => 1,
+        'no_paginate' => [1],
+      ],
+    ]);
+
+    // Wait for the instances to load.
+    $page = $this->getSession()->getPage();
+    $instance_loaded = $page->waitFor(
+      10,
+      fn (DocumentElement $page): bool => !empty($page->findAll('css', '.pb-projects-list')),
+    );
+    $this->assertTrue($instance_loaded);
+
+    $instance = $page->find('css', '[data-project-browser-instance-id]');
+
+    // Check that results count does not show for the instance, which
+    // has been configured with #paginate FALSE. The trick to this is that
+    // div.pb-search-results is always present (layout depends on it), so we
+    // have to actually get the inner text of that div and trim it to see if
+    // it's empty in terms of "it's not showing a result count."
+    $results_for_instance = $instance?->find('css', '.pb-search-results')?->getText() ?? 'NOT FOUND';
+    $this->assertEmpty(trim($results_for_instance));
   }
 
   /**

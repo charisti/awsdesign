@@ -104,6 +104,11 @@ information, see
       formats `"Time only"` or `"Date only"`. You must provide one or the other,
       or else nothing would be displayed.
 
+**NOTE:** By default, when Smart Date recurring events are indexed for search,
+they typically show as multiple date values on a single search result, which may
+not work as expected for some use cases. Use [Smart Date Recur Search API](https://www.drupal.org/project/smart_date_recur_search_api) if
+you need the recurring event instances to be indexed as separate results.
+
 
 ## Maintainers
 [//]: # cSpell:disable

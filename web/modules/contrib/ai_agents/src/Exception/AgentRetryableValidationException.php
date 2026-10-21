@@ -2,10 +2,12 @@
 
 namespace Drupal\ai_agents\Exception;
 
+use Drupal\ai\Exception\AiExceptionInterface;
+
 /**
  * Thrown when an LLM response fails validation but can be retried.
  */
-class AgentRetryableValidationException extends \Exception {
+class AgentRetryableValidationException extends \Exception implements AiExceptionInterface {
 
   /**
    * Construct the exception. Note: The message is NOT binary safe.

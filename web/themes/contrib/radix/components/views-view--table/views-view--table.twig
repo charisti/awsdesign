@@ -60,7 +60,7 @@
     {% endif %}
 
     {% if header %}
-      <thead class="bg-light">
+      <thead {% if header_style in ['light', 'dark'] %} class="table-{{ header_style }}"{% endif %}>
         <tr>
           {% for key, column in header %}
             {%

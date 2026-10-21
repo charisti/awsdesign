@@ -58,7 +58,10 @@ class TrashWorkspaceInformation implements WorkspaceInformationInterface {
    * {@inheritdoc}
    */
   public function isEntityDeletable(EntityInterface $entity, WorkspaceInterface $workspace): bool {
-    if ($this->trashManager->isEntityTypeEnabled($entity->getEntityType(), $entity->bundle()) && !trash_entity_is_deleted($entity)) {
+    // Deleting means trashing the remaining live translations, so the answer
+    // has to be about the whole entity, no matter which translation object
+    // the caller holds. Only a fully trashed entity is no longer deletable.
+    if ($this->trashManager->isEntityTypeEnabled($entity->getEntityType(), $entity->bundle()) && !Trash::entityHasAllTranslationsDeleted($entity)) {
       return TRUE;
     }
 

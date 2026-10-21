@@ -73,4 +73,3 @@ props:
       title: Animated
       description: True if the progress bar should be animated.
       default: true
-

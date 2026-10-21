@@ -7,7 +7,6 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Url;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -26,13 +25,6 @@ final class ExportCSVController extends ControllerBase implements ContainerInjec
    * @var \Drupal\editoria11y\Dashboard
    */
   protected $dashboard;
-
-  /**
-   * The renderer service.
-   *
-   * @var \Drupal\Core\Render\RendererInterface
-   */
-  protected RendererInterface $renderer;
 
   /**
    * Get date formatter copy.
@@ -95,6 +87,11 @@ final class ExportCSVController extends ControllerBase implements ContainerInjec
       'Language' => $this->t('Language'),
       'Page report' => $this->t('Page report'),
     ];
+
+    // Allow other modules to alter the header (e.g., add columns).
+    $context_key = 'pages';
+    $this->moduleHandler()->alter('editoria11y_export_header', $header, $context_key);
+
     // Add the header as the first line of the CSV.
     fputcsv($handle, $header);
     // Find and load all of the Article nodes we are going to include.
@@ -112,6 +109,10 @@ final class ExportCSVController extends ControllerBase implements ContainerInjec
         'Language' => $this->escapeStringForCsv($result->page_language),
         'Page report' => $issuesByPage->toString(),
       ];
+
+      // Allow other modules to alter the row data.
+      // Please remember to escapeStringForCsv.
+      $this->moduleHandler()->alter('editoria11y_export_row', $data, $result, $context_key);
 
       // Add the data we ExportCSVControllered to the next line of the CSV>.
       fputcsv($handle, array_values($data));
@@ -134,6 +135,9 @@ final class ExportCSVController extends ControllerBase implements ContainerInjec
     // used by this Controller to return a CSV file called "article-report.csv".
     $response->headers->set('Content-Type', 'text/csv');
     $response->headers->set('Content-Disposition', 'attachment; filename="editoria11y-summary.csv"');
+    $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    $response->headers->set('Pragma', 'no-cache');
+    $response->headers->set('Expires', '0');
 
     // This line physically adds the CSV data we created.
     $response->setContent($csv_data);
@@ -161,6 +165,11 @@ final class ExportCSVController extends ControllerBase implements ContainerInjec
       'Language' => $this->t('Language'),
       'Page report' => $this->t('Page report'),
     ];
+
+    // Allow other modules to alter the header (e.g., add columns).
+    $context_key = 'issues';
+    $this->moduleHandler()->alter('editoria11y_export_header', $header, $context_key);
+
     // Add the header as the first line of the CSV.
     fputcsv($handle, $header);
     // Find and load all of the Article nodes we are going to include.
@@ -178,6 +187,10 @@ final class ExportCSVController extends ControllerBase implements ContainerInjec
         'Language' => $this->escapeStringForCsv($result->page_language),
         'Page report' => $issuesByPage->toString(),
       ];
+
+      // Allow other modules to alter the row data.
+      // Please remember to escapeStringForCsv.
+      $this->moduleHandler()->alter('editoria11y_export_row', $data, $result, $context_key);
 
       // Add the data we ExportCSVControllered to the next line of the CSV>.
       fputcsv($handle, array_values($data));
@@ -200,6 +213,9 @@ final class ExportCSVController extends ControllerBase implements ContainerInjec
     // used by this Controller to return a CSV file called "article-report.csv".
     $response->headers->set('Content-Type', 'text/csv');
     $response->headers->set('Content-Disposition', 'attachment; filename="editoria11y-issues.csv"');
+    $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    $response->headers->set('Pragma', 'no-cache');
+    $response->headers->set('Expires', '0');
 
     // This line physically adds the CSV data we created.
     $response->setContent($csv_data);
@@ -229,6 +245,10 @@ final class ExportCSVController extends ControllerBase implements ContainerInjec
       'Still on page' => $this->t('Still on page'),
     ];
 
+    // Allow other modules to alter the header (e.g., add columns).
+    $context_key = 'dismissals';
+    $this->moduleHandler()->alter('editoria11y_export_header', $header, $context_key);
+
     // Add the header as the first line of the CSV.
     fputcsv($handle, $header);
     // Find and load all of the Article nodes we are going to include.
@@ -251,6 +271,10 @@ final class ExportCSVController extends ControllerBase implements ContainerInjec
         'Still on page' => $stale,
       ];
 
+      // Allow other modules to alter the row data.
+      // Please remember to escapeStringForCsv.
+      $this->moduleHandler()->alter('editoria11y_export_row', $data, $result, $context_key);
+
       // Add the data we ExportCSVControllered to the next line of the CSV>.
       fputcsv($handle, array_values($data));
     }
@@ -272,6 +296,9 @@ final class ExportCSVController extends ControllerBase implements ContainerInjec
     // used by this Controller to return a CSV file called "article-report.csv".
     $response->headers->set('Content-Type', 'text/csv');
     $response->headers->set('Content-Disposition', 'attachment; filename="editoria11y-dismissals.csv"');
+    $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    $response->headers->set('Pragma', 'no-cache');
+    $response->headers->set('Expires', '0');
 
     // This line physically adds the CSV data we created.
     $response->setContent($csv_data);

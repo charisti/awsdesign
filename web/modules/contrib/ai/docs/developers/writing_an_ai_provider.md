@@ -5,7 +5,20 @@ An AI Provider is a Drupal module that connects with the [AI Core](https://drupa
 
 As shown in the image below, AI Core links to multiple AI Providers, such as OpenAI, Gemini, Anthropic, or any custom AI service. Each provider acts as a plugin that supplies AI capabilities, which are standardized by AI Core. This way, your custom module only needs to interact with AI Core, which handles the complexities of each specific provider.
 
-![AI Core module and providers](https://miro.medium.com/v2/resize:fit:4800/format:webp/0*YEUnqeZ9mExt3UI3)
+```mermaid
+
+flowchart TD
+    A(OpenAI<br><br>):::provider --> E(AI Core):::aiCore
+    B(Gemini<br><br>):::provider --> E(AI Core)
+    C(Anthropic<br><br>):::provider --> E(AI Core)
+    D(Any<br>custom<br>provider):::provider --> E(&emsp;&emsp;&emsp;&emsp;AI Core&emsp;&emsp;&emsp;&emsp;&emsp;)
+    E <--> F(Your custom module):::customModule
+
+classDef provider fill:#ffea8f;
+classDef aiCore fill:#A5D7FF;
+classDef customModule fill:#B2F2BA;
+
+```
 
 This structure allows you to switch between AI providers or add new ones easily. Additionally, it enables you to use both public AI providers and your private models together within the same system.
 
@@ -135,7 +148,7 @@ final class DropAiConfigForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    // Do a check if its getting setup or disabled.
+    // Do a check if it's getting set up or disabled.
     if ($form_state->getValue('api_key')) {
       // Here we set the default providers per the operation for our provider.
       $this->aiProviderManager->defaultIfNone('chat', 'dropai', 'drop-ai-text-model-1');
@@ -164,7 +177,7 @@ Here is the plugin implementation for our fictional provider. We implement *Chat
 
 Most parts of the code are mock, to be used as a starter. You will need to modify it and implement based on your provider.
 
-You can see the entire codebase in the [dropai module](https://git.drupalcode.org/project/ai/-/tree/1.0.x/docs/examples/dropai_provider) and find the parts where we load the api key for nothing (to demonstrate the idea), you will use it to authenticate with your provider. Also there is a mock provider client implemented in the example module, which generates dummy text responses — you will need to use the specific client for your provider. Many the popular providers already have the PHP libraries and its better to use them.
+You can see the entire codebase in the [dropai module](https://git.drupalcode.org/project/ai/-/tree/1.0.x/docs/examples/dropai_provider) and find the parts where we load the api key for nothing (to demonstrate the idea), you will use it to authenticate with your provider. Also there is a mock provider client implemented in the example module, which generates dummy text responses — you will need to use the specific client for your provider. Many of the popular providers already have the PHP libraries and it's better to use them.
 
 Following is the plugin implementation for the provider — the central part of the provider. You can use comments to understand more.
 
@@ -239,7 +252,13 @@ class DropAiProvider extends AiProviderClientBase implements ChatInterface {
    * @throws AiResponseErrorException
    *   Thrown if the models cannot be fetched.
    */
-  public function getConfiguredModels(string $operation_type = NULL, array $capabilities = []): array {
+  public function getConfiguredModels(?string $operation_type = NULL, array $capabilities = []): array {
+    // A provider can be installed before it has a Key reference. Dynamic
+    // model discovery must not initialize a client in that state.
+    if (!$this->isUsable($operation_type, $capabilities)) {
+      return [];
+    }
+
     $this->loadClient();
 
     try {
@@ -263,7 +282,7 @@ class DropAiProvider extends AiProviderClientBase implements ChatInterface {
    * @return bool
    *   TRUE if the provider can be used; FALSE otherwise.
    */
-  public function isUsable(string $operation_type = NULL, array $capabilities = []): bool {
+  public function isUsable(?string $operation_type = NULL, array $capabilities = []): bool {
     if (!$this->getConfig()->get('api_key')) {
       return FALSE;
     }
@@ -441,3 +460,26 @@ class DropAiProvider extends AiProviderClientBase implements ChatInterface {
 Finally you will need to define some API defaults, which reflect the parameters that your provider supports — for example the temperature, or topN, that most AI providers have. But you need to follow the documentation of the AI service, you are building the provider for. [Here](https://git.drupalcode.org/project/ai/-/tree/1.0.x/docs/examples/dropai_provider/definitions/api_defaults.yml) you can check the example for this.
 
 After all of this, you will be able to see your newly implemented provider in the AI Explorer of the AI module and use it like other providers.
+
+### Reporting token usage
+If your provider's API reports token usage, set it on the `ChatOutput` object returned by `chat()` using `setTokenUsage()`, passing a `Drupal\ai\Dto\TokenUsageDto`. See [Token usage](call_chat.md#token-usage) for the full property reference.
+
+```php
+use Drupal\ai\Dto\TokenUsageDto;
+
+$chat_output = new ChatOutput($message, $response, []);
+$chat_output->setTokenUsage(new TokenUsageDto(
+  input: $response['usage']['prompt_tokens'] ?? NULL,
+  output: $response['usage']['completion_tokens'] ?? NULL,
+  total: $response['usage']['total_tokens'] ?? NULL,
+  reasoning: $response['usage']['completion_tokens_details']['reasoning_tokens'] ?? NULL,
+  cached: $response['usage']['prompt_tokens_details']['cached_tokens'] ?? NULL,
+));
+```
+
+Leave a property `NULL` (the default) rather than `0` when your provider's API doesn't report that particular value.
+
+If your provider supports streaming and implements `doIterate()` on a `StreamedChatMessageIterator` subclass, you don't need to construct a `TokenUsageDto` yourself. Instead, report usage per-chunk via the setters on `StreamedChatMessage` (`setInputTokenUsage()`, `setOutputTokenUsage()`, etc.) whenever a chunk from your API includes usage data. The base iterator automatically collects these across all chunks and calls `setTokenUsage()` on the resulting `ChatOutput` once the stream is fully consumed.
+
+### Rate Limits
+If your provider has rate limits, you can set them on the `ChatOutput` object returned by the `chat` method using `setRateLimits()`. Create a `ChatProviderLimitsDto` object and set the appropriate values, such as maximum requests, remaining requests, and reset time. This information can then be consumed through `getRateLimits()` and used by the AI module to manage and display rate limit status to users.

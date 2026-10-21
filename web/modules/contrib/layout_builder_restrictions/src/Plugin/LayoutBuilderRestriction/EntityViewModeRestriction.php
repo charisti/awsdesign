@@ -5,21 +5,22 @@ namespace Drupal\layout_builder_restrictions\Plugin\LayoutBuilderRestriction;
 use Drupal\Core\Config\Entity\ThirdPartySettingsInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\layout_builder\OverridesSectionStorageInterface;
 use Drupal\layout_builder\SectionStorageInterface;
+use Drupal\layout_builder_restrictions\Attribute\LayoutBuilderRestriction;
 use Drupal\layout_builder_restrictions\Plugin\LayoutBuilderRestrictionBase;
 use Drupal\layout_builder_restrictions\Traits\PluginHelperTrait;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Controls behavior of the per-view mode plugin.
- *
- * @LayoutBuilderRestriction(
- *   id = "entity_view_mode_restriction",
- *   title = @Translation("Entity View Mode"),
- *   description = @Translation("Restrict blocks/layouts per entity view mode"),
- * )
  */
+#[LayoutBuilderRestriction(
+  id: 'entity_view_mode_restriction',
+  title: new TranslatableMarkup('Entity View Mode'),
+  description: new TranslatableMarkup('Restrict blocks/layouts per entity view mode')
+)]
 class EntityViewModeRestriction extends LayoutBuilderRestrictionBase {
 
   use PluginHelperTrait;

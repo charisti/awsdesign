@@ -38,7 +38,6 @@ abstract class UpdateTestBase extends TemplateProjectTestBase {
     // of Drupal core.
     $info_files = [
       'modules/contrib/automatic_updates/automatic_updates.info.yml',
-      'modules/contrib/automatic_updates/automatic_updates_extensions/automatic_updates_extensions.info.yml',
     ];
     // Install Automatic Updates into the test project and ensure it wasn't
     // symlinked.

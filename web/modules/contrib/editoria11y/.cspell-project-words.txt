@@ -54,3 +54,7 @@ varchar
 fontawesome
 fonticons
 tablesaw
+crect
+ctext
+eimg
+

@@ -13,6 +13,7 @@ use Drupal\ai\Service\PromptJsonDecoder\PromptJsonDecoderInterface;
 use Drupal\ai_agents\PluginManager\AiAgentManager;
 use Drupal\ai_agents\Service\FieldAgent\FieldAgentHelper;
 use Drupal\ai_agents\Task\Task;
+use Drupal\unstructured\Formatters\MarkdownFormatter;
 use League\HTMLToMarkdown\HtmlConverter;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -297,8 +298,7 @@ class ContentTypes extends FormBase {
       ]) && class_exists('\Drupal\unstructured\Formatters\MarkdownFormatter')) {
         // Run unstructured data extraction.
         $data = $this->unstructuredApi->structure($file);
-        // @codingStandardsIgnoreLine
-        $format = new \Drupal\unstructured\Formatters\MarkdownFormatter();
+        $format = new MarkdownFormatter();
         $text = $format->format($data, "all");
         if (isset($text[0])) {
           $file_context = $text[0];

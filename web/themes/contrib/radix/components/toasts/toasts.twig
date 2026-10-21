@@ -27,11 +27,11 @@
  * - attributes: Object containing additional attributes to add to the toast component.
  */
 #}
-  {% set with_wrapper = with_wrapper|default(false) %}
+  {% set with_wrapper = with_wrapper ?? false %}
   {% set wrapper_classes = wrapper_classes|default('') %}
   {% set wrapper_aria_live = wrapper_aria_live|default('polite') %}
-  {% set with_container = with_container|default(true) %}
-  {% set toasts = toasts|default([]) %}
+  {% set with_container = with_container ?? true %}
+  {% set toasts = toasts ?? [] %}
   {% set container_classes = 'toast-container' ~ (container_classes ? ' ' ~ container_classes : '') %}
   {% set attributes = attributes|default(create_attribute()) %}
   {% set autohide = autohide ?? false %}

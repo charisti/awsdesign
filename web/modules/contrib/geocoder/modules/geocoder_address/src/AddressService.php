@@ -9,6 +9,7 @@ use CommerceGuys\Addressing\Formatter\DefaultFormatter;
 use CommerceGuys\Addressing\Formatter\PostalLabelFormatter;
 use CommerceGuys\Addressing\Subdivision\SubdivisionRepositoryInterface;
 use Drupal\address\Element\Address as ElementAddress;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\DependencyInjection\ServiceProviderBase;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 
@@ -48,6 +49,13 @@ class AddressService extends ServiceProviderBase {
   protected ModuleHandlerInterface $moduleHandler;
 
   /**
+   * The config factory.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected ConfigFactoryInterface $configFactory;
+
+  /**
    * AddressService constructor.
    *
    * @param \CommerceGuys\Addressing\AddressFormat\AddressFormatRepositoryInterface $address_format_repository
@@ -58,12 +66,15 @@ class AddressService extends ServiceProviderBase {
    *   The postal label formatter.
    * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
    *   The module handler.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory.
    */
-  public function __construct(AddressFormatRepositoryInterface $address_format_repository, CountryRepositoryInterface $country_repository, SubdivisionRepositoryInterface $subdivision_repository, ModuleHandlerInterface $module_handler) {
+  public function __construct(AddressFormatRepositoryInterface $address_format_repository, CountryRepositoryInterface $country_repository, SubdivisionRepositoryInterface $subdivision_repository, ModuleHandlerInterface $module_handler, ConfigFactoryInterface $config_factory) {
     $this->addressFormatRepository = $address_format_repository;
     $this->countryRepository = $country_repository;
     $this->subdivisionRepository = $subdivision_repository;
     $this->moduleHandler = $module_handler;
+    $this->configFactory = $config_factory;
   }
 
   /**
@@ -163,9 +174,13 @@ class AddressService extends ServiceProviderBase {
     $address_string = str_replace("<br>", ', ', $address_string);
     $address_string = strip_tags($address_string);
 
-    // In case of a country-only address, use the full country name.
+    // In case of a country-only address, optionally use the full country name.
+    // Geocoding a bare country resolves to the country centroid, which is not
+    // always desired (e.g. an optional address field with a pre-selected
+    // country but no real location). Make the fallback opt-out via config.
     if (strlen($address_string) === 0 && strlen($countrycode) !== 0) {
-      $address_string = $this->countryRepository->get($countrycode)->getName();
+      $geocode_country_only = $this->configFactory->get('geocoder.settings')->get('geocode_country_only_address') ?? TRUE;
+      $address_string = $geocode_country_only ? $this->countryRepository->get($countrycode)->getName() : '';
     }
     elseif (strlen($countrycode) !== 0) {
       // Otherwise add Country code suffix, if defined.

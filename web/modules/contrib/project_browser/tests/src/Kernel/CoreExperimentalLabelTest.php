@@ -10,6 +10,7 @@ use Drupal\project_browser\Plugin\ProjectBrowserSourceManager;
 use Drupal\project_browser\ProjectBrowser\Project;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests 'Core (Experimental)' label change.
@@ -18,6 +19,7 @@ use PHPUnit\Framework\Attributes\Group;
  */
 #[CoversClass(DrupalCore::class)]
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class CoreExperimentalLabelTest extends KernelTestBase {
 
   /**
@@ -39,7 +41,7 @@ final class CoreExperimentalLabelTest extends KernelTestBase {
    */
   public function testCoreExperimentalLabel(): void {
     /** @var \Drupal\project_browser\Plugin\ProjectBrowserSourceInterface $plugin_instance */
-    $plugin_instance = $this->container->get(ProjectBrowserSourceManager::class)
+    $plugin_instance = \Drupal::service(ProjectBrowserSourceManager::class)
       ->createInstance('drupal_core');
     $modules_to_test = ['Experimental Test', 'System'];
     $filtered_projects = array_filter($plugin_instance->getProjects()->list, fn(Project $value): bool => in_array($value->title, $modules_to_test));

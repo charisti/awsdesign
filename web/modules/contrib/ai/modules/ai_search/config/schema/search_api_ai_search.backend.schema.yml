@@ -44,12 +44,18 @@ plugin.plugin_configuration.search_api_backend.search_api_ai_search:
         chunk_size:
           type: string
           label: 'The size of each chunk'
+        embedding_collection_size:
+          type: integer
+          label: 'Number of texts per embedding collection request'
         chunk_min_overlap:
           type: string
           label: 'The minimum overlap between chunks'
         contextual_content_max_percentage:
           type: string
           label: 'Maximum percentage of contextual content'
+        skip_moderation:
+          type: boolean
+          label: 'Whether to skip moderation'
     embedding_strategy_details:
       type: string
       label: 'Additional details for the embedding strategy'

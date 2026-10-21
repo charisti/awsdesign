@@ -2,14 +2,19 @@
 
 namespace Drupal\Tests\smart_date\Functional;
 
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\node\NodeInterface;
 
 /**
  * Functional browser tests for smartdate_timezone field widget.
  *
  * @group smart_date
  */
+#[Group('smart_date')]
+#[RunTestsInSeparateProcesses]
 class SmartDateTimezoneWidgetTest extends SmartDateTestBase {
 
   /**
@@ -117,6 +122,65 @@ class SmartDateTimezoneWidgetTest extends SmartDateTestBase {
     $web_assert = $this->assertSession();
     // Assert an expected timezone is available to select.
     $web_assert->optionExists('field_date[0][timezone]', 'America/New_York');
+    // Assert a timezone outside the allowed list is not available.
+    $web_assert->optionNotExists('field_date[0][timezone]', 'Europe/London');
+  }
+
+  /**
+   * Tests that submitted timezone widget values are stored correctly.
+   */
+  public function testSmartdateTimezoneWidgetStoresSubmittedValues() {
+    $this->drupalLogin(
+      $this->createUser([
+        'create smart_date_content content',
+      ])
+    );
+
+    $this->drupalGet('/node/add/smart_date_content');
+    $title = $this->randomMachineName(20);
+    $edit = [
+      'title[0][value]' => $title,
+      'field_date[0][time_wrapper][value][date]' => '2024-01-15',
+      'field_date[0][time_wrapper][value][time]' => '10:00:00',
+      'field_date[0][time_wrapper][end_value][date]' => '2024-01-15',
+      'field_date[0][time_wrapper][end_value][time]' => '11:00:00',
+      'field_date[0][duration]' => '60',
+      'field_date[0][timezone]' => 'America/New_York',
+    ];
+
+    $this->submitForm($edit, 'Save');
+
+    $node = $this->loadNodeByTitle($title);
+    $this->assertInstanceOf(NodeInterface::class, $node);
+
+    $item = $node->get('field_date')->first();
+    $this->assertSame(strtotime('2024-01-15T10:00:00-05:00'), (int) $item->value);
+    $this->assertSame(strtotime('2024-01-15T11:00:00-05:00'), (int) $item->end_value);
+    $this->assertSame(60, (int) $item->duration);
+    $this->assertSame('America/New_York', $item->timezone);
+  }
+
+  /**
+   * Loads a node by title.
+   *
+   * @param string $title
+   *   The node title.
+   *
+   * @return \Drupal\node\NodeInterface|null
+   *   The loaded node, or NULL.
+   */
+  protected function loadNodeByTitle(string $title): ?NodeInterface {
+    $storage = \Drupal::entityTypeManager()->getStorage('node');
+    $ids = $storage->getQuery()
+      ->accessCheck(FALSE)
+      ->condition('title', $title)
+      ->execute();
+
+    if (!$ids) {
+      return NULL;
+    }
+
+    return $storage->load(reset($ids));
   }
 
 }

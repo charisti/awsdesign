@@ -110,7 +110,7 @@ class ListContentEntities extends FunctionCallBase implements ExecutableFunction
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Collect the context values.
     $entity_type = $this->getContextValue('entity_type');
     $bundle = $this->getContextValue('bundle');
@@ -157,12 +157,21 @@ class ListContentEntities extends FunctionCallBase implements ExecutableFunction
         $entity_data = [];
         if (!is_null($fields) && count($fields)) {
           foreach ($fields as $field) {
-            $entity_data[$field] = $entity->get($field)->getValue();
+            $field_item = $entity->get($field);
+            if (!$field_item->access('view')) {
+              throw new \Exception('Access denied to field: ' . $field);
+            }
+            $entity_data[$field] = $field_item->getValue();
           }
         }
         else {
-          // Else the whole entity.
-          $entity_data[] = $entity->toArray();
+          // Else the whole entity, skipping fields the user cannot view.
+          foreach ($entity->getFields() as $field_name => $field_item) {
+            if (!$field_item->access('view')) {
+              continue;
+            }
+            $entity_data[$field_name] = $field_item->getValue();
+          }
         }
         $this->list[] = $entity_data;
       }

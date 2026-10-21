@@ -6,6 +6,7 @@ namespace Drupal\Tests\project_browser\FunctionalJavascript;
 
 use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Provides tests for the Project Browser Example plugins.
@@ -13,6 +14,7 @@ use PHPUnit\Framework\Attributes\Group;
  * @group project_browser
  */
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class ProjectBrowserExamplePluginTest extends WebDriverTestBase {
 
   use ProjectBrowserUiTestTrait;

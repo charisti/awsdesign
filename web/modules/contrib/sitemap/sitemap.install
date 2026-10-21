@@ -44,7 +44,7 @@ function sitemap_update_8200(&$sandbox) {
   $config->clear('css');
 
   // Remove the config for the RSS position option.
-  $show_rss = (boolean) $config->get('show_rss_links');
+  $show_rss = (bool) $config->get('show_rss_links');
   $config->clear('show_rss_links');
 
   $plugins = [];

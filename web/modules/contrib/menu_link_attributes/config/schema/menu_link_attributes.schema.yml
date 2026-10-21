@@ -12,9 +12,9 @@ _menu_link_attributes.attribute:
     type: mapping
     mapping:
       label:
-        type: string
+        type: label
       description:
-        type: string
+        type: label
       type:
         type: string
       options:
@@ -23,3 +23,5 @@ _menu_link_attributes.attribute:
           type: string
       default_value:
         type: string
+      container:
+        type: boolean

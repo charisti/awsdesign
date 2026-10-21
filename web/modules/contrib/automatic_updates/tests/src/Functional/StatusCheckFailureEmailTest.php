@@ -8,20 +8,24 @@ use Drupal\automatic_updates\CronUpdateRunner;
 use Drupal\automatic_updates\StatusCheckMailer;
 use Drupal\automatic_updates_test\Datetime\TestTime;
 use Drupal\automatic_updates_test\EventSubscriber\TestSubscriber1;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Drupal\Core\Url;
 use Drupal\package_manager\Event\StatusCheckEvent;
-use Drupal\system\SystemManager;
 use Drupal\Tests\automatic_updates\Traits\EmailNotificationsTestTrait;
 use Drupal\Tests\automatic_updates\Traits\ValidationTestTrait;
 use Drupal\Tests\Traits\Core\CronRunTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests status check failure notification emails during cron runs.
  *
- * @group automatic_updates
- * @covers \Drupal\automatic_updates\StatusCheckMailer
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(StatusCheckMailer::class)]
+#[RunTestsInSeparateProcesses]
 class StatusCheckFailureEmailTest extends AutomaticUpdatesFunctionalTestBase {
 
   use CronRunTrait;
@@ -90,7 +94,7 @@ class StatusCheckFailureEmailTest extends AutomaticUpdatesFunctionalTestBase {
     // No messages should have been sent yet.
     $this->assertSentMessagesCount(0);
 
-    $error = $this->createValidationResult(SystemManager::REQUIREMENT_ERROR);
+    $error = $this->createValidationResult(RequirementSeverity::Error->value);
     TestSubscriber1::setTestResult([$error], StatusCheckEvent::class);
     $this->runConsoleUpdateCommand();
 
@@ -112,7 +116,7 @@ END;
     $this->assertSentMessagesCount($sent_messages_count);
 
     // If a different error is flagged, they should be emailed again.
-    $error = $this->createValidationResult(SystemManager::REQUIREMENT_ERROR);
+    $error = $this->createValidationResult(RequirementSeverity::Error->value);
     TestSubscriber1::setTestResult([$error], StatusCheckEvent::class);
     $this->runConsoleUpdateCommand();
     $sent_messages_count += $recipient_count;
@@ -123,7 +127,7 @@ END;
     // emailed about this error.
     $results = [
       $error,
-      $this->createValidationResult(SystemManager::REQUIREMENT_WARNING),
+      $this->createValidationResult(RequirementSeverity::Warning->value),
     ];
     TestSubscriber1::setTestResult($results, StatusCheckEvent::class);
     $this->runConsoleUpdateCommand();
@@ -131,7 +135,7 @@ END;
 
     // If only a warning is flagged, they should not be emailed again because
     // we ignore warnings by default.
-    $warning = $this->createValidationResult(SystemManager::REQUIREMENT_WARNING);
+    $warning = $this->createValidationResult(RequirementSeverity::Warning->value);
     TestSubscriber1::setTestResult([$warning], StatusCheckEvent::class);
     $this->runConsoleUpdateCommand();
     $this->assertSentMessagesCount($sent_messages_count);
@@ -145,7 +149,7 @@ END;
     $this->assertSentMessagesCount($sent_messages_count);
 
     // If we flag a different warning, they should be emailed again.
-    $warning = $this->createValidationResult(SystemManager::REQUIREMENT_WARNING);
+    $warning = $this->createValidationResult(RequirementSeverity::Warning->value);
     TestSubscriber1::setTestResult([$warning], StatusCheckEvent::class);
     $this->runConsoleUpdateCommand();
     $sent_messages_count += $recipient_count;
@@ -154,8 +158,8 @@ END;
     // If we flag multiple warnings, they should be emailed again because the
     // number of results has changed, even if the severity hasn't.
     $warnings = [
-      $this->createValidationResult(SystemManager::REQUIREMENT_WARNING),
-      $this->createValidationResult(SystemManager::REQUIREMENT_WARNING),
+      $this->createValidationResult(RequirementSeverity::Warning->value),
+      $this->createValidationResult(RequirementSeverity::Warning->value),
     ];
     TestSubscriber1::setTestResult($warnings, StatusCheckEvent::class);
     $this->runConsoleUpdateCommand();
@@ -165,8 +169,8 @@ END;
     // If we flag an error and a warning, they should be emailed again because
     // the severity has changed, even if the number of results hasn't.
     $results = [
-      $this->createValidationResult(SystemManager::REQUIREMENT_WARNING),
-      $this->createValidationResult(SystemManager::REQUIREMENT_ERROR),
+      $this->createValidationResult(RequirementSeverity::Warning->value),
+      $this->createValidationResult(RequirementSeverity::Error->value),
     ];
     TestSubscriber1::setTestResult($results, StatusCheckEvent::class);
     $this->runConsoleUpdateCommand();
@@ -184,7 +188,7 @@ END;
     // If we disable notifications entirely, they should not be emailed even
     // if a different error is flagged.
     $config->set('status_check_mail', StatusCheckMailer::DISABLED)->save();
-    $error = $this->createValidationResult(SystemManager::REQUIREMENT_ERROR);
+    $error = $this->createValidationResult(RequirementSeverity::Error->value);
     TestSubscriber1::setTestResult([$error], StatusCheckEvent::class);
     $this->runConsoleUpdateCommand();
     $this->assertSentMessagesCount($sent_messages_count);
@@ -192,7 +196,7 @@ END;
     // If we re-enable notifications and go back to ignoring warnings, they
     // should not be emailed if a new warning is flagged.
     $config->set('status_check_mail', StatusCheckMailer::ERRORS_ONLY)->save();
-    $warning = $this->createValidationResult(SystemManager::REQUIREMENT_WARNING);
+    $warning = $this->createValidationResult(RequirementSeverity::Warning->value);
     TestSubscriber1::setTestResult([$warning], StatusCheckEvent::class);
     $this->runConsoleUpdateCommand();
     $this->assertSentMessagesCount($sent_messages_count);
@@ -200,7 +204,7 @@ END;
     // If we disable unattended updates entirely and flag a new error, they
     // should not be emailed.
     $config->set('unattended.level', CronUpdateRunner::DISABLED)->save();
-    $error = $this->createValidationResult(SystemManager::REQUIREMENT_ERROR);
+    $error = $this->createValidationResult(RequirementSeverity::Error->value);
     TestSubscriber1::setTestResult([$error], StatusCheckEvent::class);
     $this->runConsoleUpdateCommand();
     $this->assertSentMessagesCount($sent_messages_count);

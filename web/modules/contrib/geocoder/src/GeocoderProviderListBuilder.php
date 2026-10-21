@@ -6,8 +6,8 @@ namespace Drupal\geocoder;
 
 use Drupal\Core\Config\Entity\ConfigEntityListBuilder;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBuilderInterface;
 use Drupal\geocoder\Form\GeocoderProviderCreationForm;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -29,13 +29,13 @@ class GeocoderProviderListBuilder extends ConfigEntityListBuilder {
    *
    * @param \Drupal\Core\Entity\EntityTypeInterface $entity_type
    *   The entity type definition.
-   * @param \Drupal\Core\Entity\EntityStorageInterface $storage
-   *   The entity storage class.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    * @param \Drupal\Core\Form\FormBuilderInterface $form_builder
    *   The form builder.
    */
-  public function __construct(EntityTypeInterface $entity_type, EntityStorageInterface $storage, FormBuilderInterface $form_builder) {
-    parent::__construct($entity_type, $storage);
+  public function __construct(EntityTypeInterface $entity_type, EntityTypeManagerInterface $entity_type_manager, FormBuilderInterface $form_builder) {
+    parent::__construct($entity_type, $entity_type_manager->getStorage($entity_type->id()));
     $this->formBuilder = $form_builder;
   }
 
@@ -45,7 +45,7 @@ class GeocoderProviderListBuilder extends ConfigEntityListBuilder {
   public static function createInstance(ContainerInterface $container, EntityTypeInterface $entity_type) {
     return new static(
       $entity_type,
-      $container->get('entity_type.manager')->getStorage($entity_type->id()),
+      $container->get('entity_type.manager'),
       $container->get('form_builder')
     );
   }

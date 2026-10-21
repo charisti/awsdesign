@@ -4,15 +4,20 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\automatic_updates\Kernel\StatusCheck;
 
+use Drupal\automatic_updates\Validator\StagedDatabaseUpdateValidator;
 use Drupal\package_manager\Event\PreApplyEvent;
 use Drupal\Tests\automatic_updates\Kernel\AutomaticUpdatesKernelTestBase;
 use ColinODell\PsrTestLogger\TestLogger;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @covers \Drupal\automatic_updates\Validator\StagedDatabaseUpdateValidator
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(StagedDatabaseUpdateValidator::class)]
+#[RunTestsInSeparateProcesses]
 class StagedDatabaseUpdateValidatorTest extends AutomaticUpdatesKernelTestBase {
 
   /**

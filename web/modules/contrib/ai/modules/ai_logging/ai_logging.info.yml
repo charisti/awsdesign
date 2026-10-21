@@ -6,12 +6,15 @@ core_version_requirement: ^10.4 || ^11
 configure: ai_logging.settings_form
 tags:
   - developer
+lifecycle: deprecated
+lifecycle_link: 'https://www.drupal.org/project/ai/issues/3552886'
+hidden: true
 
 dependencies:
   - ai:ai
   - drupal:views
 
-# Information added by Drupal.org packaging script on 2025-10-29
-version: '1.2.2'
+# Information added by Drupal.org packaging script on 2026-09-25
+version: '1.5.0'
 project: 'ai'
-datestamp: 1761744728
+datestamp: 1790327400

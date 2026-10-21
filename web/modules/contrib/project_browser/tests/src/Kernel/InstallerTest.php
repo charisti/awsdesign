@@ -22,6 +22,7 @@ use PhpTuf\ComposerStager\API\Exception\InvalidArgumentException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the Installer class.
@@ -30,6 +31,7 @@ use PHPUnit\Framework\Attributes\Group;
  */
 #[CoversClass(Installer::class)]
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class InstallerTest extends PackageManagerKernelTestBase {
 
   use UserCreationTrait;
@@ -93,7 +95,7 @@ final class InstallerTest extends PackageManagerKernelTestBase {
   #[DataProvider('providerCommitException')]
   public function testCommitException(string $thrown_class, string $expected_class): void {
     /** @var \Drupal\project_browser\ComposerInstaller\Installer $installer */
-    $installer = $this->container->get(Installer::class);
+    $installer = \Drupal::service(Installer::class);
     $installer->create();
     $installer->require(['org/package-name']);
 
@@ -121,7 +123,7 @@ final class InstallerTest extends PackageManagerKernelTestBase {
    */
   public function testInstallException(): void {
     /** @var \Drupal\project_browser\ComposerInstaller\Installer $installer */
-    $installer = $this->container->get(Installer::class);
+    $installer = \Drupal::service(Installer::class);
     $installer->create();
     $installer->require(['org/package-name']);
     $results = [

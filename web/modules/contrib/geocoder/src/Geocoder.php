@@ -81,10 +81,14 @@ class Geocoder implements GeocoderInterface {
           }
         }
 
-        if (is_string($address)) {
+        // In case $address is not an empty (trimmed) string, then geocode it.
+        if (is_string($address) && trim($address) !== '') {
           $result = $provider->getPlugin()->geocode($address);
         }
-        elseif ($provider->getPlugin() instanceof ProviderGeocoderPhpInterface) {
+        elseif (
+          $address instanceof GeocodeQuery
+          && $provider->getPlugin() instanceof ProviderGeocoderPhpInterface
+        ) {
           $result = $provider->getPlugin()->geocodeQuery($address);
         }
 

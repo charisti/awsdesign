@@ -83,7 +83,7 @@ class EmailTokenEvaluator implements EmailTokenEvaluatorInterface {
       }
     }
     foreach($tokens as $token) {
-      if (preg_match('/:one-time-login-url\]$/', $token) || preg_match('/:cancel-url\]$/', $token)) {
+      if (preg_match('/:one-time-login-url\]$/', $token) || preg_match('/:cancel-url\]$/', $token) || preg_match('/:mail-change-url\]$/', $token)) {
         return TRUE;
       }
     }
@@ -96,6 +96,7 @@ class EmailTokenEvaluator implements EmailTokenEvaluatorInterface {
   protected function unsafeTokens() {
     return [
       'one-time-login-url',
+      'mail-change-url',
       'cancel-url'
     ];
   }

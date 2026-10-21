@@ -15,7 +15,11 @@ use Drupal\image\Plugin\Field\FieldWidget\ImageWidget;
  *
  * Modify the form for image widgets.
  */
-function ai_image_alt_text_field_widget_single_element_form_alter(&$element, &$form_state, $context) {
+function ai_image_alt_text_field_widget_single_element_form_alter(
+  &$element,
+  &$form_state,
+  $context,
+) {
   // Only image based field widgets are supported.
   if ($context['widget'] instanceof ImageWidget) {
     // Only run if alt text field is enabled.
@@ -32,10 +36,21 @@ function ai_image_alt_text_field_widget_single_element_form_alter(&$element, &$f
     if (!\Drupal::service('ai_image_alt_text.provider')->getSetProvider()) {
       // Set a warning message if the user has the right to setup the provider.
       if (\Drupal::currentUser()->hasPermission('administer ai settings')) {
-        \Drupal::messenger()->addWarning(t('No AI provider is set for the AI Image Alt Text. Please configure one in the %ai_image_alt_text_settings_link or setup a default Chat with Image Vision in the %ai_settings_link.', [
-          '%ai_image_alt_text_settings_link' => Link::createFromRoute(t('AI Image Alt Text settings'), 'ai_image_alt_text.settings_form')->toString(),
-          '%ai_settings_link' => Link::createFromRoute(t('AI settings'), 'ai.settings_form')->toString(),
-        ]));
+        \Drupal::messenger()->addWarning(t(
+          'No AI provider is set for the AI Image Alt Text. Please
+            configure one in the %ai_image_alt_text_settings_link or setup a
+            default Chat with Image Vision in the %ai_settings_link.',
+          [
+            '%ai_image_alt_text_settings_link' => Link::createFromRoute(
+              t('AI Image Alt Text settings'),
+              'ai_image_alt_text.settings_form'
+            )->toString(),
+            '%ai_settings_link' => Link::createFromRoute(
+              t('AI settings'),
+              'ai.settings_form'
+            )->toString(),
+          ]
+        ));
       }
       return;
     }
@@ -45,8 +60,11 @@ function ai_image_alt_text_field_widget_single_element_form_alter(&$element, &$f
     // Get the entities language or the sites default language.
     $form_object = $form_state->getFormObject();
     $config = \Drupal::config('ai_image_alt_text.settings');
-    $lang = method_exists($form_object, 'getEntity') ? $form_object->getEntity()->language()->getId() : \Drupal::languageManager()->getDefaultLanguage()->getId();
-    $element['#attached']['drupalSettings']['ai_image_alt_text']['lang'] = $lang;
+    $lang = method_exists($form_object, 'getEntity') ?
+      $form_object->getEntity()->language()->getId() :
+      \Drupal::languageManager()->getDefaultLanguage()->getId();
+    $element['#attached']['drupalSettings']['ai_image_alt_text']['lang'] =
+      $lang;
     $element['#attached']['drupalSettings']['ai_image_alt_text']['autogenerate'] = $config->get('autogenerate');
     $element['#attached']['drupalSettings']['ai_image_alt_text']['hide_button'] = $config->get('hide_button');
 

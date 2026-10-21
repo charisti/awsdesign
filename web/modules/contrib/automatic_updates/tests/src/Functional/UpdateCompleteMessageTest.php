@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\automatic_updates\Functional;
 
+use Drupal\automatic_updates\Form\UpdaterForm;
 use Drupal\automatic_updates_test\EventSubscriber\TestSubscriber1;
 use Drupal\package_manager\Event\PostApplyEvent;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @covers \Drupal\automatic_updates\Form\UpdaterForm
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(UpdaterForm::class)]
+#[RunTestsInSeparateProcesses]
 class UpdateCompleteMessageTest extends UpdaterFormTestBase {
 
   /**
@@ -32,9 +38,8 @@ class UpdateCompleteMessageTest extends UpdaterFormTestBase {
    *
    * @param bool $maintenance_mode_on
    *   Whether maintenance should be on at the beginning of the update.
-   *
-   * @dataProvider providerUpdateCompleteMessage
    */
+  #[DataProvider('providerUpdateCompleteMessage')]
   public function testUpdateCompleteMessage(bool $maintenance_mode_on): void {
     $this->getStageFixtureManipulator()->setCorePackageVersion('9.8.1');
     $assert_session = $this->assertSession();

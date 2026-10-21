@@ -12,6 +12,7 @@ use Drupal\Core\Ajax\MessageCommand;
 use Drupal\Core\Config\Entity\ConfigEntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\File\FileSystem;
+use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\modeler_api\Api;
@@ -42,9 +43,9 @@ class ExportRecipe extends FormBase {
   /**
    * The file system.
    *
-   * @var \Drupal\Core\File\FileSystem
+   * @var \Drupal\Core\File\FileSystemInterface
    */
-  protected FileSystem $fileSystem;
+  protected FileSystemInterface $fileSystem;
 
   /**
    * The entity type manager.

@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
-use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateException;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\ProcessPluginBase;
@@ -43,17 +44,9 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *
  * In this example field_foo field value will be retrieved from Spanish
  * translation of the loaded node.
- *
- * @MigrateProcessPlugin(
- *   id = "entity_value",
- * )
  */
+#[MigrateProcess(id: 'entity_value',)]
 class EntityValue extends ProcessPluginBase implements ContainerFactoryPluginInterface {
-
-  /**
-   * The entity type manager.
-   */
-  protected EntityTypeManagerInterface $entityTypeManager;
 
   /**
    * The field name.
@@ -84,7 +77,7 @@ class EntityValue extends ProcessPluginBase implements ContainerFactoryPluginInt
    *   The plugin_id for the plugin instance.
    * @param mixed $plugin_definition
    *   The plugin implementation definition.
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
    *
    * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
@@ -95,11 +88,9 @@ class EntityValue extends ProcessPluginBase implements ContainerFactoryPluginInt
     array $configuration,
     $plugin_id,
     $plugin_definition,
-    EntityTypeManagerInterface $entity_type_manager,
+    protected EntityTypeManagerInterface $entityTypeManager,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-
-    $this->entityTypeManager = $entity_type_manager;
 
     if (empty($this->configuration['entity_type'])) {
       throw new \InvalidArgumentException("'entity_type' configuration must be specified for the entity_value process plugin.");

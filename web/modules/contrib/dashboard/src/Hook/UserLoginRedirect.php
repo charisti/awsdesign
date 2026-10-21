@@ -7,7 +7,6 @@ namespace Drupal\dashboard\Hook;
 use Drupal\Core\Hook\Attribute\Hook;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\dashboard\DashboardRedirectHandler;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Redirect to the dashboard after login if there is an applicable dashboard.
@@ -16,7 +15,6 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 class UserLoginRedirect {
 
   public function __construct(
-    #[Autowire(service: 'dashboard.user_redirect')]
     protected DashboardRedirectHandler $redirectHandler,
   ) {}
 

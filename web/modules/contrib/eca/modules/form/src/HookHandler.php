@@ -2,7 +2,6 @@
 
 namespace Drupal\eca_form;
 
-use Drupal\Core\EventSubscriber\AjaxResponseSubscriber;
 use Drupal\Core\Field\WidgetBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element;
@@ -170,77 +169,6 @@ class HookHandler extends BaseHookHandler {
     // Pass along the info to the after build callback, but only parent UUID
     // is needed there.
     $info['parent'] = $info['parent']->uuid();
-    $entity_form['#after_build'][] = [
-      static::class,
-      'inlineEntityFormAfterBuild',
-    ];
-  }
-
-  /**
-   * Manually builds the entity of the inline form using most recent form input.
-   *
-   * Only needed when coming from the inline_entity_form module, because the
-   * embedded entity does not automatically hold most recent form input.
-   *
-   * @param array $form
-   *   The inline entity form array.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   The form state of the parent form.
-   *
-   * @return array
-   *   The inline entity form array.
-   *
-   * @see eca_form_field_widget_single_element_inline_entity_form_complex_form_alter()
-   */
-  public static function inlineEntityFormAfterBuild($form, FormStateInterface $form_state): array {
-    if (!\Drupal::request()->request->get(AjaxResponseSubscriber::AJAX_REQUEST_PARAMETER) || $form_state->isRebuilding() || ($form_state->has('skip_eca'))) {
-      // No need to do entity building when Ajax is not involved.
-      return $form;
-    }
-
-    $entity = $form['#entity'];
-
-    try {
-      $form['#entity'] = clone $entity;
-
-      // Disabled the processing of this part until we've found a solution for
-      // IEF complex widgets.
-      // @see https://www.drupal.org/project/eca/issues/3469697
-      if ($form['#eca_ief_info']['widget_plugin_id'] !== 'inline_entity_form_complex') {
-        $original_triggering_element = $form_state->getTriggeringElement();
-        $form_state->setTriggeringElement([
-          '#limit_validation_errors' => [],
-        ]);
-        /** @var \Drupal\Core\Form\FormValidatorInterface $validator */
-        $validator = \Drupal::service('form_validator');
-        $form_state->setValidationEnforced(TRUE);
-        $validator->validateForm(\Drupal::formBuilder()->getFormId($form_state->getFormObject(), $form_state), $form, $form_state);
-        $form_state->setTriggeringElement($original_triggering_element);
-        $form_state->setValidationEnforced(TRUE);
-      }
-
-      /** @var \Drupal\inline_entity_form\InlineFormInterface $handler */
-      $handler = \Drupal::entityTypeManager()->getHandler($form['#entity']->getEntityTypeId(), 'inline_form');
-      $handler->entityFormSubmit($form, $form_state);
-
-      $info = $form['#eca_ief_info'];
-      $form_state->set([
-        'eca_ief',
-        $info['parent'],
-        $info['field_name'],
-        $info['delta'],
-      ], $form['#entity']);
-    }
-    catch (\Throwable $t) {
-      \Drupal::logger('eca_form')->warning("An error occurred while trying to build an inline entity from submitted form values. This might be a problem in case you use ECA to extend inline entity forms. Please report this to the ECA issue queue to help us improving it.");
-    }
-
-    // Info is not needed anymore, remove it to prevent unnecessary bloat.
-    unset($form['#eca_ief_info']);
-    // Restore the original object.
-    $form['#entity'] = $entity;
-
-    return $form;
   }
 
   /**
@@ -302,24 +230,6 @@ class HookHandler extends BaseHookHandler {
       'widget_plugin_id' => $context['widget']->getPluginId(),
     ];
     $entity_form['#eca_ief_info'] = &$info;
-
-    // On Ajax form rebuilds, set the manually built entity to be used.
-    if ($form_state->isRebuilding() && ($entity = $form_state->get([
-      'eca_ief',
-      $info['parent']->uuid(),
-      $info['field_name'],
-      $info['delta'],
-    ]))) {
-      $entity_form['#entity'] = $entity;
-      $entity_form['#default_value'] = $entity;
-      // Make sure to use the manually built entity only once.
-      $form_state->set([
-        'eca_ief',
-        $info['parent']->uuid(),
-        $info['field_name'],
-        $info['delta'],
-      ], NULL);
-    }
   }
 
   /**

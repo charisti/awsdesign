@@ -14,6 +14,15 @@ parameters:
     - '#^Dead catch - AssertionError is never thrown in the try block.#'
     - '#^Dead catch - Drupal\\Component\\Plugin\\Exception\\PluginException is never thrown in the try block.#'
     - '#^Class Drupal\\eca_render\\Element\\EcaLazy extends @internal class Drupal\\Core\\Render\\Element\\RenderElementBase.#'
+    - '#^Call to deprecated method get\(\) of class Symfony\\Component\\HttpFoundation\\Request#'
+    - '#^Trait Drupal\\eca\\Hook\\ConfigSchemaHooksTrait is used zero times and is not analysed.#'
+    - '#^Call to deprecated function views_embed_view\(\):#'
+    - '#^Call to deprecated function user_load_by_mail\(\):#'
+    - '#^Call to deprecated function user_load_by_name\(\):#'
+    - '#^Function eca_render_entity_operation\(\) implements hook_entity_operation but is missing the CacheableMetadata parameter added in Drupal 11.3. Update the signature to: eca_render_entity_operation\(\\Drupal\\Core\\Entity\\EntityInterface \$entity, \\Drupal\\Core\\Cache\\CacheableMetadata \$cacheability\).#'
+    - '#^Function eca_ui_entity_operation\(\) implements hook_entity_operation but is missing the CacheableMetadata parameter added in Drupal 11.3. Update the signature to: eca_ui_entity_operation\(\\Drupal\\Core\\Entity\\EntityInterface \$entity, \\Drupal\\Core\\Cache\\CacheableMetadata \$cacheability\).#'
+    - '#^Call to deprecated function module_set_weight\(\):#'
+    - '#^Method Drupal\\Core\\Config\\Entity\\ConfigEntityListBuilder::getDefaultOperations\(\) invoked with 2 parameters, 1 required.#'
   excludePaths:
     - '*/tests/*.php'
   stubFiles:

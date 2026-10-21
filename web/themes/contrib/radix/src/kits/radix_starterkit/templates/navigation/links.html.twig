@@ -41,7 +41,7 @@
       {% for item in links %}
         <li{{ item.attributes.addClass('nav-item') }}>
           {%- if item.link -%}
-            <span{{ item.link.text_attributes.addClass('nav-link') }}>{{ item.link }}</span>
+            <span class="nav-link">{{ item.link }}</span>
           {%- elseif item.text_attributes -%}
             <span{{ item.text_attributes.addClass('nav-link') }}>{{ item.text }}</span>
           {%- else -%}

@@ -7,7 +7,7 @@
  */
 #}
 {% set form_element_radiocheckbox_attributes = attributes ?: create_attribute() %}
-{% set disabled = disabled|default(false) %}
+{% set disabled = disabled ?? false %}
 {%
   set form_element_radiocheckbox_classes = [
     'js-form-item',

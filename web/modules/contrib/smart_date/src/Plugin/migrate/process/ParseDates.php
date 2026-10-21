@@ -8,11 +8,14 @@ use Drupal\migrate\Row;
 use Drupal\smart_date_recur\Entity\SmartDateRule;
 
 /**
- * Given Drupal 7 dates or serialized values parse for a Smart Date field.
+ * Given Drupal dates or serialized values parse for a Smart Date field.
  *
  * Three formats of incoming data are accepted:
  * - Drupal 7 Date values of the form
  *   `['value' => START, 'value2' => END, 'rrule' => STRING]`
+ *   (where rrule is optional);
+ * - Drupal 8+ Date values of the form
+ *   `['value' => START, 'end_value' => END, 'rrule' => STRING]`
  *   (where rrule is optional);
  * - Views' "Date and Time" format, which you might use in an XML data export
  *   `<span class="date-display-start"
@@ -37,7 +40,8 @@ use Drupal\smart_date_recur\Entity\SmartDateRule;
  * The entity_type and bundle are only necessary for repeating dates.
  *
  * @MigrateProcessPlugin(
- *   id = "parse_dates"
+ *   id = "parse_dates",
+ *   handle_multiples = TRUE
  * )
  */
 class ParseDates extends ProcessPluginBase {
@@ -162,20 +166,18 @@ class ParseDates extends ProcessPluginBase {
         }
       }
 
+      // Core 8+ date values store the "end" field as "end_value", not "value2".
+      if (isset($d['end_value'])) {
+        $d['value2'] = $d['end_value'];
+        unset($d['end_value']);
+      }
+
       // Now that we've sorted out the start & end values, we're finally ready
       // to work with them.
       if ((int) $d['value'] != $d['value']) {
         // Convert string values to UNIX timestamps for consistent processing.
         $d['value'] = strtotime($d['value']);
         $d['value2'] = strtotime($d['value2']);
-      }
-      if ($d['value2'] > 2147483647) {
-        // This value is out of range due to the Year 2038 Bug.
-        // https://en.wikipedia.org/wiki/Year_2038_problem
-        // Although PHP is unfazed by the bug, MySQL and MariaDB are afflicted,
-        // so we can't store these values.
-        unset($d);
-        continue;
       }
       if (!isset($d['rrule']) && $d['value2'] - $d['value'] > self::ONE_DAY) {
         // Change a multi-day event into a single day event that repeats.

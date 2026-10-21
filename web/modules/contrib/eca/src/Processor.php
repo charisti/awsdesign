@@ -150,7 +150,8 @@ class Processor {
 
     $subscribed = current($this->state->get('eca.subscribed', [])[$event_name] ?? []);
     if (!$subscribed) {
-      $this->logger->error('The ECA processor got invoked for executing, but no subscribed configuration was found.');
+      // This can happen if within a request ECA models get disabled.
+      $this->logger->info('The ECA processor got invoked for executing, but no subscribed configuration was found.');
       return;
     }
 
@@ -214,37 +215,141 @@ class Processor {
         $this->executionHistory[] = $eca->id() . ':' . $ecaEvent->getId();
 
         $before_event = new BeforeInitialExecutionEvent($eca, $ecaEvent, $event, $event_name);
-        $this->eventDispatcher->dispatch($before_event, EcaEvents::BEFORE_INITIAL_EXECUTION);
-
-        // Now that we have any required context, we may execute the logic.
-        $this->logger->info('Start %eventlabel (%eventid) from ECA %ecalabel (%ecaid) for event %event.', $context);
+        // The BEFORE_INITIAL_EXECUTION dispatch belongs inside the try that
+        // owns the cleanup. A listener throwing from it used to escape past
+        // every unwind, leaving behind whatever earlier listeners had already
+        // changed - an account switch that never switched back, and the
+        // history entry pushed just above, which made every later chain in the
+        // request look nested.
+        //
+        // The cost is that AFTER_INITIAL_EXECUTION now also fires for a chain
+        // whose before handlers did not all run, so an after handler must
+        // unwind only what its own before handler actually did. All four
+        // in-tree subscribers guard on a prestate flag for that reason.
+        //
+        // @see \Drupal\eca\EventSubscriber\EcaExecutionTokenSubscriber
+        // @see \Drupal\eca\EventSubscriber\EcaExecutionFormSubscriber
+        // @see \Drupal\eca\EventSubscriber\EcaExecutionSwitchAccountSubscriber
         try {
+          $this->eventDispatcher->dispatch($before_event, EcaEvents::BEFORE_INITIAL_EXECUTION);
+
+          // Now that we have any required context, we may execute the logic.
+          $this->logger->info('Start %eventlabel (%eventid) from ECA %ecalabel (%ecaid) for event %event.', $context);
           $this->executeSuccessors($eca, $ecaEvent, $event, $context);
         }
         catch (\Exception $ex) {
           throw $ex;
         }
         finally {
-          // At this point, no nested triggering of events happened or was
-          // prevented by something else. Therefore remove the last added
-          // item from the history stack as it's not needed anymore.
-          array_pop($this->executionHistory);
+          // Tearing this chain down is still ECA processing this event, so the
+          // history entry of the chain stays on the stack until the teardown
+          // has finished. A subscriber of the event dispatched below may well
+          // dispatch a Drupal event that ECA subscribes to, and the chain that
+          // starts from there is nested inside this one - keeping the entry is
+          // what lets that chain recognize itself as nested, both for the
+          // recursion guard and for everything else keyed off the root
+          // execution boundary. The unwind is guaranteed by its own finally
+          // block, so a subscriber that throws cannot leave the entry behind.
+          try {
+            $pre_state = $before_event->getPrestate(NULL);
+            $this->dispatchAfterInitialExecution(new AfterInitialExecutionEvent($eca, $ecaEvent, $event, $event_name, $pre_state));
+          }
+          finally {
+            // At this point, no nested triggering of events happened or was
+            // prevented by something else. Therefore remove the last added
+            // item from the history stack as it's not needed anymore. A nested
+            // chain pushes and pops its own entry, so the stack unwinds in
+            // reverse order and this always removes the entry of this chain.
+            array_pop($this->executionHistory);
 
-          $pre_state = $before_event->getPrestate(NULL);
-          $this->eventDispatcher->dispatch(new AfterInitialExecutionEvent($eca, $ecaEvent, $event, $event_name, $pre_state), EcaEvents::AFTER_INITIAL_EXECUTION);
-
-          if ($is_root_execution) {
-            // Forget what we've done here. We only take care for nested
-            // triggering of events regarding possible infinite recursion.
-            // By resetting the array, all root-level executions will not know
-            // anything from each other.
-            $this->executionHistory = [];
+            if ($is_root_execution) {
+              // Forget what we've done here. We only take care for nested
+              // triggering of events regarding possible infinite recursion.
+              // By resetting the array, all root-level executions will not know
+              // anything from each other.
+              $this->executionHistory = [];
+            }
           }
 
           $this->logger->debug('Finished applying process for event %event defined by ECA ID %ecaid.', $context);
         }
       }
     }
+  }
+
+  /**
+   * Dispatches the after-execution event so that every listener gets to run.
+   *
+   * This event is the only one ECA dispatches itself rather than handing to
+   * the event dispatcher, and it is worth being precise about why. Its
+   * listeners are cleanup handlers: EcaExecutionSwitchAccountSubscriber
+   * unwinds the account switch from here, at priority -500, so it runs last.
+   * A plain dispatch stops at the first listener that throws, which left that
+   * switch in place for the rest of the process - and the contexts where that
+   * hurts most, a Drush command, a queue worker, a persistent worker SAPI,
+   * are exactly the ones where no request boundary comes along to bound it.
+   *
+   * The sibling problem on the before event was fixable by moving its dispatch
+   * inside the try block that owns the cleanup. That is no help here: the
+   * cleanup at stake is itself a listener of this event, so no try or finally
+   * around the dispatch can reach it - an earlier listener that throws still
+   * skips it.
+   *
+   * Every listener is therefore invoked in turn, throwables are collected
+   * rather than allowed to abort the remaining ones, and the first of them is
+   * re-thrown once all listeners have had their turn. Nothing is swallowed:
+   * the caller sees exactly the throwable it would have seen before, and any
+   * further ones are logged.
+   *
+   * Re-throwing the first one unchanged, rather than wrapping it to chain the
+   * others onto it, is deliberate. PHP has no way to attach a previous
+   * throwable to one that already exists, so chaining would mean replacing it
+   * with a new instance and changing the class the caller catches - and doing
+   * so only when more than one listener happened to throw, which is a worse
+   * contract than either consistent option.
+   *
+   * The loop mirrors what the dispatcher does around each listener, which is
+   * little: check propagation, then call with the event, the event name and
+   * the dispatcher. ::getListeners() resolves lazy service listeners while it
+   * sorts them, so what arrives here is ready to call.
+   *
+   * @param \Drupal\eca\Event\AfterInitialExecutionEvent $event
+   *   The event to dispatch.
+   *
+   * @see \Symfony\Component\EventDispatcher\EventDispatcher::callListeners()
+   * @see \Symfony\Component\EventDispatcher\EventDispatcher::sortListeners()
+   * @see \Drupal\eca\EventSubscriber\EcaExecutionSwitchAccountSubscriber
+   */
+  private function dispatchAfterInitialExecution(AfterInitialExecutionEvent $event): void {
+    $throwables = [];
+    foreach ($this->eventDispatcher->getListeners(EcaEvents::AFTER_INITIAL_EXECUTION) as $listener) {
+      // Isolation covers throwing listeners only. A listener that deliberately
+      // stops propagation still skips everything below it, cleanup handlers
+      // included, exactly as it would with a plain dispatch.
+      if ($event->isPropagationStopped()) {
+        break;
+      }
+      try {
+        $listener($event, EcaEvents::AFTER_INITIAL_EXECUTION, $this->eventDispatcher);
+      }
+      catch (\Throwable $throwable) {
+        $throwables[] = $throwable;
+      }
+    }
+
+    if ($throwables === []) {
+      return;
+    }
+    $first = array_shift($throwables);
+    foreach ($throwables as $throwable) {
+      $this->logger->error('A subscriber of the ECA after-execution event threw %type: %message in %file, line %line. Another subscriber of the same event threw first, and that throwable is the one being passed on to the caller.', [
+        '%type' => get_class($throwable),
+        '%message' => $throwable->getMessage(),
+        '%file' => $throwable->getFile(),
+        '%line' => $throwable->getLine(),
+      ]);
+    }
+    throw $first;
   }
 
   /**
@@ -317,6 +422,27 @@ class Processor {
   /**
    * Checks the ECA event object whether it surpasses the recursion threshold.
    *
+   * The execution history is a stack of "<eca id>:<event id>" entries, one for
+   * every execution that is currently nested inside another one. Recursion
+   * shows up in that stack as a block of entries that keeps repeating itself,
+   * and such a block always begins with the event that is about to be executed
+   * next. The threshold is surpassed as soon as that block is directly preceded
+   * by more than $this->recursionThreshold identical blocks.
+   *
+   * Every occurrence of the given event within the stack opens a candidate
+   * block, and all of them need to be examined. The most recent occurrence only
+   * opens the shortest candidate block, which misses every repetition whose
+   * block contains the given event more than once. A stack that grows by the
+   * repeating block "A, A, B, B" for example opens the block "A, B, B" at its
+   * most recent "A", and that misaligned block never repeats, which leaves the
+   * recursion undetected at any threshold.
+   *
+   * The history is copied into a local, sequentially indexed list which is then
+   * walked with integer offsets. Walking the property itself with end() and
+   * prev() would make the surrounding repetition count and the block comparison
+   * share one hidden array cursor, which is needlessly hard to reason about and
+   * to maintain.
+   *
    * @param \Drupal\eca\Entity\Eca $eca
    *   The ECA config entity.
    * @param \Drupal\eca\Entity\Objects\EcaEvent $ecaEvent
@@ -327,37 +453,34 @@ class Processor {
    */
   protected function recursionThresholdSurpassed(Eca $eca, EcaEvent $ecaEvent): bool {
     $current = $eca->id() . ':' . $ecaEvent->getId();
-    if (!in_array($current, $this->executionHistory, TRUE)) {
-      return FALSE;
-    }
-    $block_size = -1;
-    $recursion_level = 1;
-    $executed_block = [];
-    $entry = end($this->executionHistory);
-    while ($entry !== FALSE) {
-      array_unshift($executed_block, $entry);
-      if ($entry === $current) {
-        $block_size = count($executed_block);
-        break;
+    $history = array_values($this->executionHistory);
+    $history_size = count($history);
+
+    foreach (array_keys($history, $current, TRUE) as $block_start) {
+      // The candidate block reaches from this execution of the given event up
+      // to the end of the stack, and is about to repeat itself once more.
+      $block_size = $history_size - $block_start;
+      $repeated_block = array_slice($history, $block_start, $block_size);
+
+      // Count how many identical blocks directly precede that block.
+      $recursion_level = 1;
+      $offset = $block_start;
+      while ($recursion_level <= $this->recursionThreshold && $offset >= $block_size) {
+        $offset -= $block_size;
+        if (array_slice($history, $offset, $block_size) !== $repeated_block) {
+          // The preceding block differs, so this candidate does not repeat.
+          continue 2;
+        }
+        $recursion_level++;
       }
-      $entry = prev($this->executionHistory);
-    }
-    while (!($recursion_level > $this->recursionThreshold)) {
-      $entry = end($executed_block);
-      $block_index = 0;
-      while ($entry !== FALSE) {
-        if ($entry !== prev($this->executionHistory)) {
-          break 2;
-        }
-        $block_index++;
-        if ($block_index >= $block_size) {
-          $recursion_level++;
-          break;
-        }
-        $entry = prev($executed_block);
+
+      if ($recursion_level > $this->recursionThreshold) {
+        return TRUE;
       }
     }
-    return $recursion_level > $this->recursionThreshold;
+
+    // No block of the history repeats often enough to count as recursion.
+    return FALSE;
   }
 
 }

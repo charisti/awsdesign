@@ -5,23 +5,8 @@
  * Module implementation file.
  */
 
-use Drupal\Core\Access\AccessResultInterface;
-use Drupal\Core\Database\Query\AlterableInterface;
-use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Entity\EntityTypeInterface;
-use Drupal\Core\Entity\FieldableEntityInterface;
-use Drupal\Core\Entity\Query\QueryInterface;
-use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Hook\Attribute\LegacyHook;
-use Drupal\Core\PhpStorage\PhpStorageFactory;
-use Drupal\Core\Session\AccountInterface;
-use Drupal\trash\Hook\TrashEntityHooks;
-use Drupal\trash\Hook\TrashEntityInfoHooks;
-use Drupal\trash\Hook\TrashHooks;
-use Drupal\trash\Hook\TrashViewsHooks;
-use Drupal\views\Plugin\views\query\QueryPluginBase;
-use Drupal\views\ViewExecutable;
+use Drupal\trash\Trash;
 
 /**
  * Determines whether an entity is deleted.
@@ -31,14 +16,15 @@ use Drupal\views\ViewExecutable;
  *
  * @return bool
  *   TRUE if the entity is deleted, FALSE otherwise.
+ *
+ * @deprecated in trash:3.0.30 and is removed from trash:3.1.0. Use
+ *   \Drupal\trash\Trash::entityIsDeleted() instead.
+ *
+ * @see https://www.drupal.org/node/3609675
  */
 function trash_entity_is_deleted(EntityInterface $entity): bool {
-  if (!$entity instanceof FieldableEntityInterface) {
-    return FALSE;
-  }
-
-  return $entity->getFieldDefinition('deleted')?->getFieldStorageDefinition()->getProvider() === 'trash'
-    && !$entity->get('deleted')->isEmpty();
+  @trigger_error(__FUNCTION__ . '() is deprecated in trash:3.0.30 and is removed from trash:3.1.0. Use \Drupal\trash\Trash::entityIsDeleted() instead. See https://www.drupal.org/node/3609675', E_USER_DEPRECATED);
+  return Trash::entityIsDeleted($entity);
 }
 
 /**
@@ -46,173 +32,18 @@ function trash_entity_is_deleted(EntityInterface $entity): bool {
  *
  * @param \Drupal\Core\Entity\EntityInterface $entity
  *   An entity object.
+ * @param string[] $langcodes
+ *   The translations to restore, defaults to all.
  *
  * @throws \Drupal\Core\Entity\EntityStorageException
  *   In case of failures, an exception is thrown.
- */
-function trash_restore_entity(EntityInterface $entity): void {
-  if (!\Drupal::service('trash.manager')->isEntityTypeEnabled($entity->getEntityType(), $entity->bundle())) {
-    return;
-  }
-
-  $storage = \Drupal::entityTypeManager()->getStorage($entity->getEntityTypeId());
-  $storage->restoreFromTrash([$entity]);
-}
-
-/**
- * Implements hook_entity_base_field_info().
- */
-#[LegacyHook]
-function trash_entity_base_field_info(EntityTypeInterface $entity_type): array {
-  return \Drupal::service(TrashEntityInfoHooks::class)->entityBaseFieldInfo($entity_type);
-}
-
-/**
- * Implements hook_entity_access().
- */
-#[LegacyHook]
-function trash_entity_access(EntityInterface $entity, $operation, AccountInterface $account): AccessResultInterface {
-  return \Drupal::service(TrashEntityHooks::class)->entityAccess($entity, $operation, $account);
-}
-
-/**
- * Implements hook_entity_query_alter().
- */
-#[LegacyHook]
-function trash_entity_query_alter(QueryInterface $query): void {
-  \Drupal::service(TrashEntityHooks::class)->entityQueryAlter($query);
-}
-
-/**
- * Implements hook_query_TAG_alter() for the 'search_node_search' tag.
- */
-#[LegacyHook]
-function trash_query_search_node_search_alter(AlterableInterface $query): void {
-  // @phpstan-ignore-next-line
-  \Drupal::service('trash.manager')->getHandler('node')?->querySearchNodeSearchAlter($query);
-}
-
-/**
- * Implements hook_ENTITY_TYPE_presave() for the 'redirect' entity type.
- */
-#[LegacyHook]
-function trash_redirect_presave(EntityInterface $entity): void {
-  // @phpstan-ignore-next-line
-  \Drupal::service('trash.manager')->getHandler('redirect')?->preSave($entity);
-}
-
-/**
- * Implements hook_views_query_alter().
- */
-#[LegacyHook]
-function trash_views_query_alter(ViewExecutable $view, QueryPluginBase $query): void {
-  \Drupal::service(TrashViewsHooks::class)->viewsQueryAlter($view, $query);
-}
-
-/**
- * Implements hook_views_post_render().
- */
-#[LegacyHook]
-function trash_views_post_render(ViewExecutable $view): void {
-  \Drupal::service(TrashViewsHooks::class)->viewsPostRender($view);
-}
-
-/**
- * Generates a trash-enabled storage or storage schema class for an entity type.
  *
- * @param string $original_class
- *   The entity storage class name.
- * @param string $type
- *   The entity storage class type, either 'storage' or 'storage_schema'.
+ * @deprecated in trash:3.0.30 and is removed from trash:3.1.0. Use
+ *   \Drupal\trash\Trash::restoreEntity() instead.
  *
- * @return string
- *   The new entity storage class name.
+ * @see https://www.drupal.org/node/3609675
  */
-function _trash_generate_storage_class($original_class, $type = 'storage') {
-  // Assert that only the supported class types are used.
-  assert($type === 'storage' || $type === 'storage_schema');
-
-  $php_storage = PhpStorageFactory::get('trash');
-  $state = \Drupal::state();
-
-  $class_suffix = $state->get('trash.class_suffix');
-  if (empty($class_suffix)) {
-    $class_suffix = uniqid();
-    $state->set('trash.class_suffix', $class_suffix);
-  }
-
-  $original_class = ltrim($original_class, '\\');
-  $trash_class = str_replace('\\', '__', $original_class) . 'Trash' . $class_suffix;
-  if (!$php_storage->exists($trash_class . '.php')) {
-    $template = ($type === 'storage') ? '@trash/TrashStorage.php.twig' : '@trash/TrashStorageSchema.php.twig';
-    $code = \Drupal::service('twig')->render($template, [
-      'trash_class' => $trash_class,
-      'original_class' => $original_class,
-    ]);
-
-    $php_storage->save($trash_class . '.php', $code);
-  }
-
-  if ($php_storage->load($trash_class . '.php')) {
-    // @todo Log a critical error when the generated class could not be loaded?
-    return $trash_class;
-  }
-
-  return $original_class;
-}
-
-/**
- * Implements hook_entity_type_alter().
- */
-#[LegacyHook]
-function trash_entity_type_alter(array &$entity_types): void {
-  \Drupal::service(TrashEntityInfoHooks::class)->entityTypeAlter($entity_types);
-}
-
-/**
- * Implements hook_form_alter().
- */
-#[LegacyHook]
-function trash_form_alter(&$form, FormStateInterface $form_state, $form_id): void {
-  \Drupal::service(TrashHooks::class)->formAlter($form, $form_state, $form_id);
-}
-
-/**
- * Implements hook_entity_operation_alter().
- */
-#[LegacyHook]
-function trash_entity_operation_alter(array &$operations, EntityInterface $entity): void {
-  \Drupal::service(TrashEntityHooks::class)->entityOperationAlter($operations, $entity);
-}
-
-/**
- * Implements hook_entity_view().
- */
-#[LegacyHook]
-function trash_entity_view(array &$build, EntityInterface $entity, EntityViewDisplayInterface $display, $view_mode): void {
-  \Drupal::service(TrashEntityHooks::class)->entityView($build, $entity, $display, $view_mode);
-}
-
-/**
- * Implements hook_cron().
- */
-#[LegacyHook]
-function trash_cron(): void {
-  \Drupal::service(TrashHooks::class)->cron();
-}
-
-/**
- * Implements hook_menu_links_discovered_alter().
- */
-#[LegacyHook]
-function trash_menu_links_discovered_alter(&$links): void {
-  \Drupal::service(TrashHooks::class)->menuLinksDiscoveredAlter($links);
-}
-
-/**
- * Implements hook_modules_installed().
- */
-#[LegacyHook]
-function trash_modules_installed($modules, $is_syncing): void {
-  \Drupal::service(TrashHooks::class)->modulesInstalled($modules, $is_syncing);
+function trash_restore_entity(EntityInterface $entity, array $langcodes = []): void {
+  @trigger_error(__FUNCTION__ . '() is deprecated in trash:3.0.30 and is removed from trash:3.1.0. Use \Drupal\trash\Trash::restoreEntity() instead. See https://www.drupal.org/node/3609675', E_USER_DEPRECATED);
+  Trash::restoreEntity($entity, $langcodes);
 }

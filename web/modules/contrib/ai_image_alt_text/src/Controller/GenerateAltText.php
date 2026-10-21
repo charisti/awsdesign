@@ -74,11 +74,13 @@ class GenerateAltText extends ControllerBase {
    *
    * @param \Drupal\file\Entity\File $file
    *   File entity.
+   * @param string $lang_code
+   *   Language code for alt text generation.
    *
    * @return \Symfony\Component\HttpFoundation\JsonResponse
    *   JSON response.
    */
-  public function generate(File $file = NULL, $lang_code = 'en') {
+  public function generate(?File $file = NULL, $lang_code = 'en') {
     // Check that the user has access to the file.
     if (!$file || !$file->access('view')) {
       return new JsonResponse([
@@ -128,6 +130,7 @@ class GenerateAltText extends ControllerBase {
     $language = $this->languageManager->getLanguageName($lang_code) ?? 'English';
     $prompt_text = $this->twig->renderInline($prompt, [
       'entity_lang_name' => $language,
+      'filename' => $file->getFilename(),
     ]);
 
     $input = new ChatInput([
@@ -136,11 +139,18 @@ class GenerateAltText extends ControllerBase {
         $images
       ),
     ]);
-    $output = $provider->chat($input, $model);
-    $alt_text = $output->getNormalized()->getText();
-    return new JsonResponse([
-      'alt_text' => $alt_text,
-    ]);
+    try {
+      $output = $provider->chat($input, $model);
+      $alt_text = $output->getNormalized()->getText();
+      return new JsonResponse([
+        'alt_text' => $alt_text,
+      ]);
+    }
+    catch (\Exception $e) {
+      return new JsonResponse([
+        'error' => $e->getMessage(),
+      ], 500);
+    }
   }
 
 }

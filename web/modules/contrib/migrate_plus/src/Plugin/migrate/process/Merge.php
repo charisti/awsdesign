@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateException;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\ProcessPluginBase;
@@ -11,10 +12,6 @@ use Drupal\migrate\Row;
 
 /**
  * This plugin merges arrays together.
- *
- * @MigrateProcessPlugin(
- *   id = "merge"
- * )
  *
  * Use to merge several fields into one. In the following example, imagine a D7
  * node with a field_collections field and an image field that migrations were
@@ -48,6 +45,7 @@ use Drupal\migrate\Row;
  *  destination:
  *    plugin: 'entity:node'
  */
+#[MigrateProcess(id: 'merge')]
 class Merge extends ProcessPluginBase {
 
   /**

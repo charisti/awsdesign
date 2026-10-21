@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\automatic_updates\Functional;
 
+use Drupal\automatic_updates\Form\UpdaterForm;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\package_manager\Event\StatusCheckEvent;
 use Drupal\package_manager\ValidationResult;
 use Drupal\package_manager_test_validation\EventSubscriber\TestSubscriber;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @covers \Drupal\automatic_updates\Form\UpdaterForm
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(UpdaterForm::class)]
+#[RunTestsInSeparateProcesses]
 class UpdateWarningTest extends UpdaterFormTestBase {
 
   /**
@@ -30,11 +36,11 @@ class UpdateWarningTest extends UpdaterFormTestBase {
     $this->assertUpdateStagedTimes(1);
 
     $messages = [
-      t("The only thing we're allowed to do is to"),
-      t("believe that we won't regret the choice"),
-      t("we made."),
+      new TranslatableMarkup("The only thing we're allowed to do is to"),
+      new TranslatableMarkup("believe that we won't regret the choice"),
+      new TranslatableMarkup("we made."),
     ];
-    $summary = t('some generic summary');
+    $summary = new TranslatableMarkup('some generic summary');
     $warning = ValidationResult::createWarning($messages, $summary);
     TestSubscriber::setTestResult([$warning], StatusCheckEvent::class);
     $session->reload();
@@ -44,7 +50,9 @@ class UpdateWarningTest extends UpdaterFormTestBase {
     $this->assertStatusMessageContainsResult($warning);
 
     // A warning with only one message should also show its summary.
-    $warning = ValidationResult::createWarning([t("I'm still warning you.")], $summary);
+    $warning = ValidationResult::createWarning([
+      new TranslatableMarkup("I'm still warning you."),
+    ], $summary);
     TestSubscriber::setTestResult([$warning], StatusCheckEvent::class);
     $session->reload();
     $this->assertStatusMessageContainsResult($warning);

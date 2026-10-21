@@ -21,7 +21,7 @@ props:
     display:
       type: string
       title: Display Heading
-      description: When you need a heading to stand out, consider using a display heading—a larger, slightly more opinionated heading style.
+      description: When you need a heading to stand out, consider using a display heading, a larger, slightly more opinionated heading style.
       default: ''
       enum:
         - ''

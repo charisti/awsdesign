@@ -6,6 +6,7 @@ namespace Drupal\Tests\project_browser\Functional;
 
 use Drupal\Tests\BrowserTestBase;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests Project Browser Menu tabs placement.
@@ -13,6 +14,7 @@ use PHPUnit\Framework\Attributes\Group;
  * @group project_browser
  */
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class ProjectBrowserMenuTabsTest extends BrowserTestBase {
 
   /**

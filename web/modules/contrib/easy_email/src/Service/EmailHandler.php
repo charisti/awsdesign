@@ -3,7 +3,6 @@
 namespace Drupal\easy_email\Service;
 
 use Drupal\Component\Datetime\TimeInterface;
-use Drupal\Component\Render\PlainTextOutput;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Mail\MailManagerInterface;
@@ -12,7 +11,6 @@ use Drupal\Core\Render\RendererInterface;
 use Drupal\easy_email\Entity\EasyEmailInterface;
 use Drupal\easy_email\Event\EasyEmailEvent;
 use Drupal\easy_email\Event\EasyEmailEvents;
-use Html2Text\Html2Text;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 class EmailHandler implements EmailHandlerInterface {
@@ -354,7 +352,7 @@ class EmailHandler implements EmailHandlerInterface {
     elseif ($email->hasField('body_plain')) {
       // We have only plain body text
       $headers['Content-Type'] = 'text/plain; charset=UTF-8';
-      $params['body'] = $this->buildPlainBody($email); //$this->renderInNewContext(, TRUE);
+      $params['body'] = $this->buildPlainBody($email);
     }
     else {
       // No body: ¯\_(ツ)_/¯
@@ -432,20 +430,6 @@ class EmailHandler implements EmailHandlerInterface {
       ];
     }
     return $body;
-  }
-
-  /**
-   * @param array $build
-   *
-   * @return string
-   */
-  protected function renderInNewContext($build, $plain_text = FALSE) {
-    return $this->renderer->executeInRenderContext(new RenderContext(), function () use ($build, $plain_text) {
-      if ($plain_text) {
-        return PlainTextOutput::renderFromHtml($this->renderer->renderPlain($build));
-      }
-      return $this->renderer->render($build);
-    });
   }
 
   /**

@@ -96,7 +96,7 @@ class FormAlter implements ContainerInjectionInterface {
    *   The section storage manager.
    * @param \Drupal\Core\Block\BlockManagerInterface $block_manager
    *   The block manager.
-   * @param \Drupal\Core\Block\LayoutPluginManagerInterface $layout_manager
+   * @param \Drupal\Core\Layout\LayoutPluginManagerInterface $layout_manager
    *   The layout plugin manager.
    * @param \Drupal\Core\Plugin\Context\ContextHandlerInterface $context_handler
    *   The context handler.

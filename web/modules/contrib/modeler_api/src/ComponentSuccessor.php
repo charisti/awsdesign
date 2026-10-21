@@ -5,7 +5,7 @@ namespace Drupal\modeler_api;
 /**
  * Contains a component successor.
  */
-class ComponentSuccessor {
+readonly class ComponentSuccessor {
 
   /**
    * Instantiates a new component successor.

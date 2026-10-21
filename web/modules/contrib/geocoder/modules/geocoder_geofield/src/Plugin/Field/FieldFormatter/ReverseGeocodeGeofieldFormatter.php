@@ -135,7 +135,7 @@ class ReverseGeocodeGeofieldFormatter extends GeocodeFormatter {
 
       foreach ($items as $delta => $item) {
         /** @var \Geometry $geom */
-        $geom = $this->geoPhpWrapper->load($item->value);
+        $geom = $this->geoPhpWrapper->load($item->getValue()['value'] ?? NULL);
 
         /** @var \Point $centroid */
         $centroid = $geom->getCentroid();

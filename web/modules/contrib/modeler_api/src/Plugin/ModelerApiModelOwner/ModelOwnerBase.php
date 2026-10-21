@@ -2,6 +2,7 @@
 
 namespace Drupal\modeler_api\Plugin\ModelerApiModelOwner;
 
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Component\Plugin\Exception\PluginException;
 use Drupal\Component\Plugin\PluginInspectionInterface;
 use Drupal\Component\Uuid\UuidInterface;
@@ -9,6 +10,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\Entity\ConfigEntityInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Plugin\PluginBase;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\modeler_api\Api;
 use Drupal\modeler_api\Component;
 use Drupal\modeler_api\ComponentColor;
@@ -42,6 +44,7 @@ abstract class ModelOwnerBase extends PluginBase implements ModelOwnerInterface 
     protected Api $api,
     protected ModelerPluginManager $modelerPluginManager,
     protected UuidInterface $uuidGenerator,
+    protected TimeInterface $time,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
   }
@@ -59,6 +62,7 @@ abstract class ModelOwnerBase extends PluginBase implements ModelOwnerInterface 
       $container->get('modeler_api.service'),
       $container->get('plugin.manager.modeler_api.modeler'),
       $container->get('uuid'),
+      $container->get('datetime.time'),
     );
   }
 
@@ -74,6 +78,27 @@ abstract class ModelOwnerBase extends PluginBase implements ModelOwnerInterface 
    */
   final public function description(): string {
     return (string) $this->pluginDefinition['description'];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function componentLabels(): array {
+    return [];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function componentLabelsPlural(): array {
+    return [];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function modelConstraints(): array {
+    return [];
   }
 
   /**
@@ -137,10 +162,14 @@ abstract class ModelOwnerBase extends PluginBase implements ModelOwnerInterface 
   /**
    * {@inheritdoc}
    */
-  final public function clone(ConfigEntityInterface $model): ConfigEntityInterface {
+  final public function clone(ConfigEntityInterface $model, ?string $id = NULL, ?string $label = NULL): ConfigEntityInterface {
     $modeler = $this->getModeler($model);
-    $id = $modeler->generateId();
-    $label = $this->getLabel($model) . ' (' . $this->t('clone') . ')';
+    if ($id === NULL) {
+      $id = $modeler->generateId();
+    }
+    if ($label === NULL) {
+      $label = $this->getLabel($model) . ' (' . $this->t('clone') . ')';
+    }
     $data = $this->getModelData($model);
     $newModel = NULL;
     if ($data !== '') {
@@ -292,6 +321,24 @@ abstract class ModelOwnerBase extends PluginBase implements ModelOwnerInterface 
   /**
    * {@inheritdoc}
    */
+  final public function setTemplate(ConfigEntityInterface $model, bool $template): ModelOwnerInterface {
+    if ($this->supportsTemplate()) {
+      $model->set('template', $template);
+    }
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  final public function getTemplate(ConfigEntityInterface $model): bool {
+    $key = $this->entityTypeManager->getDefinition($this->configEntityTypeId())->getKey('template');
+    return !$this->supportsTemplate() || $model->get($key);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   final public function setStorage(ConfigEntityInterface $model, string $storage): ModelOwnerInterface {
     return $this->setThirdPartySetting($model, 'storage', $storage);
   }
@@ -315,6 +362,78 @@ abstract class ModelOwnerBase extends PluginBase implements ModelOwnerInterface 
    */
   final public function getDocumentation(ConfigEntityInterface $model): string {
     return $model->getThirdPartySetting('modeler_api', 'documentation', '');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  final public function setSummary(ConfigEntityInterface $model, string $summary): ModelOwnerInterface {
+    return $this->setThirdPartySetting($model, 'summary', $summary);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  final public function getSummary(ConfigEntityInterface $model): string {
+    return $model->getThirdPartySetting('modeler_api', 'summary', '');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  final public function setRecipes(ConfigEntityInterface $model, array $recipes): ModelOwnerInterface {
+    return $this->setThirdPartySetting($model, 'recipes', array_values($recipes));
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  final public function getRecipes(ConfigEntityInterface $model): array {
+    return $model->getThirdPartySetting('modeler_api', 'recipes', []);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  final public function setConfigActions(ConfigEntityInterface $model, array $configActions): ModelOwnerInterface {
+    // Normalized to a list, as the sibling setters are, so that a caller which
+    // removed an entry does not leave a gap in the keys behind.
+    return $this->setThirdPartySetting($model, 'config_actions', array_values($configActions));
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  final public function getConfigActions(ConfigEntityInterface $model): array {
+    return $model->getThirdPartySetting('modeler_api', 'config_actions', []);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  final public function setExportConfig(ConfigEntityInterface $model, array $exportConfig): ModelOwnerInterface {
+    return $this->setThirdPartySetting($model, 'export_config', array_values($exportConfig));
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  final public function getExportConfig(ConfigEntityInterface $model): array {
+    return $model->getThirdPartySetting('modeler_api', 'export_config', []);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  final public function setModules(ConfigEntityInterface $model, array $modules): ModelOwnerInterface {
+    return $this->setThirdPartySetting($model, 'modules', array_values($modules));
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  final public function getModules(ConfigEntityInterface $model): array {
+    return $model->getThirdPartySetting('modeler_api', 'modules', []);
   }
 
   /**
@@ -489,6 +608,13 @@ abstract class ModelOwnerBase extends PluginBase implements ModelOwnerInterface 
   /**
    * {@inheritdoc}
    */
+  public function getPluginSchemaKey(PluginInspectionInterface $plugin): string {
+    return '';
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function skipConfigurationValidation(int $type, string $id): bool {
     return FALSE;
   }
@@ -622,6 +748,18 @@ abstract class ModelOwnerBase extends PluginBase implements ModelOwnerInterface 
   /**
    * {@inheritdoc}
    */
+  final public function supportsTemplate(): bool {
+    return $this->entityTypeManager->getDefinition($this->configEntityTypeId())->hasKey('template');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function applyTemplate(string $templateId, string $componentId, string $target, array $hiddenConfig = [], array $config = []): void {}
+
+  /**
+   * {@inheritdoc}
+   */
   public function ownerComponentEditable(PluginInspectionInterface $plugin): bool {
     return TRUE;
   }
@@ -631,6 +769,62 @@ abstract class ModelOwnerBase extends PluginBase implements ModelOwnerInterface 
    */
   public function ownerComponentPluginChangeable(PluginInspectionInterface $plugin): bool {
     return TRUE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function favoriteOwnerComponents(): array {
+    return [];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function supportsReplayData(): bool {
+    return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getReplayData(string $hash): array {
+    return [];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getReplayDataByComponent(string $modelId, string $componentId): array {
+    return [];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function supportsTesting(): bool {
+    return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function startTestJob(string $modelId, string $componentId): string|TranslatableMarkup {
+    return $this->t('Testing is not supported.');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function pollTestJob(string $jobId): array|null|TranslatableMarkup {
+    return $this->t('Testing is not supported.');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function cancelTestJob(string $jobId): null|TranslatableMarkup {
+    return $this->t('Testing is not supported.');
   }
 
 }

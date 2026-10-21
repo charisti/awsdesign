@@ -5,21 +5,22 @@ namespace Drupal\layout_builder_restrictions_by_region\Plugin\LayoutBuilderRestr
 use Drupal\Core\Config\Entity\ThirdPartySettingsInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\layout_builder\OverridesSectionStorageInterface;
 use Drupal\layout_builder\SectionStorageInterface;
+use Drupal\layout_builder_restrictions\Attribute\LayoutBuilderRestriction;
 use Drupal\layout_builder_restrictions\Plugin\LayoutBuilderRestrictionBase;
 use Drupal\layout_builder_restrictions\Traits\PluginHelperTrait;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Controls behavior of the by region plugin.
- *
- * @LayoutBuilderRestriction(
- *   id = "entity_view_mode_restriction_by_region",
- *   title = @Translation("Per Layout Region"),
- *   description = @Translation("Restrict blocks to specific regions for each allowed layout. If you enable this after configuring the 'Per Entity View Mode' restriction, you will need to resave each entity's layout restrictions.")
- * )
  */
+#[LayoutBuilderRestriction(
+  id: 'entity_view_mode_restriction_by_region',
+  title: new TranslatableMarkup('Per Layout Region'),
+  description: new TranslatableMarkup("Restrict blocks to specific regions for each allowed layout. If you enable this after configuring the 'Per Entity View Mode' restriction, you will need to resave each entity's layout restrictions.")
+)]
 class EntityViewModeRestrictionByRegion extends LayoutBuilderRestrictionBase {
 
   use PluginHelperTrait;

@@ -225,6 +225,8 @@ class TagifyEntityReferenceAutocompleteWidgetTest extends TagifyJavascriptTestBa
     $assert_session->waitForElement('css', '.tagify__dropdown__item');
     $assert_session->waitForElementVisible('css', '.tagify__dropdown__item--active');
     $page->find('css', '.tagify__dropdown__item--active')->click();
+    $this->getSession()->wait(500);
+    $assert_session->waitForElement('css', '.tagify__tag');
 
     // Add second value.
     $this->click('.tagify__input');

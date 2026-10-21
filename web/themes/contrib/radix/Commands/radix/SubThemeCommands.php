@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drush\Commands\radix;
 
+use Drupal\Component\Serialization\Yaml;
 use Consolidation\AnnotatedCommand\CommandData;
 use Consolidation\AnnotatedCommand\CommandError;
 use Drush\Attributes as CLI;
@@ -28,7 +29,7 @@ class SubThemeCommands extends DrushCommands {
   #[CLI\Argument(name: 'name', description: 'The machine-readable name of your sub-theme.')]
   #[CLI\Bootstrap(level: DrupalBootLevels::FULL)]
   #[CLI\Usage(name: 'drush radix:create my-theme', description: 'Creates a Radix sub-theme called my_theme, using the radix_starterkit.')]
-  public function createSubTheme(string $name) {
+  public function createSubTheme(string $name): void {
     try {
       $this->copyStarterKit();
       $this->generateTheme($name);
@@ -40,7 +41,7 @@ class SubThemeCommands extends DrushCommands {
 
       $this->printHeading(PHP_EOL . "RADIX DOCUMENTATION");
       $this->logger()->notice("Read the Radix comprehensive documentation or tl;dr below:");
-      $this->printCommand('https://radix.trydrupal.com');
+      $this->printCommand('https://docs.trydrupal.com/radix');
 
       $this->printHeading("🟡 STEP 1");
       $this->logger()->notice("Enable and set {$name} as the default theme:");
@@ -85,7 +86,7 @@ class SubThemeCommands extends DrushCommands {
    * @param string $command
    *   Hold command to be print.
    */
-  private function printCommand(string $command) {
+  private function printCommand(string $command): void {
     $formattedCommand = "<fg=green>$command</>";
     $this->output()->writeln($formattedCommand);
   }
@@ -96,7 +97,7 @@ class SubThemeCommands extends DrushCommands {
    * @param string $heading
    *   Hold heading data to be print.
    */
-  private function printHeading(string $heading) {
+  private function printHeading(string $heading): void {
     $formattedHeading = PHP_EOL . "<options=bold>$heading:</>";
     $this->output()->writeln($formattedHeading);
   }
@@ -104,7 +105,7 @@ class SubThemeCommands extends DrushCommands {
   /**
    * Function to copy starterkit components.
    */
-  private function copyStarterKit() {
+  private function copyStarterKit(): void {
     $filesystem = new Filesystem();
     $drupalRoot = Drush::bootstrapManager()->getRoot();
     $source = $drupalRoot . '/themes/contrib/radix/src/kits/radix_starterkit';
@@ -117,7 +118,7 @@ class SubThemeCommands extends DrushCommands {
    *
    * @see: https://www.drupal.org/project/drupal/issues/3456699
    */
-  private function copyDotFiles(string $themeName) {
+  private function copyDotFiles(string $themeName): void {
     $filesystem = new Filesystem();
     $drupalRoot = Drush::bootstrapManager()->getRoot();
     $source = $drupalRoot . '/themes/contrib/radix/src/kits/radix_starterkit';
@@ -146,46 +147,61 @@ class SubThemeCommands extends DrushCommands {
    * @param string $themeName
    *   Holds theme name to generate.
    */
-  private function generateTheme(string $themeName) {
+  private function generateTheme(string $themeName): void {
     $drupalRoot = Drush::bootstrapManager()->getRoot();
-    
-    // Get info from the original starterkit info.yml file
+
+    // Get info from the original starterkit info.yml file.
     $infoFile = $drupalRoot . '/themes/contrib/radix/src/kits/radix_starterkit/radix_starterkit.info.yml';
-    $info = \Drupal\Component\Serialization\Yaml::decode(file_get_contents($infoFile));
-    
-    // Get the description and version from the info file
+    $info = Yaml::decode(file_get_contents($infoFile));
+
+    // Get the description and version from the info file.
     $description = $info['description'] ?? '';
     $version = $info['version'] ?? '1.0.0';
-    
-    // Replace radix_starterkit with the actual theme name in the description
+
+    // Replace radix_starterkit with the actual theme name in the description.
     $description = str_replace('radix_starterkit', $themeName, $description);
-    
-    $process = new Process([
-      'php', $drupalRoot . '/core/scripts/drupal', 'generate-theme', 
-      '--starterkit', 'radix_starterkit', 
-      $themeName, 
-      '--path', 'themes/custom',
-      '--description', $description
-    ]);
+
+    $drupalCliPath = dirname($drupalRoot) . '/vendor/bin/dr';
+
+    if (file_exists($drupalCliPath)) {
+      // Drupal 11.4+: use the new CLI entrypoint.
+      $process = new Process([
+        $drupalCliPath, 'generate-theme',
+        '--starterkit', 'radix_starterkit',
+        $themeName,
+        '--path', 'themes/custom',
+        '--description', $description,
+      ]);
+    }
+    else {
+      // Drupal 10.3 - 11.3: fall back to the legacy script.
+      $process = new Process([
+        'php', $drupalRoot . '/core/scripts/drupal', 'generate-theme',
+        '--starterkit', 'radix_starterkit',
+        $themeName,
+        '--path', 'themes/custom',
+        '--description', $description,
+      ]);
+    }
     $process->run();
-    
+
     if (!$process->isSuccessful()) {
       throw new \RuntimeException($process->getErrorOutput());
     }
-    
-    // Update the version in the generated theme's info.yml file
+
+    // Update the version in the generated theme's info.yml file.
     $newInfoFile = $drupalRoot . '/themes/custom/' . $themeName . '/' . $themeName . '.info.yml';
     if (file_exists($newInfoFile)) {
-      $newInfo = \Drupal\Component\Serialization\Yaml::decode(file_get_contents($newInfoFile));
+      $newInfo = Yaml::decode(file_get_contents($newInfoFile));
       $newInfo['version'] = $version;
-      file_put_contents($newInfoFile, \Drupal\Component\Serialization\Yaml::encode($newInfo));
+      file_put_contents($newInfoFile, Yaml::encode($newInfo));
     }
   }
 
   /**
    * Function to remove starterkit components.
    */
-  private function removeCopiedStarterKit() {
+  private function removeCopiedStarterKit(): void {
     $filesystem = new Filesystem();
     $drupalRoot = Drush::bootstrapManager()->getRoot();
     $starterkit = $drupalRoot . '/themes/custom/radix_starterkit';

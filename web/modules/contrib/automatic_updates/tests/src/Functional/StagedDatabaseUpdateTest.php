@@ -4,17 +4,22 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\automatic_updates\Functional;
 
+use Drupal\automatic_updates\Form\UpdaterForm;
 use Drupal\automatic_updates_test\EventSubscriber\TestSubscriber1;
 use Drupal\package_manager\Event\PreApplyEvent;
 use Drupal\package_manager\Event\StatusCheckEvent;
 use Drupal\package_manager_test_validation\TestSandboxDatabaseUpdatesValidator;
-use Drupal\system\SystemManager;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @covers \Drupal\automatic_updates\Form\UpdaterForm
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(UpdaterForm::class)]
+#[RunTestsInSeparateProcesses]
 class StagedDatabaseUpdateTest extends UpdaterFormTestBase {
 
   /**
@@ -40,7 +45,7 @@ class StagedDatabaseUpdateTest extends UpdaterFormTestBase {
 
     // Flag a warning, which will not block the update but should be displayed
     // on the updater form.
-    $expected_results = [$this->createValidationResult(SystemManager::REQUIREMENT_WARNING)];
+    $expected_results = [$this->createValidationResult(RequirementSeverity::Warning->value)];
     TestSubscriber1::setTestResult($expected_results, StatusCheckEvent::class);
     $messages = reset($expected_results)->messages;
 

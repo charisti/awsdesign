@@ -2,6 +2,9 @@
 /.ddev/
 /.editorconfig
 /.gitattributes
+/.phpunit.result.cache
+/.prettierignore
+/.prettierrc.json
 /phpcs.xml.dist
 /recipes/
 /vendor/

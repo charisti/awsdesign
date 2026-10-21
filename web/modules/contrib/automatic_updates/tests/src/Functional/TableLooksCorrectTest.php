@@ -4,11 +4,18 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\automatic_updates\Functional;
 
+use Drupal\automatic_updates\Form\UpdaterForm;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+use PHPUnit\Framework\Attributes\TestWith;
+
 /**
- * @covers \Drupal\automatic_updates\Form\UpdaterForm
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(UpdaterForm::class)]
+#[RunTestsInSeparateProcesses]
 class TableLooksCorrectTest extends UpdaterFormTestBase {
 
   /**
@@ -16,10 +23,9 @@ class TableLooksCorrectTest extends UpdaterFormTestBase {
    *
    * @param string $access_url
    *   The URL from which to start navigating the the automatic updates form.
-   *
-   * @testWith ["/admin/modules"]
-   *   ["/admin/reports"]
    */
+  #[TestWith(['/admin/modules'])]
+  #[TestWith(['/admin/reports'])]
   public function testTableLooksCorrect(string $access_url): void {
     $assert_session = $this->assertSession();
 

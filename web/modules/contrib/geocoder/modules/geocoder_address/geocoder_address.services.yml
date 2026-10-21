@@ -6,5 +6,7 @@ services:
         "@address.address_format_repository",
         "@address.country_repository",
         "@address.subdivision_repository",
-        "@module_handler"
+        "@module_handler",
+        "@config.factory"
       ]
+  Drupal\geocoder_address\AddressService: '@geocoder_address.address'

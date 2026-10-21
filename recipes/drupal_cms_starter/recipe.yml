@@ -17,7 +17,6 @@ recipes:
 install:
   - automated_cron
   - automatic_updates
-  - automatic_updates_extensions
   - dashboard
   - drupal_cms_helper
   - drupal_cms_olivero
@@ -96,6 +95,7 @@ config:
           drupalorg_jsonapi: []
         allow_ui_install: true
         max_selections: 1
+        default_source: recommended
     system.theme:
       simpleConfigUpdate:
         default: drupal_cms_olivero

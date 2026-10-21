@@ -8,13 +8,18 @@ use Drupal\KernelTests\KernelTestBase;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\Plugin\MigratePluginManagerInterface;
 use Drupal\migrate\Row;
+use Drupal\migrate_plus\Plugin\migrate\process\Service;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the service plugin.
- *
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\Service
- * @group migrate_plus
  */
+#[CoversClass(Service::class)]
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 final class ServiceTest extends KernelTestBase {
 
   /**
@@ -42,8 +47,6 @@ final class ServiceTest extends KernelTestBase {
 
   /**
    * Tests using a service.
-   *
-   * @covers ::create
    */
   public function testValidConfig(): void {
     /** @var \Drupal\migrate\MigrateExecutableInterface $executable */
@@ -76,10 +79,9 @@ final class ServiceTest extends KernelTestBase {
    * @param string $message
    *   The expected exception message.
    *
-   * @covers ::create
-   *
    * @dataProvider providerConfig
    */
+  #[DataProvider('providerConfig')]
   public function testInvalidConfig(array $configuration, string $message): void {
     $this->expectException(\InvalidArgumentException::class);
     $this->expectExceptionMessage($message);

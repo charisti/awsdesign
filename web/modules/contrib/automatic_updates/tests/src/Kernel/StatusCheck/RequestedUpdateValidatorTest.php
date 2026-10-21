@@ -5,15 +5,21 @@ declare(strict_types=1);
 namespace Drupal\Tests\automatic_updates\Kernel\StatusCheck;
 
 use Drupal\automatic_updates\UpdateSandboxManager;
+use Drupal\automatic_updates\Validator\RequestedUpdateValidator;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\package_manager\Exception\SandboxEventException;
 use Drupal\package_manager\ValidationResult;
 use Drupal\Tests\automatic_updates\Kernel\AutomaticUpdatesKernelTestBase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @coversDefaultClass \Drupal\automatic_updates\Validator\RequestedUpdateValidator
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(RequestedUpdateValidator::class)]
+#[RunTestsInSeparateProcesses]
 class RequestedUpdateValidatorTest extends AutomaticUpdatesKernelTestBase {
 
   /**
@@ -42,8 +48,12 @@ class RequestedUpdateValidatorTest extends AutomaticUpdatesKernelTestBase {
 
     $sandbox_manager = $this->container->get(UpdateSandboxManager::class);
     $expected_results = [
-      ValidationResult::createError([t("The requested update to 'drupal/core-recommended' to version '9.8.1' does not match the actual staged update to '9.8.2'.")]),
-      ValidationResult::createError([t("The requested update to 'drupal/core-dev' to version '9.8.1' was not performed.")]),
+      ValidationResult::createError([
+        new TranslatableMarkup("The requested update to 'drupal/core-recommended' to version '9.8.1' does not match the actual staged update to '9.8.2'."),
+      ]),
+      ValidationResult::createError([
+        new TranslatableMarkup("The requested update to 'drupal/core-dev' to version '9.8.1' was not performed."),
+      ]),
     ];
     $sandbox_manager->begin(['drupal' => '9.8.1']);
     $this->assertStatusCheckResults($expected_results, $sandbox_manager);
@@ -73,7 +83,9 @@ class RequestedUpdateValidatorTest extends AutomaticUpdatesKernelTestBase {
     $this->container->get('module_installer')->install(['automatic_updates']);
 
     $expected_results = [
-      ValidationResult::createError([t('No updates detected in the staging area.')]),
+      ValidationResult::createError([
+        new TranslatableMarkup('No updates detected in the staging area.'),
+      ]),
     ];
     $sandbox_manager = $this->container->get(UpdateSandboxManager::class);
     $sandbox_manager->begin(['drupal' => '9.8.1']);

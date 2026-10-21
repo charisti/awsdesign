@@ -9,7 +9,7 @@ field.widget.settings.tagify_entity_reference_autocomplete_widget:
       type: integer
       label: 'Maximum number of autocomplete suggestions'
     placeholder:
-      type: string
+      type: label
       label: 'Placeholder'
     suggestions_dropdown:
       type: integer
@@ -29,6 +29,9 @@ field.widget.settings.tagify_entity_reference_autocomplete_widget:
     identifier:
       type: string
       label: 'Field name'
+    parent_selection:
+      type: integer
+      label: 'Parent selection'
 
 better_exposed_filters.filter.bef_tagify:
   label: 'Tagify'
@@ -45,8 +48,14 @@ field.widget.settings.tagify_select_widget:
       type: integer
       label: 'Maximum number of autocomplete suggestions'
     placeholder:
-      type: string
+      type: label
       label: 'Placeholder'
+    show_entity_id:
+      type: integer
+      label: 'Include entity Id'
+    parent_selection:
+      type: integer
+      label: 'Parent selection'
     cardinality:
       type: integer
       label: 'Field cardinality'

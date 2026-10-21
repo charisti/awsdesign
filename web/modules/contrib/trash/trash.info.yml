@@ -1,10 +1,10 @@
 name: Trash
 type: module
 description: 'Provides the ability to soft-delete content entities.'
-core_version_requirement: ^10.3 | ^11
+core_version_requirement: ^11.3.3 | ^12
 configure: trash.settings.form
 
-# Information added by Drupal.org packaging script on 2025-11-07
-version: '3.0.22'
+# Information added by Drupal.org packaging script on 2026-09-18
+version: '3.1.0'
 project: 'trash'
-datestamp: 1762506916
+datestamp: 1789745539

@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Entity;
 
-use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
+use Drupal\Core\Entity\Attribute\ConfigEntityType;
 use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 
 /**
  * Defines the Migration entity.
@@ -40,17 +41,42 @@ use Drupal\Core\Entity\EntityTypeInterface;
  *   },
  * )
  */
+#[ConfigEntityType(
+  id: 'migration',
+  label: new TranslatableMarkup('Migration'),
+  entity_keys: [
+    'id' => 'id',
+    'label' => 'label',
+    'weight' => 'weight',
+    'status' => 'status',
+  ],
+  config_export: [
+    'id',
+    'class',
+    'idMap',
+    'field_plugin_method',
+    'cck_plugin_method',
+    'migration_tags',
+    'migration_group',
+    'status',
+    'label',
+    'source',
+    'process',
+    'destination',
+    'migration_dependencies',
+  ],
+)]
 class Migration extends ConfigEntityBase implements MigrationInterface {
 
   /**
    * The migration ID (machine name).
    */
-  protected ?string $id;
+  protected ?string $id = NULL;
 
   /**
    * The human-readable label for the migration.
    */
-  protected ?string $label;
+  protected ?string $label = NULL;
 
   /**
    * {@inheritdoc}
@@ -72,9 +98,6 @@ class Migration extends ConfigEntityBase implements MigrationInterface {
   protected function invalidateTagsOnSave($update): void {
     parent::invalidateTagsOnSave($update);
     \Drupal::service('plugin.manager.migration')->clearCachedDefinitions();
-
-    // @todo remove after 10.1 and earlier support sunsets.
-    Cache::invalidateTags(['migration_plugins']);
   }
 
   /**
@@ -83,9 +106,6 @@ class Migration extends ConfigEntityBase implements MigrationInterface {
   protected static function invalidateTagsOnDelete(EntityTypeInterface $entity_type, array $entities): void {
     parent::invalidateTagsOnDelete($entity_type, $entities);
     \Drupal::service('plugin.manager.migration')->clearCachedDefinitions();
-
-    // @todo remove after 10.1 and earlier support sunsets.
-    Cache::invalidateTags(['migration_plugins']);
   }
 
   /**
@@ -113,6 +133,7 @@ class Migration extends ConfigEntityBase implements MigrationInterface {
     $plugin_definition = $migration_plugin->getPluginDefinition();
     $migration_details['class'] = $plugin_definition['class'];
     $entity_array['idMap'] = $plugin_definition['idMap'] ?? [];
+    $entity_array['migration_group'] = $plugin_definition['migration_group'];
     $entity_array['migration_tags'] = $migration_plugin->getMigrationTags();
     $entity_array['label'] = $migration_plugin->label();
     $entity_array['source'] = $migration_plugin->getSourceConfiguration();

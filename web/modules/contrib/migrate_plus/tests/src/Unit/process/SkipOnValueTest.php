@@ -7,17 +7,18 @@ namespace Drupal\Tests\migrate_plus\Unit\process;
 use Drupal\migrate\MigrateSkipRowException;
 use Drupal\migrate_plus\Plugin\migrate\process\SkipOnValue;
 use Drupal\Tests\migrate\Unit\process\MigrateProcessTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tests the skip on value process plugin.
- *
- * @group migrate
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\SkipOnValue
  */
+#[CoversClass(SkipOnValue::class)]
+#[Group('migrate_plus')]
 final class SkipOnValueTest extends MigrateProcessTestCase {
 
   /**
-   * @covers ::process
+   * Tests skip on value.
    */
   public function testProcessSkipsOnValue(): void {
     $configuration = [];
@@ -29,7 +30,7 @@ final class SkipOnValueTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::process
+   * Tests skip on value with multiple values.
    */
   public function testProcessSkipsOnMultipleValue(): void {
     $configuration = [];
@@ -41,7 +42,7 @@ final class SkipOnValueTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::process
+   * Tests skip on non-value.
    */
   public function testProcessBypassesOnNonValue(): void {
     $configuration = [];
@@ -60,7 +61,7 @@ final class SkipOnValueTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::process
+   * Tests skip on multiple non-value.
    */
   public function testProcessSkipsOnMultipleNonValue(): void {
     $configuration = [];
@@ -73,7 +74,7 @@ final class SkipOnValueTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::process
+   * Tests bypass on multiple non-value.
    */
   public function testProcessBypassesOnMultipleNonValue(): void {
     $configuration = [];
@@ -91,7 +92,7 @@ final class SkipOnValueTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::row
+   * Tests row bypass on multiple non-value.
    */
   public function testRowBypassesOnMultipleNonValue(): void {
     $configuration = [];
@@ -107,7 +108,7 @@ final class SkipOnValueTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::row
+   * Tests skip row on value.
    */
   public function testRowSkipsOnValue(): void {
     $configuration = [];
@@ -120,8 +121,6 @@ final class SkipOnValueTest extends MigrateProcessTestCase {
 
   /**
    * Tests that a skip row exception with a message is raised.
-   *
-   * @covers ::row
    */
   public function testRowSkipWithMessage(): void {
     $configuration = [
@@ -136,7 +135,7 @@ final class SkipOnValueTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::row
+   * Tests row bypass on non-value.
    */
   public function testRowBypassesOnNonValue(): void {
     $configuration = [];
@@ -153,7 +152,7 @@ final class SkipOnValueTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::__construct
+   * Tests required configuration.
    */
   public function testRequiredConfiguration(): void {
     $configuration = [];

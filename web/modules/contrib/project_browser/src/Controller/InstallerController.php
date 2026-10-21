@@ -11,6 +11,7 @@ use Drupal\package_manager\Exception\SandboxException;
 use Drupal\package_manager\StatusCheckTrait;
 use Drupal\project_browser\Activator\ActivationStatus;
 use Drupal\project_browser\ComposerInstaller\Installer;
+use Drupal\project_browser\CsrfTokenPath;
 use Drupal\project_browser\InstallProgress;
 use Drupal\project_browser\ProjectRepository;
 use Psr\Log\LoggerInterface;
@@ -29,8 +30,6 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
  */
 final class InstallerController extends ControllerBase {
 
-  use StatusCheckTrait;
-
   public function __construct(
     private readonly Installer $installer,
     private readonly ProjectRepository $projectRepository,
@@ -38,6 +37,7 @@ final class InstallerController extends ControllerBase {
     #[Autowire(service: 'logger.channel.project_browser')] private readonly LoggerInterface $logger,
     private readonly InstallProgress $installProgress,
     private readonly EventDispatcherInterface $eventDispatcher,
+    private readonly CsrfTokenPath $csrfTokenPath,
   ) {}
 
   /**
@@ -176,26 +176,6 @@ final class InstallerController extends ControllerBase {
   }
 
   /**
-   * Gets the given URL with all placeholders replaced.
-   *
-   * @param \Drupal\Core\Url $url
-   *   A URL which generates CSRF token placeholders.
-   *
-   * @return string
-   *   The URL string, with all placeholders replaced.
-   */
-  private static function getUrlWithReplacedCsrfTokenPlaceholder(Url $url): string {
-    $generated_url = $url->toString(TRUE);
-    $url_with_csrf_token_placeholder = [
-      '#plain_text' => $generated_url->getGeneratedUrl(),
-    ];
-    $generated_url->applyTo($url_with_csrf_token_placeholder);
-
-    return (string) \Drupal::service('renderer')
-      ->renderInIsolation($url_with_csrf_token_placeholder);
-  }
-
-  /**
    * Begins requiring by creating a sandbox.
    *
    * @param \Symfony\Component\HttpFoundation\Request $request
@@ -215,7 +195,7 @@ final class InstallerController extends ControllerBase {
 
       // If we got here, the sandbox is locked by us, so prepare a link that
       // allows the user to unlock it if possible.
-      $unlock_url = self::getUrlWithReplacedCsrfTokenPlaceholder(
+      $unlock_url = $this->csrfTokenPath->toString(
         Url::fromRoute('project_browser.install.unlock'),
       );
       $unlock_url .= '&destination=' . $request->query->get('redirect');
@@ -394,7 +374,21 @@ final class InstallerController extends ControllerBase {
       'errors' => [],
       'warnings' => [],
     ];
-    foreach ($this->runStatusCheck($this->installer, $this->eventDispatcher) as $result) {
+    // If Package Manager isn't installed, this trait won't exist and there is
+    // nothing for us to do.
+    if (!trait_exists(StatusCheckTrait::class)) {
+      return $results;
+    }
+    // Dynamically expose the functionality of StatusCheckTrait on an anonymous
+    // class.
+    $status_checker = new class () {
+
+      use StatusCheckTrait {
+        runStatusCheck as public;
+      }
+
+    };
+    foreach ($status_checker->runStatusCheck($this->installer, $this->eventDispatcher) as $result) {
       $group = $result->severity === RequirementSeverity::Error->value
         ? 'errors'
         : 'warnings';

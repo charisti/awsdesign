@@ -7,10 +7,10 @@ namespace Drupal\automatic_updates\Validation;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
-use Drupal\system\SystemManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -74,7 +74,7 @@ final class StatusCheckRequirements implements ContainerInjectionInterface {
     if (is_null($results) && $this->getMethod() === 'console') {
       $requirements['automatic_updates_status_check_console_command_not_run'] = [
         'title' => $this->t('Update readiness checks'),
-        'severity' => SystemManager::REQUIREMENT_ERROR,
+        'severity' => RequirementSeverity::Error->value,
         // @todo Link to the documentation on how to set up unattended updates
         //   via the terminal in https://drupal.org/i/3362695.
         'value' => $this->t('Unattended updates are configured to run via the console, but do not appear to have run recently.'),
@@ -86,7 +86,7 @@ final class StatusCheckRequirements implements ContainerInjectionInterface {
     if (empty($results)) {
       $requirements['automatic_updates_status_check'] = [
         'title' => $this->t('Update readiness checks'),
-        'severity' => SystemManager::REQUIREMENT_OK,
+        'severity' => RequirementSeverity::OK->value,
         // @todo Link "automatic updates" to documentation in
         //   https://www.drupal.org/node/3168405.
         'value' => $this->t('Your site is ready for automatic updates.'),
@@ -97,7 +97,7 @@ final class StatusCheckRequirements implements ContainerInjectionInterface {
       }
     }
     else {
-      foreach ([SystemManager::REQUIREMENT_WARNING, SystemManager::REQUIREMENT_ERROR] as $severity) {
+      foreach ([RequirementSeverity::Warning->value, RequirementSeverity::Error->value] as $severity) {
         if ($requirement = $this->createRequirementForSeverity($severity)) {
           $requirements["automatic_updates_status_$severity"] = $requirement;
         }

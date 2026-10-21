@@ -4,3 +4,7 @@ services:
     arguments: ['@entity_type.manager']
     tags:
       - { name: event_subscriber }
+
+  Drupal\layout_builder_restrictions_by_region\Hook\LayoutBuilderRestrictionsByRegionHooks:
+    class: Drupal\layout_builder_restrictions_by_region\Hook\LayoutBuilderRestrictionsByRegionHooks
+    autowire: true

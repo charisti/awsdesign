@@ -67,7 +67,7 @@ class LeafletAjaxPopupController extends ControllerBase {
   }
 
   /**
-   * Leaflet Ajax Popup build callback..
+   * Leaflet Ajax Popup build callback.
    *
    * @param \Drupal\Core\Entity\EntityInterface $entity
    *   The entity whose build to return.
@@ -92,7 +92,7 @@ class LeafletAjaxPopupController extends ControllerBase {
    *
    * @param string $entityType
    *   The entity type.
-   * @param int $entityId
+   * @param string|int $entityId
    *   The entity id.
    * @param string $viewMode
    *   The view mode.
@@ -111,7 +111,7 @@ class LeafletAjaxPopupController extends ControllerBase {
    *
    * @param string $entityType
    *   The entity type.
-   * @param int $entityId
+   * @param string|int $entityId
    *   The entity id.
    * @param string $viewMode
    *   The view mode.
@@ -130,7 +130,7 @@ class LeafletAjaxPopupController extends ControllerBase {
    *
    * @param string $entityType
    *   The entity type.
-   * @param int $entityId
+   * @param string|int $entityId
    *   The entity id.
    * @param string $viewMode
    *   The view mode.

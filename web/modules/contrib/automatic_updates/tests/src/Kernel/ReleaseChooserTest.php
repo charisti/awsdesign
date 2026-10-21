@@ -9,12 +9,17 @@ use Drupal\automatic_updates\ReleaseChooser;
 use Drupal\automatic_updates\UpdateSandboxManager;
 use Drupal\Core\Extension\ExtensionVersion;
 use Drupal\update\ProjectRelease;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @coversDefaultClass \Drupal\automatic_updates\ReleaseChooser
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(ReleaseChooser::class)]
+#[RunTestsInSeparateProcesses]
 class ReleaseChooserTest extends AutomaticUpdatesKernelTestBase {
 
   /**
@@ -41,84 +46,84 @@ class ReleaseChooserTest extends AutomaticUpdatesKernelTestBase {
   public static function providerReleases(): array {
     return [
       'installed 9.8.0, no minor support' => [
-        'stage' => UpdateSandboxManager::class,
+        'sandbox_manager' => UpdateSandboxManager::class,
         'minor_support' => FALSE,
         'installed_version' => '9.8.0',
         'current_minor' => '9.8.2',
         'next_minor' => NULL,
       ],
       'installed 9.8.0, minor support' => [
-        'stage' => UpdateSandboxManager::class,
+        'sandbox_manager' => UpdateSandboxManager::class,
         'minor_support' => TRUE,
         'installed_version' => '9.8.0',
         'current_minor' => '9.8.2',
         'next_minor' => NULL,
       ],
       'installed 9.7.0, no minor support' => [
-        'stage' => UpdateSandboxManager::class,
+        'sandbox_manager' => UpdateSandboxManager::class,
         'minor_support' => FALSE,
         'installed_version' => '9.7.0',
         'current_minor' => '9.7.1',
         'next_minor' => NULL,
       ],
       'installed 9.7.0, minor support' => [
-        'stage' => UpdateSandboxManager::class,
+        'sandbox_manager' => UpdateSandboxManager::class,
         'minor_support' => TRUE,
         'installed_version' => '9.7.0',
         'current_minor' => '9.7.1',
         'next_minor' => '9.8.2',
       ],
       'installed 9.7.2, no minor support' => [
-        'stage' => UpdateSandboxManager::class,
+        'sandbox_manager' => UpdateSandboxManager::class,
         'minor_support' => FALSE,
         'installed_version' => '9.7.2',
         'current_minor' => NULL,
         'next_minor' => NULL,
       ],
       'installed 9.7.2, minor support' => [
-        'stage' => UpdateSandboxManager::class,
+        'sandbox_manager' => UpdateSandboxManager::class,
         'minor_support' => TRUE,
         'installed_version' => '9.7.2',
         'current_minor' => NULL,
         'next_minor' => '9.8.2',
       ],
       'cron, installed 9.8.0, no minor support' => [
-        'stage' => ConsoleUpdateSandboxManager::class,
+        'sandbox_manager' => ConsoleUpdateSandboxManager::class,
         'minor_support' => FALSE,
         'installed_version' => '9.8.0',
         'current_minor' => '9.8.1',
         'next_minor' => NULL,
       ],
       'cron, installed 9.8.0, minor support' => [
-        'stage' => ConsoleUpdateSandboxManager::class,
+        'sandbox_manager' => ConsoleUpdateSandboxManager::class,
         'minor_support' => TRUE,
         'installed_version' => '9.8.0',
         'current_minor' => '9.8.1',
         'next_minor' => NULL,
       ],
       'cron, installed 9.7.0, no minor support' => [
-        'stage' => ConsoleUpdateSandboxManager::class,
+        'sandbox_manager' => ConsoleUpdateSandboxManager::class,
         'minor_support' => FALSE,
         'installed_version' => '9.7.0',
         'current_minor' => '9.7.1',
         'next_minor' => NULL,
       ],
       'cron, installed 9.7.0, minor support' => [
-        'stage' => ConsoleUpdateSandboxManager::class,
+        'sandbox_manager' => ConsoleUpdateSandboxManager::class,
         'minor_support' => TRUE,
         'installed_version' => '9.7.0',
         'current_minor' => '9.7.1',
         'next_minor' => NULL,
       ],
       'cron, installed 9.7.2, no minor support' => [
-        'stage' => ConsoleUpdateSandboxManager::class,
+        'sandbox_manager' => ConsoleUpdateSandboxManager::class,
         'minor_support' => FALSE,
         'installed_version' => '9.7.2',
         'current_minor' => NULL,
         'next_minor' => NULL,
       ],
       'cron, installed 9.7.2, minor support' => [
-        'stage' => ConsoleUpdateSandboxManager::class,
+        'sandbox_manager' => ConsoleUpdateSandboxManager::class,
         'minor_support' => TRUE,
         'installed_version' => '9.7.2',
         'current_minor' => NULL,
@@ -141,13 +146,8 @@ class ReleaseChooserTest extends AutomaticUpdatesKernelTestBase {
    *   available.
    * @param string|null $next_minor
    *   The expected release in the next minor or NULL if none is available.
-   *
-   * @dataProvider providerReleases
-   *
-   * @covers ::getLatestInInstalledMinor
-   * @covers ::getLatestInNextMinor
-   * @covers ::getMostRecentReleaseInMinor
    */
+  #[DataProvider('providerReleases')]
   public function testReleases(string $sandbox_manager, bool $minor_support, string $installed_version, ?string $current_minor, ?string $next_minor): void {
     $this->setCoreVersion($installed_version);
     $this->config('automatic_updates.settings')->set('allow_core_minor_updates', $minor_support)->save();

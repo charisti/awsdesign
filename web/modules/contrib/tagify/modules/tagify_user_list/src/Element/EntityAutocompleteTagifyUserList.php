@@ -3,10 +3,13 @@
 namespace Drupal\tagify_user_list\Element;
 
 use Drupal\Component\Utility\Crypt;
+use Drupal\Component\Utility\NestedArray;
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Element\Textfield;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\Url;
+use Drupal\tagify\TagifyHtmlFilterTrait;
 
 /**
  * Provides an entity autocomplete tagify user list form element.
@@ -66,6 +69,8 @@ use Drupal\Core\Url;
  */
 class EntityAutocompleteTagifyUserList extends Textfield {
 
+  use TagifyHtmlFilterTrait;
+
   /**
    * {@inheritdoc}
    */
@@ -120,14 +125,15 @@ class EntityAutocompleteTagifyUserList extends Textfield {
       $element['#attributes']['class'][] = 'autocreate';
     }
 
-    $element['#attached'] = [
+    $element['#attached'] = NestedArray::mergeDeep($element['#attached'] ?? [], [
       'library' => [
-        'tagify/tagify',
-        'tagify/default',
-        'tagify/tagify_polyfils',
         'tagify_user_list/user_list',
       ],
-    ];
+    ]);
+
+    if ($element['#target_type'] === 'user') {
+      $element['#attached']['library'][] = 'tagify_user_list/details_summary';
+    }
 
     if (_tagify_is_gin_theme_active()) {
       $element['#attached']['library'][] = 'tagify/gin';
@@ -158,7 +164,13 @@ class EntityAutocompleteTagifyUserList extends Textfield {
     $element['#attributes']['data-suggestions-dropdown'] = $element['#suggestions_dropdown'] ?? '';
     $element['#attributes']['data-match-operator'] = ($element['#match_operator'] === 'CONTAINS') ? 1 : 0;
     $element['#attributes']['data-placeholder'] = $element['#placeholder'] ?? '';
-    $element['#attributes']['data-identifier'] = array_key_exists('#field_name', $element) ? $element['#field_name'] : $element['#name'];
+    // Use the #identifier property if set (includes field parent position
+    // suffix for dynamically added fields), otherwise fall back to field name.
+    // @see \Drupal\tagify_user_list\Plugin\Field\FieldWidget\TagifyUserListEntityReferenceAutocompleteWidget::formElement()
+    $element['#attributes']['data-identifier'] = !empty($element['#identifier'])
+      ? $element['#identifier']
+      : (array_key_exists('#field_name', $element) ? $element['#field_name'] : $element['#name']);
+
     $element['#attributes']['data-cardinality'] = $element['#cardinality'] ?? '';
 
     // Store the selection settings in the key/value store and pass a hashed key
@@ -247,8 +259,13 @@ class EntityAutocompleteTagifyUserList extends Textfield {
     /** @var \Drupal\Core\Entity\EntityRepositoryInterface $entity_repository */
     $entity_repository = \Drupal::service('entity.repository');
     foreach ($entities as $entity) {
-      /** @var \Drupal\Core\Entity\EntityInterface $entity */
+      // Skip if entity is NULL or not an instance of EntityInterface.
+      if (!$entity instanceof EntityInterface) {
+        continue;
+      }
+
       // Set the entity in the correct language for display.
+      /** @var \Drupal\Core\Entity\EntityInterface $entity */
       $entity = $entity_repository->getTranslationFromContext($entity);
       // Use the special view label, since some entities allow the label to be
       // viewed, even if the entity is not allowed to be viewed.
@@ -270,6 +287,10 @@ class EntityAutocompleteTagifyUserList extends Textfield {
 
       $context = ['entity' => $entity, 'info_label' => $info_label_template];
       \Drupal::moduleHandler()->alter('tagify_autocomplete_match', $label, $info_label, $context);
+
+      if ($info_label !== NULL) {
+        $info_label = self::filterHtmlWithImages($info_label);
+      }
 
       if ($label === NULL) {
         continue;

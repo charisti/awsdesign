@@ -8,7 +8,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 
 /**
- * SimpleSearchForm definition.
+ * Shows a simple search form.
  */
 class SimpleSearchForm extends FormBase {
 
@@ -50,7 +50,7 @@ class SimpleSearchForm extends FormBase {
         if (!isset($form[$name]) && isset($query[$name]) && ($value = $query[$name]) !== '') {
           if (is_array($value)) {
             foreach (explode('&', UrlHelper::buildQuery($value, $name)) as $param) {
-              list($name, $value) = explode('=', $param);
+              [$name, $value] = explode('=', $param);
               $form[rawurldecode($name)] = [
                 '#type' => 'hidden',
                 '#value' => rawurldecode($value),

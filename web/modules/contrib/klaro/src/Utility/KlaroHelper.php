@@ -18,8 +18,10 @@ use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Theme\ThemeManager;
 use Drupal\Core\Url;
+use Drupal\Core\Utility\Error;
 use Drupal\klaro\Entity\KlaroApp;
 use Drupal\klaro\KlaroAppInterface;
+use Masterminds\HTML5;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
@@ -105,6 +107,13 @@ class KlaroHelper {
    * @var \Drupal\Core\Theme\ThemeManager
    */
   protected $themeManager;
+
+  /**
+   * Per-request cache of loaded apps, keyed by the getApps() arguments.
+   *
+   * @var \Drupal\klaro\KlaroAppInterface[][]
+   */
+  protected array $appsCache = [];
 
   /**
    * Constructs a KlaroHelper object.
@@ -261,10 +270,11 @@ class KlaroHelper {
    *   The drupalSettings array.
    */
   public function processDrupalSettings(): array {
+    $settings = [];
     $config = $this->configFactory->get('klaro.settings');
     $config_texts = $this->configFactory->get('klaro.texts');
-    $settings = [];
-    $settings['config'] = static::snakeToCamel($config->get('library'));
+    $library_config = $config->get('library') ?? [];
+    $settings['config'] = static::snakeToCamel($library_config);
 
     // Set dialog mode.
     $dialog_mode = $config->get('dialog_mode');
@@ -303,6 +313,9 @@ class KlaroHelper {
         'description' => $config->get('process_descriptions') ? $this->processDescription($app) : $app->description(),
         'purposes' => $app->purposes(),
         'callbackCode' => $app->callbackCode(),
+        'onInit' => $app->onInit(),
+        'onAccept' => $app->onAccept(),
+        'onDecline' => $app->onDecline(),
         'cookies' => $cookies,
         'required' => $app->isRequired(),
         'optOut' => $app->isOptOut(),
@@ -342,6 +355,8 @@ class KlaroHelper {
     $settings['config']['translations'][$langcode] = $translations;
     $settings['config']['translations'][$langcode]['privacyPolicy'] = $translations['consentModal']['privacyPolicy'];
     $settings['config']['translations'][$langcode]['purposes'] = $this->optionPurposes(TRUE);
+
+    $settings['config']['purposeOrder'] = array_keys($this->optionPurposes());
 
     $settings['show_toggle_button'] = $config->get('show_toggle_button');
     $settings['toggle_button_icon'] = $config->get('toggle_button_icon');
@@ -411,6 +426,11 @@ class KlaroHelper {
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
   public function getApps(bool $only_enabled = TRUE, bool $only_not_required = FALSE): array {
+    $cid = (int) $only_enabled . ':' . (int) $only_not_required;
+    if (isset($this->appsCache[$cid])) {
+      return $this->appsCache[$cid];
+    }
+
     $storage = $this->entityTypeManager->getStorage('klaro_app');
 
     $query = $storage->getQuery();
@@ -433,7 +453,7 @@ class KlaroHelper {
       $result["unknown_app"] = $unknown_app;
     }
 
-    return $result;
+    return $this->appsCache[$cid] = $result;
   }
 
   /**
@@ -670,7 +690,25 @@ class KlaroHelper {
     // Check if there are unknown external resources.
     if (!$found_klaro_app && ($settings->get('block_unknown') || $settings->get('log_unknown_resources'))) {
       if (UrlHelper::isExternal($str)) {
-        $external_is_local = UrlHelper::externalIsLocal($str, $this->request->getSchemeAndHttpHost());
+        try {
+          $external_is_local = UrlHelper::externalIsLocal($str, $this->request->getSchemeAndHttpHost());
+        }
+        catch (\InvalidArgumentException $e) {
+          // Log this event always.
+          Error::logException(
+            $this->logger->get('klaro'),
+            $e,
+            "Found URL %url could not be assessed. %type: @message in %function (line %line of %file).",
+            ['%url' => $str]
+          );
+
+          // Block based on the setting.
+          if ($settings->get('block_unknown')) {
+            $found_klaro_app = $klaro_apps['unknown_app'];
+          }
+          // Bypass the rest of the function.
+          $external_is_local = TRUE;
+        }
         if (!$external_is_local) {
           if ($settings->get('block_unknown')) {
             $found_klaro_app = $klaro_apps['unknown_app'];
@@ -742,12 +780,11 @@ class KlaroHelper {
 
     $klaro_apps = $this->getApps();
 
-    $complete_html = strpos($html, '<!DOCTYPE') !== FALSE;
+    $complete_html = strpos(strtoupper($html), '<!DOCTYPE') !== FALSE;
     // If "complete html" is supplied use DomDocument to create.
     if ($complete_html) {
-      $dom = new \DOMDocument();
-      $html = mb_encode_numericentity($html, [0x80, 0x10FFFF, 0, 0x1FFFFF], 'UTF-8');
-      $dom->loadHTML($html, LIBXML_NOERROR | LIBXML_SCHEMA_CREATE);
+      $html5 = new HTML5();
+      $dom = $html5->loadHTML($html);
     }
     else {
       // If "html fragment" is supplied use The drupal Html helper.
@@ -937,8 +974,7 @@ class KlaroHelper {
     }
 
     if ($complete_html) {
-      $html = $dom->saveHTML();
-      $html = mb_decode_numericentity($html, [0x80, 0x10FFFF, 0, 0x1FFFFF], 'UTF-8');
+      $html = $html5->saveHTML($dom);
     }
     else {
       $html = Html::serialize($dom);

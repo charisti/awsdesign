@@ -9,7 +9,7 @@ dependencies:
   - drupal:views
 package: 'User interface'
 
-# Information added by Drupal.org packaging script on 2025-10-01
-version: '2.2.18'
+# Information added by Drupal.org packaging script on 2026-10-07
+version: '2.2.24'
 project: 'editoria11y'
-datestamp: 1759332286
+datestamp: 1791401256

@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\automatic_updates\Functional;
 
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+
 /**
  * Tests messages on the updater form when there is no recommended release.
  *
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[RunTestsInSeparateProcesses]
 class UpdaterFormNoRecommendedReleaseMessageTest extends AutomaticUpdatesFunctionalTestBase {
 
   /**
@@ -80,9 +85,8 @@ class UpdaterFormNoRecommendedReleaseMessageTest extends AutomaticUpdatesFunctio
    *   Whether or not any available updates will be detected.
    * @param string $expected_message_type
    *   The expected type of message (status or error).
-   *
-   * @dataProvider providerMessages
    */
+  #[DataProvider('providerMessages')]
   public function testMessages(string $release_metadata, string $installed_version, bool $updates_available, string $expected_message_type): void {
     $this->setReleaseMetadata($release_metadata);
     $this->mockActiveCoreVersion($installed_version);

@@ -27,6 +27,9 @@ abstract class AgentToolBase extends AgentStatusBase {
    *   (optional) The caller ID.
    * @param string $progress_message
    *   (optional) The progress message to show if set.
+   * @param bool $is_agent_decision
+   *   Whether the tool was selected by the agent (TRUE) or is a default
+   *   information tool run automatically (FALSE).
    */
   public function __construct(
     protected ConfigAiAgentInterface $agent,
@@ -36,8 +39,20 @@ abstract class AgentToolBase extends AgentStatusBase {
     protected ?string $threadId = NULL,
     protected ?string $callerId = NULL,
     protected ?string $progress_message = '',
+    protected bool $is_agent_decision = TRUE,
   ) {
     parent::__construct($threadId, $callerId);
+  }
+
+  /**
+   * Whether the tool was selected by the agent or run automatically.
+   *
+   * @return bool
+   *   TRUE if the agent decided to use this tool, FALSE if it is a default
+   *   information tool executed automatically before the agent runs.
+   */
+  public function isAgentDecision(): bool {
+    return $this->is_agent_decision;
   }
 
   /**

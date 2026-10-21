@@ -83,6 +83,6 @@ abstract class DateAugmenterBase extends PluginBase implements DateAugmenterInte
    * @param array $options
    *   An array of options to further guide output.
    */
-  abstract public function augmentOutput(array &$output, DrupalDateTime $start, DrupalDateTime $end = NULL, array $options = []);
+  abstract public function augmentOutput(array &$output, DrupalDateTime $start, ?DrupalDateTime $end = NULL, array $options = []);
 
 }

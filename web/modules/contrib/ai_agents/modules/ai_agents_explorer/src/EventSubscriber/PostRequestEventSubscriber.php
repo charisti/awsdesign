@@ -7,6 +7,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\ai\Event\PostGenerateResponseEvent;
+use Drupal\ai\OperationType\Chat\ChatMessage;
 use Drupal\ai\Service\PromptJsonDecoder\PromptJsonDecoderInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Yaml\Yaml;
@@ -88,8 +89,11 @@ class PostRequestEventSubscriber implements EventSubscriberInterface {
         }
       }
       $storage = $this->entityTypeManager->getStorage('ai_agent_decision');
-      $response = $this->jsonPromptHandler->decode($event->getOutput()->getNormalized());
       $normalized = $event->getOutput()->getNormalized();
+      if (!($normalized instanceof ChatMessage)) {
+        return;
+      }
+      $response = $this->jsonPromptHandler->decode($normalized);
       $formatted = is_array($response) ? Json::encode($response) : $response;
       $response_given = is_string($formatted) ? $formatted : $formatted->getText();
       if (!empty($normalized->getTools())) {

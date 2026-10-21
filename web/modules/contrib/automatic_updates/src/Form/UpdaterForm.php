@@ -6,6 +6,7 @@ namespace Drupal\automatic_updates\Form;
 
 use Drupal\automatic_updates\BatchProcessor;
 use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Drupal\package_manager\Exception\FailureMarkerExistsException;
 use Drupal\package_manager\Exception\SandboxException;
 use Drupal\package_manager\Exception\SandboxOwnershipException;
@@ -23,7 +24,6 @@ use Drupal\Core\State\StateInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
 use Drupal\package_manager\ValidationResult;
-use Drupal\system\SystemManager;
 use Drupal\update\UpdateManagerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -195,7 +195,7 @@ final class UpdaterForm extends UpdateFormBase {
         $release_status = $this->t('Available update');
         $type = 'update-recommended';
     }
-    $create_update_buttons = !$sandbox_exists && ValidationResult::getOverallSeverity($results) !== SystemManager::REQUIREMENT_ERROR;
+    $create_update_buttons = !$sandbox_exists && ValidationResult::getOverallSeverity($results) !== RequirementSeverity::Error->value;
 
     $installed_minor_release = FALSE;
     $next_minor_release_count = 0;

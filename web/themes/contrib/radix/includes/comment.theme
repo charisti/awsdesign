@@ -7,8 +7,11 @@
 
 /**
  * Implements THEME_theme_suggestions_comment_alter().
+ *
+ * @phpstan-param list<string> $suggestions
+ * @phpstan-param array<string, mixed> $variables
  */
-function radix_theme_suggestions_comment_alter(array &$suggestions, array $variables) {
+function radix_theme_suggestions_comment_alter(array &$suggestions, array $variables): void {
   /** @var \Drupal\comment\CommentInterface $comment */
   $comment = $variables['elements']['#comment'];
   $commented_entity = $comment

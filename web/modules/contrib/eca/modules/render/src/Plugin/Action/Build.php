@@ -52,7 +52,7 @@ class Build extends RenderElementActionBase {
    */
   public function access($object, ?AccountInterface $account = NULL, $return_as_object = FALSE) {
     $result = parent::access($object, $account, TRUE);
-    if ($result->isAllowed() && $this->configuration['use_yaml'] && $this->configuration['validate_yaml']) {
+    if ($result->isAllowed() && !empty($this->configuration['use_yaml']) && !empty($this->configuration['validate_yaml'])) {
       try {
         $this->yamlParser->parse($this->configuration['value']);
       }

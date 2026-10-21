@@ -33,7 +33,7 @@
     "require-dev": {
         "drupal/address": "^1.11 || ^2.0",
         "drupal/geofield": "^1.52",
-        "geo6/geocoder-php-addok-provider": "^1.0",
+        "geo6/geocoder-php-addok-provider": "^1.5",
         "geo6/geocoder-php-geopunt-provider": "^1.0",
         "geo6/geocoder-php-spw-provider":  "^1.0",
         "geocoder-php/arcgis-online-provider": "^4.0",

@@ -6,7 +6,7 @@ package: ECA
 dependencies:
   - eca:eca_modeller_bpmn (^2)
 
-# Information added by Drupal.org packaging script on 2025-10-24
-version: '2.0.11'
+# Information added by Drupal.org packaging script on 2026-07-03
+version: '2.0.12'
 project: 'bpmn_io'
-datestamp: 1761319348
+datestamp: 1783080571

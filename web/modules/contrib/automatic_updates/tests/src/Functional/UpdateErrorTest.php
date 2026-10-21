@@ -4,27 +4,34 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\automatic_updates\Functional;
 
+use Drupal\automatic_updates\Form\UpdaterForm;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\package_manager\Event\PostApplyEvent;
 use Drupal\package_manager\Event\PostCreateEvent;
 use Drupal\package_manager\Event\PostRequireEvent;
 use Drupal\package_manager\Event\PreApplyEvent;
 use Drupal\package_manager\Event\PreCreateEvent;
-use Drupal\package_manager\Event\PreOperationStageEvent;
 use Drupal\package_manager\Event\PreRequireEvent;
+use Drupal\package_manager\Event\SandboxValidationEvent;
 use Drupal\package_manager\Event\StatusCheckEvent;
 use Drupal\package_manager\ValidationResult;
 use Drupal\automatic_updates_test\EventSubscriber\TestSubscriber1;
 use Drupal\package_manager_test_validation\EventSubscriber\TestSubscriber;
-use Drupal\system\SystemManager;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @covers \Drupal\automatic_updates\Form\UpdaterForm
- * @group automatic_updates
  * @internal
  *
  * @todo Consolidate and remove duplicate test coverage in
  *   https://drupal.org/i/3354325.
  */
+#[Group('automatic_updates')]
+#[CoversClass(UpdaterForm::class)]
+#[RunTestsInSeparateProcesses]
 class UpdateErrorTest extends UpdaterFormTestBase {
 
   /**
@@ -53,11 +60,11 @@ class UpdateErrorTest extends UpdaterFormTestBase {
     $this->assertUpdateStagedTimes(1);
 
     $error_messages = [
-      t("The only thing we're allowed to do is to"),
-      t("believe that we won't regret the choice"),
-      t("we made."),
+      new TranslatableMarkup("The only thing we're allowed to do is to"),
+      new TranslatableMarkup("believe that we won't regret the choice"),
+      new TranslatableMarkup("we made."),
     ];
-    $summary = t('some generic summary');
+    $summary = new TranslatableMarkup('some generic summary');
     $error = ValidationResult::createError($error_messages, $summary);
     TestSubscriber::setTestResult([$error], StatusCheckEvent::class);
     $this->getSession()->reload();
@@ -66,7 +73,9 @@ class UpdateErrorTest extends UpdaterFormTestBase {
     $assert_session->buttonExists('Cancel update');
 
     // An error with only one message should also show the summary.
-    $error = ValidationResult::createError([t('Yet another smarmy error.')], $summary);
+    $error = ValidationResult::createError([
+      new TranslatableMarkup('Yet another smarmy error.'),
+    ], $summary);
     TestSubscriber::setTestResult([$error], StatusCheckEvent::class);
     $this->getSession()->reload();
     $this->assertStatusMessageContainsResult($error);
@@ -106,7 +115,7 @@ class UpdateErrorTest extends UpdaterFormTestBase {
 
     // Set up a new fake error. Use an error with multiple messages so we can
     // ensure that they're all displayed, along with their summary.
-    $expected_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR, 2)];
+    $expected_results = [$this->createValidationResult(RequirementSeverity::Error->value, 2)];
     TestSubscriber1::setTestResult($expected_results, StatusCheckEvent::class);
 
     // If a validator raises an error during status checking, the form should
@@ -125,7 +134,7 @@ class UpdateErrorTest extends UpdaterFormTestBase {
 
     // Set up an error with one message and a summary. We should see both when
     // we refresh the form.
-    $expected_result = $this->createValidationResult(SystemManager::REQUIREMENT_ERROR, 1);
+    $expected_result = $this->createValidationResult(RequirementSeverity::Error->value, 1);
     TestSubscriber1::setTestResult([$expected_result], StatusCheckEvent::class);
     $this->getSession()->reload();
     $this->assertNoUpdateButtons();
@@ -144,22 +153,18 @@ class UpdateErrorTest extends UpdaterFormTestBase {
    * @param string $stopped_by
    *   Either 'exception' to throw an exception on the given event, or
    *   'validation error' to flag a validation error instead.
-   *
-   * @dataProvider providerUpdateStoppedByEventSubscriber
    */
+  #[DataProvider('providerUpdateStoppedByEventSubscriber')]
   public function testUpdateStoppedByEventSubscriber(string $event, string $stopped_by): void {
-    $expected_message = 'Bad news bears!';
-
     if ($stopped_by === 'validation error') {
       $result = ValidationResult::createError([
-        // @codingStandardsIgnoreLine
-        t($expected_message),
+        new TranslatableMarkup('Bad news bears!'),
       ]);
       TestSubscriber::setTestResult([$result], $event);
     }
     else {
       $this->assertSame('exception', $stopped_by);
-      TestSubscriber::setException(new \Exception($expected_message), $event);
+      TestSubscriber::setException(new \Exception('Bad news bears!'), $event);
     }
 
     // Only simulate a staged update if we're going to get far enough that the
@@ -188,7 +193,7 @@ class UpdateErrorTest extends UpdaterFormTestBase {
         $assert_session->pageTextNotContains(static::$errorsExplanation);
       }
       $assert_session->pageTextNotContains(static::$warningsExplanation);
-      $assert_session->statusMessageContains($expected_message, 'error');
+      $assert_session->statusMessageContains('Bad news bears!', 'error');
       // We shouldn't be able to start the update.
       $assert_session->buttonNotExists('Update to 9.8.1');
       return;
@@ -203,7 +208,7 @@ class UpdateErrorTest extends UpdaterFormTestBase {
       // We should see the exception's backtrace.
       $assert_session->responseContains('<pre class="backtrace">');
       $page->clickLink('the error page');
-      $assert_session->statusMessageContains($expected_message, 'error');
+      $assert_session->statusMessageContains('Bad news bears!', 'error');
       // We should be on the start page.
       $assert_session->addressEquals('/admin/reports/updates/update');
 
@@ -246,7 +251,7 @@ class UpdateErrorTest extends UpdaterFormTestBase {
       // We should be back on the "ready to update" page, and the exception
       // message should be visible.
       $this->assertStringContainsString('/admin/automatic-update-ready/', $session->getCurrentUrl());
-      $assert_session->statusMessageContains($expected_message, 'error');
+      $assert_session->statusMessageContains('Bad news bears!', 'error');
     }
   }
 
@@ -271,7 +276,7 @@ class UpdateErrorTest extends UpdaterFormTestBase {
       $data["exception from $event"] = [$event, 'exception'];
 
       // Only the pre-operation events support flagging validation errors.
-      if (is_subclass_of($event, PreOperationStageEvent::class)) {
+      if (is_subclass_of($event, SandboxValidationEvent::class)) {
         $data["validation error from $event"] = [$event, 'validation error'];
       }
     }

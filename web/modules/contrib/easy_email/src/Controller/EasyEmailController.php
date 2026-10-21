@@ -2,17 +2,18 @@
 
 namespace Drupal\easy_email\Controller;
 
+use Drupal\Component\Utility\DeprecationHelper;
 use Drupal\Component\Utility\Xss;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\Form\FormBuilderInterface;
 use Drupal\Core\Form\FormState;
 use Drupal\Core\Link;
+use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Url;
 use Drupal\easy_email\Entity\EasyEmailInterface;
 use Drupal\easy_email\Entity\EasyEmailTypeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\HttpFoundation\File\Exception\AccessDeniedException;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -35,21 +36,28 @@ class EasyEmailController extends ControllerBase implements ContainerInjectionIn
   protected $formBuilder;
 
   /**
+   * @var RendererInterface
+   */
+  protected RendererInterface $renderer;
+
+  /**
    * EasyEmailController constructor.
    *
    * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
    * @param \Drupal\Core\Form\FormBuilderInterface $formBuilder
    */
-  public function __construct(RequestStack $requestStack, FormBuilderInterface $formBuilder) {
+  public function __construct(RequestStack $requestStack, FormBuilderInterface $formBuilder, RendererInterface $renderer) {
     $this->requestStack = $requestStack;
     $this->formBuilder = $formBuilder;
+    $this->renderer = $renderer;
   }
 
 
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('request_stack'),
-      $container->get('form_builder')
+      $container->get('form_builder'),
+      $container->get('renderer')
     );
   }
 
@@ -242,13 +250,19 @@ class EasyEmailController extends ControllerBase implements ContainerInjectionIn
       }
 
       $row = [];
+      $username = DeprecationHelper::backwardsCompatibleCall(
+        currentVersion: \Drupal::VERSION,
+        deprecatedVersion: '10.3',
+        currentCallable: fn() => $this->renderer->renderInIsolation($username),
+        deprecatedCallable: fn() => $this->renderer->renderPlain($username),
+      );
       $column = [
         'data' => [
           '#type' => 'inline_template',
           '#template' => '{% trans %}{{ date }} by {{ username }}{% endtrans %}{% if message %}<p class="revision-log">{{ message }}</p>{% endif %}',
           '#context' => [
             'date' => $link,
-            'username' => \Drupal::service('renderer')->renderPlain($username),
+            'username' => $username,
             'message' => ['#markup' => $revision->getRevisionLogMessage(), '#allowed_tags' => Xss::getHtmlTagList()],
           ],
         ],

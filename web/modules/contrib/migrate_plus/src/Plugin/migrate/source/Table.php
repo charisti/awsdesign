@@ -6,6 +6,7 @@ namespace Drupal\migrate_plus\Plugin\migrate\source;
 
 use Drupal\Core\Database\Query\SelectInterface;
 use Drupal\Core\State\StateInterface;
+use Drupal\migrate\Attribute\MigrateSource;
 use Drupal\migrate\Exception\RequirementsException;
 use Drupal\migrate\Plugin\migrate\source\SqlBase;
 use Drupal\migrate\Plugin\MigrationInterface;
@@ -74,6 +75,7 @@ use Drupal\migrate\Plugin\MigrationInterface;
  *   id = "table"
  * )
  */
+#[MigrateSource(id: "table")]
 class Table extends SqlBase {
 
   /**

@@ -11,6 +11,8 @@ use Drupal\Core\Path\CurrentPathStack;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Render\Attribute\RenderElement;
 use Drupal\Core\Render\Element\RenderElementBase;
+use Drupal\Core\Url;
+use Drupal\project_browser\CsrfTokenPath;
 use Drupal\project_browser\Plugin\ProjectBrowserSourceInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -83,6 +85,7 @@ final class ProjectBrowser extends RenderElementBase implements ContainerFactory
     private readonly ConfigFactoryInterface $configFactory,
     private readonly UuidInterface $uuid,
     private readonly CurrentPathStack $currentPath,
+    private readonly CsrfTokenPath $csrfTokenPath,
     mixed ...$arguments,
   ) {
     parent::__construct(...$arguments);
@@ -97,6 +100,7 @@ final class ProjectBrowser extends RenderElementBase implements ContainerFactory
       $container->get(ConfigFactoryInterface::class),
       $container->get(UuidInterface::class),
       $container->get(CurrentPathStack::class),
+      $container->get(CsrfTokenPath::class),
       $configuration,
       $plugin_id,
       $plugin_definition,
@@ -194,6 +198,7 @@ final class ProjectBrowser extends RenderElementBase implements ContainerFactory
       'package_manager' => $global_settings->get('allow_ui_install') && $this->moduleHandler->moduleExists('package_manager'),
       'maxSelections' => $global_settings->get('max_selections') ?? NULL,
       'currentPath' => '/' . $this->currentPath->getPath(),
+      'activateUrl' => $this->csrfTokenPath->toString(Url::fromRoute('project_browser.activate')),
       'instances' => [
         $element['#id'] => [
           'source' => $source->getPluginId(),

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\Row;
 
@@ -30,11 +31,8 @@ use Drupal\migrate\Row;
  *
  * This example will return an array of the src attributes of all <img> tags in
  * the source text. Add 'limit: 1' to return at most one result.
- *
- * @MigrateProcessPlugin(
- *   id = "dom_select"
- * )
  */
+#[MigrateProcess(id: 'dom_select')]
 class DomSelect extends DomProcessBase {
 
   /**

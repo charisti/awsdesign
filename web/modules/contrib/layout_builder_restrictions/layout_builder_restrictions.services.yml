@@ -6,3 +6,7 @@ services:
     class: Drupal\layout_builder_restrictions\Routing\RouteSubscriber
     tags:
       - { name: event_subscriber }
+
+  Drupal\layout_builder_restrictions\Hook\LayoutBuilderRestrictionsHooks:
+    class: Drupal\layout_builder_restrictions\Hook\LayoutBuilderRestrictionsHooks
+    autowire: true

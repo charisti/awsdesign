@@ -10,7 +10,10 @@ use Drupal\language\Plugin\LanguageNegotiation\LanguageNegotiationUrl;
 use Drupal\node\Entity\Node;
 use Drupal\node\NodeInterface;
 use Drupal\Tests\eca\ContentTypeCreationTrait;
+use Drupal\user\Entity\Role;
+use Drupal\user\Entity\User;
 use Drupal\user\Plugin\LanguageNegotiation\LanguageNegotiationUser;
+use Drupal\user\RoleInterface;
 
 /**
  * Kernel tests for the "eca_content.service.entity_loader" service.
@@ -160,7 +163,16 @@ class EntityLoaderTest extends KernelTestBase {
     $this->assertEquals($node->id(), $entity->id(), 'Node ID must match up.');
     $this->assertEquals('456', $entity->label(), 'Node title must be the unchanged one.');
 
-    // Load by properties.
+    // Load by properties. A lookup by properties only returns entities that
+    // the current account may view, and the node above is unpublished, so
+    // these assertions on the property matching itself run as a privileged
+    // account. Access is covered by
+    // self::testLoadByPropertiesAppliesViewAccess().
+    User::create(['uid' => 1, 'name' => 'admin'])->save();
+    /** @var \Drupal\Core\Session\AccountSwitcherInterface $account_switcher */
+    $account_switcher = \Drupal::service('account_switcher');
+    $account_switcher->switchTo(User::load(1));
+
     $entity = $entity_loader->loadEntity(NULL, [
       'from' => 'properties',
       'entity_type' => 'node',
@@ -173,6 +185,96 @@ class EntityLoaderTest extends KernelTestBase {
       'properties' => "title: 88888\nuid: 1",
     ] + $defaults);
     $this->assertFalse($entity instanceof NodeInterface, 'Node must not exist.');
+
+    $account_switcher->switchBack();
+  }
+
+  /**
+   * Tests that loading by properties only selects entities that are viewable.
+   *
+   * The property lookup selects a single record. Without access filtering it
+   * may select an entity that the current account may not view, even though
+   * another entity matching the very same properties would have been viewable.
+   * The calling plugin then denies access on that record and reports that no
+   * entity exists, which is a false negative.
+   */
+  public function testLoadByPropertiesAppliesViewAccess(): void {
+    $this->createContentType([
+      'type' => 'article',
+      'name' => 'Article',
+    ]);
+
+    /** @var \Drupal\eca_content\Service\EntityLoader $entity_loader */
+    $entity_loader = \Drupal::service('eca_content.service.entity_loader');
+    /** @var \Drupal\Core\Session\AccountSwitcherInterface $account_switcher */
+    $account_switcher = \Drupal::service('account_switcher');
+    $plugin_id = 'eca_token_load_entity';
+
+    // Two nodes share the same title. The one that must not be viewable is
+    // created first, so that a lookup without access filtering selects it.
+    $unviewable = Node::create([
+      'type' => 'article',
+      'title' => 'Shared title',
+      'langcode' => 'en',
+      'uid' => 1,
+      'status' => 0,
+    ]);
+    $unviewable->save();
+    $viewable = Node::create([
+      'type' => 'article',
+      'title' => 'Shared title',
+      'langcode' => 'en',
+      'uid' => 1,
+      'status' => 1,
+    ]);
+    $viewable->save();
+
+    // This title is only held by a node that must not be viewable.
+    $hidden = Node::create([
+      'type' => 'article',
+      'title' => 'Hidden title',
+      'langcode' => 'en',
+      'uid' => 1,
+      'status' => 0,
+    ]);
+    $hidden->save();
+
+    // An unprivileged account that may only view published content.
+    /** @var \Drupal\user\RoleInterface $role */
+    $role = Role::load(RoleInterface::AUTHENTICATED_ID);
+    $role->grantPermission('access content');
+    $role->save();
+    $account = User::create([
+      'uid' => 2,
+      'name' => 'viewer',
+      'status' => 1,
+    ]);
+    $account->save();
+    $account_switcher->switchTo($account);
+
+    $defaults = [
+      'from' => 'properties',
+      'entity_type' => 'node',
+      'entity_id' => '',
+      'revision_id' => '',
+      'properties' => '',
+      'langcode' => '_interface',
+      'latest_revision' => FALSE,
+      'unchanged' => FALSE,
+    ];
+
+    $entity = $entity_loader->loadEntity(NULL, [
+      'properties' => 'title: Shared title',
+    ] + $defaults, $plugin_id);
+    $this->assertTrue($entity instanceof NodeInterface, 'A viewable node matching the properties must be found.');
+    $this->assertEquals($viewable->id(), $entity->id(), 'The viewable node must be selected instead of the unviewable one.');
+
+    $entity = $entity_loader->loadEntity(NULL, [
+      'properties' => 'title: Hidden title',
+    ] + $defaults, $plugin_id);
+    $this->assertNull($entity, 'A node that the account may not view must not be returned.');
+
+    $account_switcher->switchBack();
   }
 
 }

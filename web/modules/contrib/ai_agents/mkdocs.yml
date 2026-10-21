@@ -6,6 +6,7 @@ nav:
   - Develop & Contribute:
       - AI Agent plugins: developers/ai_agent_plugins.md
       - Using AI Agents in Custom Code: developers/using_ai_agent_in_custom_code.md
+      - Streaming Responses: developers/streaming.md
   - Modules:
       - AI Agents Explorer: modules/ai_agents_explorer.md
       - AI Agents Extra: modules/ai_agents_extra.md

@@ -7,7 +7,6 @@ use Drupal\Component\Serialization\Yaml;
 use Drupal\Core\Archiver\ArchiveTar;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\StorageInterface;
-use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\File\Exception\FileException;
 use Drupal\Core\File\FileSystemInterface;
@@ -27,18 +26,11 @@ class Modellers {
   use ServiceTrait;
 
   /**
-   * ECA config entity storage manager.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityStorageInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected EntityStorageInterface $configStorage;
-
-  /**
-   * ECA model storage manager.
-   *
-   * @var \Drupal\Core\Entity\EntityStorageInterface
-   */
-  protected EntityStorageInterface $modelStorage;
+  protected EntityTypeManagerInterface $entityTypeManager;
 
   /**
    * ECA modeller plugin manager.
@@ -122,8 +114,7 @@ class Modellers {
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
   public function __construct(EntityTypeManagerInterface $entity_type_manager, Modeller $plugin_manager_modeller, Event $plugin_manager_event, Actions $action_services, Conditions $condition_services, LoggerChannelInterface $logger, FileSystemInterface $file_system, StorageInterface $export_storage, ConfigFactoryInterface $config_factory) {
-    $this->configStorage = $entity_type_manager->getStorage('eca');
-    $this->modelStorage = $entity_type_manager->getStorage('eca_model');
+    $this->entityTypeManager = $entity_type_manager;
     $this->pluginManagerModeller = $plugin_manager_modeller;
     $this->pluginManagerEvent = $plugin_manager_event;
     $this->actionServices = $action_services;
@@ -145,7 +136,7 @@ class Modellers {
    */
   public function loadModel(string $id): ?Eca {
     /** @var \Drupal\eca\Entity\Eca $eca */
-    $eca = $this->configStorage->load(mb_strtolower($id));
+    $eca = $this->entityTypeManager->getStorage('eca')->load(mb_strtolower($id));
     return $eca;
   }
 
@@ -166,12 +157,12 @@ class Modellers {
   public function saveModel(ModellerInterface $modeller): bool {
     $id = mb_strtolower($modeller->getId());
     /** @var \Drupal\eca\Entity\Eca|null $config */
-    $config = $this->configStorage->load($id);
+    $config = $this->entityTypeManager->getStorage('eca')->load($id);
     if ($config === NULL) {
       /**
        * @var \Drupal\eca\Entity\Eca $config
        */
-      $config = $this->configStorage->create([
+      $config = $this->entityTypeManager->getStorage('eca')->create([
         'id' => $id,
         'modeller' => $modeller->getPluginId(),
       ]);
@@ -240,22 +231,40 @@ class Modellers {
    *   The sorted list of events.
    */
   public function events(): array {
-    static $events;
+    $events = &drupal_static('eca_events');
     if ($events === NULL) {
       $this->enableExtendedErrorHandling('Collecting all available events');
-      $events = [];
-      foreach ($this->pluginManagerEvent->getDefinitions() as $plugin_id => $definition) {
-        try {
-          /** @var \Drupal\eca\Plugin\ECA\Event\EventInterface $plugin */
-          $plugin = $this->pluginManagerEvent->createInstance($plugin_id);
-          $events[] = $plugin;
-        }
-        catch (PluginException | \Throwable) {
-          // Can be ignored.
+      // Collect into a local list rather than into the static cache slot.
+      // ::drupal_static() hands out a reference, so populating the slot in
+      // place would publish a partial, unsorted list the moment a throwable
+      // escapes the loop below. Every later call in the request would then
+      // find a non-NULL cache, skip re-collection and silently return that
+      // incomplete list, which makes real plugins look like plugins that do
+      // not exist. Publishing only after sorting succeeded keeps the cache
+      // NULL on failure, so the next caller retries and either succeeds or
+      // throws again.
+      $collected = [];
+      try {
+        foreach ($this->pluginManagerEvent->getDefinitions() as $plugin_id => $definition) {
+          try {
+            /** @var \Drupal\eca\Plugin\ECA\Event\EventInterface $plugin */
+            $plugin = $this->pluginManagerEvent->createInstance($plugin_id);
+            $collected[] = $plugin;
+          }
+          catch (PluginException | \Throwable) {
+            // Can be ignored.
+          }
         }
       }
-      $this->resetExtendedErrorHandling();
-      $this->sortPlugins($events);
+      finally {
+        // Without this, a throwable from anywhere inside the loop - including
+        // the ::getDefinitions() call itself - would leave error reporting
+        // suppressed and the echoing shutdown function armed for the rest of
+        // the request.
+        $this->resetExtendedErrorHandling();
+      }
+      $this->sortPlugins($collected);
+      $events = $collected;
     }
     return $events;
   }

@@ -12,11 +12,13 @@ use Drupal\project_browser\Activator\ActivatorInterface;
 use Drupal\project_browser\ProjectBrowser\Project;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the activation manager service.
  */
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 #[CoversClass(ActivationManager::class)]
 final class ActivationManagerTest extends KernelTestBase {
 
@@ -52,7 +54,7 @@ final class ActivationManagerTest extends KernelTestBase {
       title: 'Test',
       packageName: 'drupal/test',
     );
-    $activator = $this->container->get(ActivationManager::class)
+    $activator = \Drupal::service(ActivationManager::class)
       ->getActivatorForProject($project);
     assert($activator instanceof MockActivator);
     $this->assertTrue($activator->shouldBeChosen);

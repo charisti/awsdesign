@@ -90,7 +90,7 @@ class LeafletWidgetGeoJsonOverlayTest extends WebDriverTestBase {
   /**
    * Creates a content type for testing.
    */
-  protected function createContentType(array $values = []) {
+  protected function createContentType(array $values = [], bool $create_body = TRUE) {
     NodeType::create([
       'type' => $this->contentTypeName,
       'name' => 'GeoLocation Test Content Type',

@@ -20,9 +20,9 @@
 {% set valuemins = valuemins|default(0) %}
 {% set label = label|default('') %}
 {% set height = height|default(16) %}
-{% set striped = striped|default(true) %}
-{% set animated = animated|default(true) %}
-{% set stacked = stacked|default(false) %}
+{% set striped = striped ?? true %}
+{% set animated = animated ?? true %}
+{% set stacked = stacked ?? false %}
 
 {#
   Define the classes for the progress wrapper and progress bar.

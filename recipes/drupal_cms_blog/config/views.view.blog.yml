@@ -301,7 +301,7 @@ display:
           replica: false
           query_tags: {  }
       relationships: {  }
-      use_ajax: true
+      use_ajax: false
       header: {  }
       footer: {  }
       display_extenders: {  }
@@ -542,10 +542,12 @@ display:
         groups:
           1: AND
       defaults:
+        use_ajax: false
         exposed_form: false
         filters: false
         filter_groups: false
         header: false
+      use_ajax: true
       display_description: ''
       header:
         add_content_by_bundle:
@@ -682,7 +684,9 @@ display:
             type: none
             fail: 'not found'
           validate_options: {  }
-          break_phrase: false
+          # This prevents SQL errors in certain situations.
+          # @see https://www.drupal.org/i/3521292
+          break_phrase: true
           not: false
         nid:
           id: nid

@@ -5,6 +5,8 @@
  * Install, update, and uninstall functions for migrate_plus.
  */
 
+declare(strict_types=1);
+
 /**
  * Converts 8.0.x core migration entities to 8.1.x migrate_plus entities.
  */

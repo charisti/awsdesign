@@ -7,20 +7,23 @@ namespace Drupal\Tests\migrate_plus\Unit\process;
 use Drupal\Component\Utility\Html;
 use Drupal\migrate_plus\Plugin\migrate\process\DomRemove;
 use Drupal\Tests\migrate\Unit\process\MigrateProcessTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tests the dom_remove process plugin.
- *
- * @group migrate
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\DomRemove
  */
+#[CoversClass(DomRemove::class)]
+#[Group('migrate_plus')]
 final class DomRemoveTest extends MigrateProcessTestCase {
 
   /**
-   * @covers ::transform
+   * Tests valid input.
    *
    * @dataProvider providerTestTransform
    */
+  #[DataProvider('providerTestTransform')]
   public function testTransform($input_string, $configuration, $output_string): void {
     $value = Html::load($input_string);
     $document = (new DomRemove($configuration, 'dom_remove', []))

@@ -6,24 +6,17 @@
  */
 
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\layout_builder_restrictions\Form\FormAlter;
+use Drupal\Core\Hook\Attribute\LegacyHook;
+use Drupal\layout_builder_restrictions\Hook\LayoutBuilderRestrictionsHooks;
 
 /**
  * Implements hook_plugin_filter_TYPE__CONSUMER_alter().
  *
  * Curate the blocks available in the Layout Builder "Add Block" UI.
  */
+#[LegacyHook]
 function layout_builder_restrictions_plugin_filter_block__layout_builder_alter(array &$definitions, array $extra) {
-  if (isset($extra['list']) && !isset($extra['browse'])) {
-    // Do not alter the block definitions when 'Add block' is clicked.
-    return;
-  }
-  $layout_builder_restrictions_manager = \Drupal::service('plugin.manager.layout_builder_restriction');
-  $restriction_plugins = $layout_builder_restrictions_manager->getSortedPlugins();
-  foreach (array_keys($restriction_plugins) as $id) {
-    $plugin = $layout_builder_restrictions_manager->createInstance($id);
-    $definitions = $plugin->alterBlockDefinitions($definitions, $extra);
-  }
+  \Drupal::service(LayoutBuilderRestrictionsHooks::class)->pluginFilterBlockLayoutBuilderAlter($definitions, $extra);
 }
 
 /**
@@ -31,30 +24,15 @@ function layout_builder_restrictions_plugin_filter_block__layout_builder_alter(a
  *
  * Curate the layouts available in the Layout Builder "Add Section" UI.
  */
+#[LegacyHook]
 function layout_builder_restrictions_plugin_filter_layout__layout_builder_alter(array &$definitions, array $extra) {
-  $layout_builder_restrictions_manager = \Drupal::service('plugin.manager.layout_builder_restriction');
-  $restriction_plugins = $layout_builder_restrictions_manager->getSortedPlugins();
-  foreach (array_keys($restriction_plugins) as $id) {
-    $plugin = $layout_builder_restrictions_manager->createInstance($id);
-    $definitions = $plugin->alterSectionDefinitions($definitions, $extra);
-  }
-
+  \Drupal::service(LayoutBuilderRestrictionsHooks::class)->pluginFilterLayoutLayoutBuilderAlter($definitions, $extra);
 }
 
 /**
  * Implements hook_form_FORM_ID_alter() for the entity view display edit form.
  */
+#[LegacyHook]
 function layout_builder_restrictions_form_entity_view_display_edit_form_alter(&$form, FormStateInterface $form_state, $form_id) {
-  // Alter the entity view display form to set the allowed block categories.
-  \Drupal::classResolver(FormAlter::class)->alterEntityViewDisplayFormAllowedBlockCategories($form, $form_state, $form_id);
-  $entity_view_mode_restriction_active = TRUE;
-  if ($config = \Drupal::config('layout_builder_restrictions.plugins')->get('plugin_config')) {
-    // Provide the per view mode restriction UI *unless* the plugin is disabled.
-    if (isset($config['entity_view_mode_restriction']) && $config['entity_view_mode_restriction']['enabled'] == FALSE) {
-      $entity_view_mode_restriction_active = FALSE;
-    }
-  }
-  if ($entity_view_mode_restriction_active) {
-    \Drupal::classResolver(FormAlter::class)->alterEntityViewDisplayForm($form, $form_state, $form_id);
-  }
+  \Drupal::service(LayoutBuilderRestrictionsHooks::class)->formEntityViewDisplayEditFormAlter($form, $form_state, $form_id);
 }

@@ -7,6 +7,7 @@ namespace Drupal\migrate_plus\Plugin\migrate\process;
 use Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException;
 use Drupal\Core\Config\ConfigFactory;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\Plugin\MigrationInterface;
 use Drupal\migrate\Row;
@@ -58,17 +59,9 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * You may get unexpected results if there is anything between the two opening
  * tags or between the two closing tags. That is, the code assumes that
  * '<span><i>' is closed with '</i></span>' exactly.
- *
- * @MigrateProcessPlugin(
- *   id = "dom_apply_styles"
- * )
  */
+#[MigrateProcess(id: 'dom_apply_styles')]
 class DomApplyStyles extends DomProcessBase implements ContainerFactoryPluginInterface {
-
-  /**
-   * The config factory.
-   */
-  protected ConfigFactory $configFactory;
 
   /**
    * Styles from the WYSIWYG editor.
@@ -78,10 +71,14 @@ class DomApplyStyles extends DomProcessBase implements ContainerFactoryPluginInt
   /**
    * {@inheritdoc}
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactory $config_factory) {
+  public function __construct(
+    array $configuration,
+    $plugin_id,
+    $plugin_definition,
+    protected ConfigFactory $configFactory,
+  ) {
     $configuration += ['format' => 'basic_html'];
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->configFactory = $config_factory;
     $this->setStyles($configuration['format']);
     $this->validateRules();
   }
@@ -141,7 +138,7 @@ class DomApplyStyles extends DomProcessBase implements ContainerFactoryPluginInt
     elseif ($editor_config->get('editor') === 'ckeditor5') {
       $editor_styles = $editor_config->get('settings.plugins.ckeditor5_style.styles') ?? [];
       foreach ($editor_styles as $editor_style) {
-        if (preg_match('/<(.*) class="(.*)">/', $editor_style['element'], $matches)) {
+        if (preg_match('/<(.*) class="(.*)">/', (string) $editor_style['element'], $matches)) {
           $this->styles[$editor_style['label']] = $matches[1] . '.' . $matches[2];
         }
       }

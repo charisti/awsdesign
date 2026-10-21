@@ -4,16 +4,22 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\layout_builder_restrictions_by_region\FunctionalJavascript;
 
+use Drupal\Component\Utility\DeprecationHelper;
+use Drupal\Tests\block_content\Traits\BlockContentCreationTrait;
+use Drupal\Tests\layout_builder_restrictions\FunctionalJavascript\LayoutBuilderRestrictionsTestBase;
 use Drupal\block_content\Entity\BlockContent;
-use Drupal\block_content\Entity\BlockContentType;
-use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
+use Drupal\filter\FilterFormatRepositoryInterface;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Demonstrate that blocks can be restricted by category.
- *
- * @group layout_builder_restrictions_by_region
  */
-class BlockPlacementCategoryRestrictionTest extends WebDriverTestBase {
+#[Group('layout_builder_restrictions_by_region')]
+#[RunTestsInSeparateProcesses]
+class BlockPlacementCategoryRestrictionTest extends LayoutBuilderRestrictionsTestBase {
+
+  use BlockContentCreationTrait;
 
   /**
    * {@inheritdoc}
@@ -41,9 +47,6 @@ class BlockPlacementCategoryRestrictionTest extends WebDriverTestBase {
   protected function setUp(): void {
     parent::setUp();
 
-    // Create a node bundle.
-    $this->createContentType(['type' => 'bundle_with_section_field']);
-
     $this->drupalLogin($this->drupalCreateUser([
       'access administration pages',
       'administer blocks',
@@ -68,7 +71,7 @@ class BlockPlacementCategoryRestrictionTest extends WebDriverTestBase {
     ];
     $config = \Drupal::service('config.factory')->getEditable('layout_builder_restrictions.plugins');
     $config->set('plugin_config', $layout_builder_restrictions_plugins)->save();
-    $this->getSession()->resizeWindow(900, 2000);
+    $this->getSession()->resizeWindow(1600, 2000);
   }
 
   /**
@@ -77,7 +80,7 @@ class BlockPlacementCategoryRestrictionTest extends WebDriverTestBase {
   public function testBlockRestriction() {
     $this->blockTestSetup();
 
-    $this->getSession()->resizeWindow(1200, 4000);
+    $this->getSession()->resizeWindow(1600, 4000);
     $assert_session = $this->assertSession();
     $page = $this->getSession()->getPage();
     $field_ui_prefix = 'admin/structure/types/manage/bundle_with_section_field';
@@ -137,7 +140,11 @@ class BlockPlacementCategoryRestrictionTest extends WebDriverTestBase {
     $this->clickLink('Remove Section 1');
     $this->assertNotEmpty($assert_session->waitForText('Remove'));
     $page->pressButton('Remove');
+    $page->pressButton('Save layout');
+    $this->assertNotEmpty($assert_session->waitForText('Manage layout'));
+    $this->clickLink('Manage layout');
     $this->assertNotEmpty($assert_session->waitForLink('Add section'));
+    $this->assertNotEmpty($element);
     $this->clickLink('Add section');
     $this->assertNotEmpty($assert_session->waitForLink('Two column'));
     $this->clickLink('Two column');
@@ -275,22 +282,25 @@ class BlockPlacementCategoryRestrictionTest extends WebDriverTestBase {
    */
   protected function blockTestSetup() {
     // Create 2 custom block types, with 3 block instances.
-    $bundle = BlockContentType::create([
+    $this->createBlockContentType([
       'id' => 'basic',
       'label' => 'Basic',
     ]);
-    $bundle->save();
-    $bundle = BlockContentType::create([
+    $this->createBlockContentType([
       'id' => 'alternate',
       'label' => 'Alternate',
-    ]);
-    $bundle->save();
-    block_content_add_body_field($bundle->id());
+    ], TRUE);
     $blocks = [
       'Basic Block 1' => 'basic',
       'Basic Block 2' => 'basic',
       'Alternate Block 1' => 'alternate',
     ];
+    $default_format = DeprecationHelper::backwardsCompatibleCall(
+      \Drupal::VERSION,
+      '11.4.0',
+      fn() => \Drupal::service(FilterFormatRepositoryInterface::class)->getDefaultFormat()->id(),
+      fn() => filter_default_format(),
+    );
     foreach ($blocks as $info => $type) {
       $block = BlockContent::create([
         'info' => $info,
@@ -298,7 +308,7 @@ class BlockPlacementCategoryRestrictionTest extends WebDriverTestBase {
         'body' => [
           [
             'value' => 'This is the block content',
-            'format' => filter_default_format(),
+            'format' => $default_format,
           ],
         ],
       ]);

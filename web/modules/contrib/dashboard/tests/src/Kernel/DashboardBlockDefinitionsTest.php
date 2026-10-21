@@ -28,11 +28,11 @@ class DashboardBlockDefinitionsTest extends KernelTestBase {
    * Tests which blocks are allowed in navigation.
    */
   #[DataProvider('blockProvider')]
-  public function testBlockDefinitions($block_id, $allowed_in_navigation, $allowed_in_block_ui): void {
+  public function testBlockDefinitions($block_id, $allowed_in_navigation, $allowed_in_block_ui, $allowed_in_layout_builder): void {
     /** @var \Drupal\Core\Block\BlockManagerInterface $block_manager */
     $block_manager = $this->container->get(BlockManagerInterface::class);
     $block_definition = $block_manager->getDefinition($block_id);
-    $this->assertSame($allowed_in_block_ui, $block_definition['_block_ui_hidden']);
+    $this->assertSame(!$allowed_in_block_ui, $block_definition['_block_ui_hidden']);
 
     if (!$allowed_in_navigation) {
       $this->assertArrayNotHasKey('allow_in_navigation', $block_definition);
@@ -41,15 +41,19 @@ class DashboardBlockDefinitionsTest extends KernelTestBase {
       $this->assertArrayHasKey('allow_in_navigation', $block_definition);
       $this->assertSame($allowed_in_navigation, $block_definition['allow_in_navigation']);
     }
+
+    $layout_builder_blocks = $block_manager->getFilteredDefinitions('layout_builder', []);
+    $this->assertSame($allowed_in_layout_builder, array_key_exists($block_id, $layout_builder_blocks));
   }
 
   /**
    * Provider of blocks defined from the dashboard module.
    */
   public static function blockProvider(): \Generator {
-    yield 'navigation block' => ['navigation_dashboard', TRUE, TRUE];
-    yield 'text block' => ['dashboard_text_block', FALSE, TRUE];
-    yield 'site_status block' => ['dashboard_site_status', FALSE, TRUE];
+    yield 'navigation block' => ['navigation_dashboard', TRUE, FALSE, TRUE];
+    yield 'text block' => ['dashboard_text_block', FALSE, FALSE, TRUE];
+    yield 'site_status block' => ['dashboard_site_status', FALSE, FALSE, TRUE];
+    yield 'dashboard placeholder block' => ['dashboard_placeholder', FALSE, FALSE, FALSE];
   }
 
 }

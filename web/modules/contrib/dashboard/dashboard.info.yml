@@ -12,7 +12,7 @@ dependencies:
 test_dependencies:
   - coffee:coffee
 
-# Information added by Drupal.org packaging script on 2025-10-29
-version: '2.1.1'
+# Information added by Drupal.org packaging script on 2026-08-17
+version: '2.2.1'
 project: 'dashboard'
-datestamp: 1761732304
+datestamp: 1786974727

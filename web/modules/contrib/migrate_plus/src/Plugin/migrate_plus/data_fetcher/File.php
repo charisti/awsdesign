@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Plugin\migrate_plus\data_fetcher;
 
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\migrate\MigrateException;
+use Drupal\migrate_plus\Attribute\DataFetcher;
+use Drupal\migrate_plus\DataFetcherPluginBase;
 use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\ResponseInterface;
-use Drupal\migrate\MigrateException;
-use Drupal\migrate_plus\DataFetcherPluginBase;
 
 /**
- * Retrieve data from a local path or general URL for migration.
- *
- * @DataFetcher(
- *   id = "file",
- *   title = @Translation("File")
- * )
+ * Retrieve data from a local path or general URL.
  */
+#[DataFetcher(
+  id: 'file',
+  title: new TranslatableMarkup('File')
+)]
 class File extends DataFetcherPluginBase {
 
   /**

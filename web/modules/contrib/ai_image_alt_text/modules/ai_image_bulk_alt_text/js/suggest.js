@@ -5,9 +5,15 @@
     $('.suggest-alt-text').on('click', function(e) {
       $('input[type=submit]').attr('disabled', true);
       e.preventDefault();
+      let delay = 0;
       $('.alt-text-item').each(function() {
+        let self = this;
         // Make sure they run sequentially.
-        getSuggestion(this);
+        // And delay each call a bit:
+        setTimeout(function(){
+          getSuggestion(self);
+        }, delay);
+        delay += 500;
       });
     });
 

@@ -192,7 +192,7 @@ class Eca extends ConfigEntityBase implements EntityWithPluginCollectionInterfac
     // As ::trustData() states that dependencies are not calculated on save,
     // calculation is skipped when flagged as trusted.
     // @see Drupal\Core\Config\Entity\ConfigEntityInterface::trustData
-    if (static::$isTesting || $this->trustedData) {
+    if (static::$isTesting || $this->hasTrustedData()) {
       return $this;
     }
     parent::calculateDependencies();

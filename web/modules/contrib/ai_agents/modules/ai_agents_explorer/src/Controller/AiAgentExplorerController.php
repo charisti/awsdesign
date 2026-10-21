@@ -10,6 +10,7 @@ use Drupal\ai_agents\PluginInterfaces\AiAgentInterface;
 use Drupal\ai_agents\PluginInterfaces\ConfigAiAgentInterface;
 use Drupal\ai_agents\PluginManager\AiAgentManager;
 use Drupal\ai_agents\Task\Task;
+use League\CommonMark\CommonMarkConverter;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -120,13 +121,14 @@ class AiAgentExplorerController extends ControllerBase {
    *   The JSON response.
    */
   public function runAgent() {
-    // Get the prompt from the request.
-    $prompt = $this->currentRequest->get('prompt');
-    $agent_name = $this->currentRequest->get('agent');
-    $provider_name = $this->currentRequest->get('model');
-    $images = $this->currentRequest->get('images');
-    $runner_id = $this->currentRequest->get('runner_id');
-    $markdown = $this->currentRequest->get('markdown');
+    // Get the prompt from the post data.
+    $request = $this->currentRequest;
+    $prompt = $request->request->get('prompt');
+    $agent_name = $request->request->get('agent');
+    $provider_name = $request->request->get('model');
+    $images = array_filter($request->request->all('images'));
+    $runner_id = $request->request->get('runner_id');
+    $markdown = $request->request->get('markdown');
 
     try {
       $provider = $this->providerManager->loadProviderFromSimpleOption($provider_name);
@@ -166,7 +168,7 @@ class AiAgentExplorerController extends ControllerBase {
     $agent->setCreateDirectly(TRUE);
 
     if ($agent instanceof ConfigAiAgentInterface) {
-      $token_input = array_filter($this->currentRequest->get('tokens') ?? []);
+      $token_input = array_filter($request->request->all('tokens'));
       $tokens = [];
       foreach ($token_input as $token_type => $token_value) {
         if ($this->entityTypeManager->hasDefinition($token_type)) {
@@ -216,10 +218,7 @@ class AiAgentExplorerController extends ControllerBase {
       ], 500);
     }
     if ($markdown && class_exists('League\CommonMark\CommonMarkConverter')) {
-      // Ignore the non-use statement loading since this dependency may not
-      // exist.
-      // @codingStandardsIgnoreLine
-      $converter = new \League\CommonMark\CommonMarkConverter();
+      $converter = new CommonMarkConverter();
       $response = $converter->convert($response)->__toString();
     }
 

@@ -7,7 +7,9 @@ namespace Drupal\Tests\project_browser\Functional;
 use Drupal\Core\Url;
 use Drupal\project_browser\Plugin\ProjectBrowserSourceManager;
 use Drupal\Tests\BrowserTestBase;
+use Drupal\Tests\project_browser\Traits\SynchronizeCsrfTokenSeedTrait;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests routing of source plugins.
@@ -15,7 +17,10 @@ use PHPUnit\Framework\Attributes\Group;
  * @group project_browser
  */
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class RoutingTest extends BrowserTestBase {
+
+  use SynchronizeCsrfTokenSeedTrait;
 
   /**
    * {@inheritdoc}
@@ -37,7 +42,7 @@ final class RoutingTest extends BrowserTestBase {
       ->set('enabled_sources', [
         'project_browser_test_mock' => [],
       ])
-      ->save(TRUE);
+      ->save();
     $this->drupalLogin($this->drupalCreateUser([
       'administer modules',
     ]));
@@ -64,7 +69,7 @@ final class RoutingTest extends BrowserTestBase {
       ])
       ->save();
 
-    $enabled_source_ids = array_keys($this->container->get(ProjectBrowserSourceManager::class)->getAllEnabledSources());
+    $enabled_source_ids = array_keys(\Drupal::service(ProjectBrowserSourceManager::class)->getAllEnabledSources());
     sort($enabled_source_ids);
     $expected = [
       'drupal_core',
@@ -109,6 +114,47 @@ final class RoutingTest extends BrowserTestBase {
       ->save();
     $this->getSession()->reload();
     $assert_session->statusCodeEquals(404);
+  }
+
+  /**
+   * Tests CSRF protection on activate and uninstall routes.
+   */
+  public function testActivationRoutes(): void {
+    $assert_session = $this->assertSession();
+
+    // Missing token is rejected.
+    $url = Url::fromRoute('project_browser.activate', [], [
+      'query' => [
+        'projects' => ['drupal_core/ban'],
+        '_wrapper_format' => 'drupal_ajax',
+      ],
+    ]);
+    $this->drupalGet($url);
+    $assert_session->statusCodeEquals(403);
+
+    $url = Url::fromRoute('project_browser.uninstall', ['name' => 'ban']);
+    $this->drupalGet($url);
+    $assert_session->statusCodeEquals(403);
+
+    // With a valid path-bound token, CSRF access is granted (may still 4xx for
+    // other reasons such as missing project data — just not 403 from CSRF).
+    $csrf_token = $this->container->get('csrf_token');
+    $this->drupalGet(Url::fromRoute('project_browser.activate', [], [
+      'query' => [
+        'projects' => ['drupal_core/ban'],
+        '_wrapper_format' => 'drupal_ajax',
+        'token' => $csrf_token->get('admin/modules/project_browser/activate'),
+      ],
+    ]));
+    $assert_session->statusCodeNotEquals(403);
+
+    $this->drupalGet(Url::fromRoute('project_browser.uninstall', ['name' => 'ban'], [
+      'query' => [
+        'return_to' => Url::fromRoute('<front>')->toString(),
+        'token' => $csrf_token->get('project-browser/uninstall/ban'),
+      ],
+    ]));
+    $assert_session->statusCodeNotEquals(403);
   }
 
 }

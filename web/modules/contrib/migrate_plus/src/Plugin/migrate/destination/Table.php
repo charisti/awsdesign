@@ -8,6 +8,7 @@ use Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Database\Database;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\migrate\Attribute\MigrateDestination;
 use Drupal\migrate\Event\ImportAwareInterface;
 use Drupal\migrate\Event\MigrateImportEvent;
 use Drupal\migrate\MigrateException;
@@ -67,11 +68,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *       non_my_id_field_1: non_my_id_field_1
  *       non_my_id_field_2: non_my_id_field_2
  * @endcode
- *
- * @MigrateDestination(
- *   id = "table"
- * )
  */
+#[MigrateDestination(id: 'table')]
 class Table extends DestinationBase implements ContainerFactoryPluginInterface, ImportAwareInterface {
 
   /**
@@ -88,11 +86,6 @@ class Table extends DestinationBase implements ContainerFactoryPluginInterface, 
    * Array of fields present on the destination table.
    */
   protected array $fields;
-
-  /**
-   * The DB connection.
-   */
-  protected Connection $dbConnection;
 
   /**
    * Maximum number of rows to insert in one query.
@@ -127,9 +120,14 @@ class Table extends DestinationBase implements ContainerFactoryPluginInterface, 
    * @param \Drupal\Core\Database\Connection $connection
    *   The database connection.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration, Connection $connection) {
+  public function __construct(
+    array $configuration,
+    $plugin_id,
+    $plugin_definition,
+    MigrationInterface $migration,
+    protected Connection $connection,
+  ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $migration);
-    $this->dbConnection = $connection;
     $this->tableName = $configuration['table_name'];
     $this->idFields = $configuration['id_fields'];
     $this->fields = $configuration['fields'] ?? [];
@@ -186,7 +184,7 @@ class Table extends DestinationBase implements ContainerFactoryPluginInterface, 
       elseif ($batch_inserts && $fieldInfo['use_auto_increment']) {
         if (count($this->rowsToInsert) === 0) {
           // Get the highest existing ID, so we will create IDs above it.
-          $this->lastId = (int) $this->dbConnection->query("SELECT MAX($field) AS MaxId FROM {{$this->tableName}}")
+          $this->lastId = (int) $this->connection->query("SELECT MAX($field) AS MaxId FROM {{$this->tableName}}")
             ->fetchField();
         }
         $id = ++$this->lastId;
@@ -227,7 +225,7 @@ class Table extends DestinationBase implements ContainerFactoryPluginInterface, 
     }
     // Row contains empty id field with use_auto_increment enabled.
     elseif (count($ids) < count($this->idFields)) {
-      $status = $id = $this->dbConnection->insert($this->tableName)
+      $status = $id = $this->connection->insert($this->tableName)
         ->fields($values)
         ->execute();
       foreach ($this->idFields as $field => $fieldInfo) {
@@ -238,7 +236,7 @@ class Table extends DestinationBase implements ContainerFactoryPluginInterface, 
       }
     }
     else {
-      $status = $this->dbConnection->merge($this->tableName)
+      $status = $this->connection->merge($this->tableName)
         ->keys($ids)
         ->fields($values)
         ->execute();
@@ -250,7 +248,7 @@ class Table extends DestinationBase implements ContainerFactoryPluginInterface, 
    * {@inheritdoc}
    */
   public function rollback(array $destination_identifier): void {
-    $delete = $this->dbConnection->delete($this->tableName);
+    $delete = $this->connection->delete($this->tableName);
     foreach ($destination_identifier as $field => $value) {
       $delete->condition($field, $value);
     }
@@ -262,7 +260,7 @@ class Table extends DestinationBase implements ContainerFactoryPluginInterface, 
    */
   public function flushInserts(): void {
     if (count($this->rowsToInsert) > 0) {
-      $batch_query = $this->dbConnection->insert($this->tableName)
+      $batch_query = $this->connection->insert($this->tableName)
         ->fields(array_keys($this->rowsToInsert[0]));
       foreach ($this->rowsToInsert as $row) {
         $batch_query->values(array_values($row));
@@ -275,13 +273,13 @@ class Table extends DestinationBase implements ContainerFactoryPluginInterface, 
   }
 
   /**
-   * {@inheritDoc}
+   * {@inheritdoc}
    */
   public function preImport(MigrateImportEvent $event): void {
   }
 
   /**
-   * {@inheritDoc}
+   * {@inheritdoc}
    */
   public function postImport(MigrateImportEvent $event): void {
     // At the conclusion of a given migration, make sure batched inserts go in.

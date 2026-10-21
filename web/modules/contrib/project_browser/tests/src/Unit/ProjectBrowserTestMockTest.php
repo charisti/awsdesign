@@ -60,10 +60,10 @@ final class ProjectBrowserTestMockTest extends UnitTestCase {
   protected function setUp(): void {
     parent::setUp();
 
-    $this->logger = $this->createMock(LoggerInterface::class);
-    $this->database = $this->createMock(Connection::class);
-    $this->state = $this->createMock('\Drupal\Core\State\StateInterface');
-    $this->moduleHandler = $this->createMock(ModuleHandlerInterface::class);
+    $this->logger = $this->createStub(LoggerInterface::class);
+    $this->database = $this->createStub(Connection::class);
+    $this->state = $this->createStub('\Drupal\Core\State\StateInterface');
+    $this->moduleHandler = $this->createStub(ModuleHandlerInterface::class);
 
     $configuration = [];
     $plugin_id = $this->randomMachineName();
@@ -83,7 +83,6 @@ final class ProjectBrowserTestMockTest extends UnitTestCase {
   protected static function getMethod($name): \ReflectionMethod {
     $class = new \ReflectionClass(ProjectBrowserTestMock::class);
     $method = $class->getMethod($name);
-    $method->setAccessible(TRUE);
     return $method;
   }
 

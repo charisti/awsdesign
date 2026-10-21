@@ -4,6 +4,7 @@ namespace Drupal\menu_link_attributes\Form;
 
 use Drupal\Component\Serialization\Exception\InvalidDataTypeException;
 use Drupal\Component\Serialization\Yaml;
+use Drupal\Component\Utility\Html;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
@@ -97,7 +98,7 @@ class ConfigForm extends ConfigFormBase {
 
     // Use module's YAML config file for example structure.
     $module_path = $this->moduleHandler->getModule('menu_link_attributes')->getPath();
-    $yml_text = file_get_contents($module_path . '/config/install/menu_link_attributes.config.yml');
+    $yml_text = Html::escape(file_get_contents($module_path . '/config/install/menu_link_attributes.config.yml'));
 
     $form['example'] = [
       '#type' => 'details',
@@ -124,12 +125,36 @@ class ConfigForm extends ConfigFormBase {
    */
   public function validateForm(array &$form, FormStateInterface $form_state) {
     $config_text = $form_state->getValue('config') ?: 'attributes:';
+    $config = NULL;
 
     try {
-      $form_state->set('config', Yaml::decode($config_text));
+      $config = Yaml::decode($config_text);
+      $form_state->set('config', $config);
     }
     catch (InvalidDataTypeException $e) {
       $form_state->setErrorByName('config', $e->getMessage());
+    }
+
+    if (!empty($config['attributes']) && is_array($config['attributes'])) {
+      foreach (array_keys($config['attributes']) as $attribute) {
+        $attribute_name = preg_replace('/^container_/', '', (string) $attribute);
+        if (menu_link_attributes_is_allowed_attribute_name($attribute_name)) {
+          continue;
+        }
+
+        $sanitized_attribute = menu_link_attributes_sanitize_attribute_name((string) $attribute);
+        if (menu_link_attributes_is_allowed_attribute_name(preg_replace('/^container_/', '', $sanitized_attribute))) {
+          $form_state->setErrorByName('config', $this->t('The attribute %attribute is not allowed. Attribute names must not contain underscores, use %sanitized_attribute instead.', [
+            '%attribute' => $attribute,
+            '%sanitized_attribute' => $sanitized_attribute,
+          ]));
+          continue;
+        }
+
+        $form_state->setErrorByName('config', $this->t('The attribute %attribute is not allowed. Attribute names must be valid HTML attribute names and must not be <code>style</code> or event handlers (<code>on*</code>).', [
+          '%attribute' => $attribute,
+        ]));
+      }
     }
 
     parent::validateForm($form, $form_state);

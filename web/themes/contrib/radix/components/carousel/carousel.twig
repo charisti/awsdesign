@@ -42,11 +42,11 @@
 */
 #}
 {% set carousel_theme = carousel_theme|default('light') %}
-{% set show_carousel_control = show_carousel_control|default('true') %}
-{% set show_carousel_indicators = show_carousel_indicators|default('true') %}
-{% set show_carousel_caption = show_carousel_caption|default('true') %}
+{% set show_carousel_control = show_carousel_control ?? true %}
+{% set show_carousel_indicators = show_carousel_indicators ?? true %}
+{% set show_carousel_caption = show_carousel_caption ?? true %}
 {% set id = id|default('carousel-' ~ random(1000)) %}
-{% set items = items|default([]) %}
+{% set items = items ?? [] %}
 {% set caption_title_tag = caption_title_tag|default('h3') %}
 {% set caption_content_tag = caption_content_tag|default('p') %}
 
@@ -106,6 +106,7 @@
             %}
             {%
               include 'radix:button' with {
+                id: '',
                 button_attributes: carousel_indicator_attributes,
               }
             %}
@@ -143,7 +144,7 @@
                   src: item.image_src,
                   alt: item.image_alt,
                   image_utility_classes: ['w-100']
-                }
+                } only
               %}
             {% endif %}
 
@@ -185,6 +186,7 @@
         %}
         {%
           embed 'radix:button' with {
+            id: '',
             button_attributes: carousel_control_prev_attributes,
           }
         %}
@@ -203,6 +205,7 @@
         %}
         {%
           embed 'radix:button' with {
+            id: '',
             button_attributes: carousel_control_next_attributes,
           }
         %}

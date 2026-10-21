@@ -58,10 +58,11 @@ final class InstallProgress {
       $data[$case->value] = [];
     }
 
-    foreach ($this->keyValue->getAll() as $key => [$project_id, $status]) {
+    foreach ($this->keyValue->getAll() as $key => $value) {
       if ($key == '__timestamp') {
         continue;
       }
+      [$project_id, $status] = $value;
       $data[$status][] = $project_id;
     }
     return $data;

@@ -8,12 +8,15 @@ use Drupal\automatic_updates\Validator\VersionPolicy\TargetVersionInstallable;
 use Drupal\update\ProjectRelease;
 use Drupal\Tests\automatic_updates\Traits\VersionPolicyTestTrait;
 use Drupal\Tests\UnitTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
- * @covers \Drupal\automatic_updates\Validator\VersionPolicy\TargetVersionInstallable
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(TargetVersionInstallable::class)]
 class TargetVersionInstallableTest extends UnitTestCase {
 
   use VersionPolicyTestTrait;
@@ -183,9 +186,8 @@ class TargetVersionInstallableTest extends UnitTestCase {
    *   The available releases of Drupal core, keyed by version.
    * @param string[] $expected_errors
    *   The expected error messages, if any.
-   *
-   * @dataProvider providerTargetVersionInstallable
    */
+  #[DataProvider('providerTargetVersionInstallable')]
   public function testTargetVersionInstallable(array $minor_updates_allowed, string $installed_version, string $target_version, array $available_releases, array $expected_errors): void {
     foreach ($minor_updates_allowed as $value) {
       $config_factory = $this->getConfigFactoryStub([

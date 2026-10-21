@@ -3,7 +3,6 @@
 namespace Drupal\eca\Token;
 
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 
@@ -20,11 +19,11 @@ class CurrentUserDataProvider implements DataProviderInterface {
   protected AccountProxyInterface $currentUser;
 
   /**
-   * The user entity storage.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityStorageInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected EntityStorageInterface $userStorage;
+  protected EntityTypeManagerInterface $entityTypeManager;
 
   /**
    * The CurrentUserDataProvider constructor.
@@ -39,7 +38,7 @@ class CurrentUserDataProvider implements DataProviderInterface {
    */
   public function __construct(AccountProxyInterface $current_user, EntityTypeManagerInterface $entity_type_manager) {
     $this->currentUser = $current_user;
-    $this->userStorage = $entity_type_manager->getStorage('user');
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -47,7 +46,7 @@ class CurrentUserDataProvider implements DataProviderInterface {
    */
   public function getData(string $key): ?EntityInterface {
     if ($key === 'user' || $key === 'current_user') {
-      return $this->userStorage->load($this->currentUser->id());
+      return $this->entityTypeManager->getStorage('user')->load($this->currentUser->id());
     }
     return NULL;
   }

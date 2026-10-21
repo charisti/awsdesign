@@ -1,15 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\Tests\migrate_example_advanced\Functional;
 
 use Drupal\node\Entity\NodeType;
 use Drupal\Tests\BrowserTestBase;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests migrate_example_advanced migrations.
- *
- * @group migrate_plus
  */
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 class MigrateExampleAdvancedTest extends BrowserTestBase {
 
   /**

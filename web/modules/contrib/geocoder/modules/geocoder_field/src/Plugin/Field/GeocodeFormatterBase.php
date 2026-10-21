@@ -246,7 +246,7 @@ abstract class GeocodeFormatterBase extends FormatterBase implements ContainerFa
       $providers = $this->getEnabledGeocoderProviders();
 
       foreach ($items as $delta => $item) {
-        if ($address_collection = $this->geocoder->geocode($item->value, $providers)) {
+        if ($address_collection = $this->geocoder->geocode($item->getValue()['value'] ?? NULL, $providers)) {
           $elements[$delta] = [
             '#markup' => $address_collection instanceof AddressCollection && !$address_collection->isEmpty() && $dumper instanceof DumperInterface ? $dumper->dump($address_collection->first()) : "",
           ];

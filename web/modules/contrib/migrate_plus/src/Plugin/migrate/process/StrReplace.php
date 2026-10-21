@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\ProcessPluginBase;
 use Drupal\migrate\Row;
@@ -83,11 +84,8 @@ use Drupal\migrate\Row;
  *   replace: $1
  * @endcode
  * If the value of text is "@username" in source, field_text will be "username".
- *
- * @MigrateProcessPlugin(
- *   id = "str_replace"
- * )
  */
+#[MigrateProcess(id: 'str_replace')]
 class StrReplace extends ProcessPluginBase {
 
   /**

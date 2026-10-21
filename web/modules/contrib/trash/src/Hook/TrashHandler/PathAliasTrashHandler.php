@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Drupal\trash\Hook\TrashHandler;
 
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\path_alias\Entity\PathAlias;
+use Drupal\path_alias\PathAliasInterface;
 use Drupal\trash\Exception\UnrestorableEntityException;
 use Drupal\trash\Handler\DefaultTrashHandler;
 
@@ -17,9 +17,8 @@ class PathAliasTrashHandler extends DefaultTrashHandler {
   /**
    * {@inheritdoc}
    */
-  public function preTrashRestore(EntityInterface $entity): void {
-    parent::preTrashRestore($entity);
-    assert($entity instanceof PathAlias);
+  public function validateRestore(EntityInterface $entity): void {
+    assert($entity instanceof PathAliasInterface);
 
     // Check if there's a non-deleted path alias with the same alias.
     $result = $this->entityTypeManager->getStorage('path_alias')
@@ -36,6 +35,15 @@ class PathAliasTrashHandler extends DefaultTrashHandler {
         '@alias' => $entity->getAlias(),
       ]));
     }
+
+    $this->markRestoreValidated($entity);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function preTrashRestore(EntityInterface $entity, array $langcodes): void {
+    $this->ensureRestoreValidated($entity);
   }
 
 }

@@ -11,9 +11,6 @@ ai_provider_anthropic.settings:
     version:
       type: string
       label: 'The version of Anthropic API to use.'
-    dynamic_models_enabled:
-      type: boolean
-      label: 'Enable dynamic model detection from Anthropic API'
     models_cache_ttl:
       type: integer
       label: 'Cache TTL for dynamically fetched models (in seconds)'

@@ -1,6 +1,6 @@
 'view editoria11y checker':
-  title: 'View Editoria11y checker'
-  description: 'Assign to all content editors.'
+  title: 'Run Editoria11y checker and report results'
+  description: 'Assign to content editors. They will see the checker when logged in, and their browser will be trusted to report results on any page to the API.'
 'administer editoria11y checker':
   title: 'Administer Editoria11y checker'
   description: 'Allows user to purge results and change configuration.'

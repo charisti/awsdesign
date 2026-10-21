@@ -15,11 +15,11 @@ props:
       type: Drupal\Core\Template\Attribute
       description: 'This is used to add custom HTML attributes to the taxonomy content area.'
     title_prefix:
-      type: array
+      type: ['array', 'null', 'string', 'object']
       title: 'Title prefix'
       description: 'An array of additional output that may be displayed before the main title tag.'
     title_suffix:
-      type: array
+      type: ['array', 'null', 'string', 'object']
       title: 'Title suffix'
       description: 'An array of additional output that may be displayed after the main title tag.'
     name:

@@ -72,12 +72,9 @@ class DashboardRedirectAfterLoginTest extends BrowserTestBase {
 
     $this->drupalPlaceBlock('local_tasks_block');
 
-    // Force to use the Drupal login form during tests instead of login link for
-    // Drupal 11+. We need to check the existence of the variable for D10
-    // backwards compatibility.
-    if (isset($this->useOneTimeLoginLinks)) {
-      $this->useOneTimeLoginLinks = FALSE;
-    }
+    // Use the login form by default; the one-time login link flow is exercised
+    // explicitly in ::testDashboardRedirectFromOneTimeLoginLink().
+    $this->useOneTimeLoginLinks = FALSE;
   }
 
   /**
@@ -138,10 +135,11 @@ class DashboardRedirectAfterLoginTest extends BrowserTestBase {
    * Tests behavior from one time login link.
    */
   public function testDashboardRedirectFromOneTimeLoginLink() {
-    // We need to use this instead of setting useOneTimeLoginLinks to FALSE to
-    // have backwards compatibility with D10.
-    $login = user_pass_reset_url($this->adminUser) . '/login?destination=user/' . $this->adminUser->id();
-    $this->drupalGet($login);
+    // Log in via a one-time login link instead of the login form. The link
+    // carries a destination, which must take precedence over the dashboard
+    // redirect.
+    $this->useOneTimeLoginLinks = TRUE;
+    $this->drupalLogin($this->adminUser);
 
     $this->assertSession()->addressEquals('/user/' . $this->adminUser->id());
   }

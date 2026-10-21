@@ -2,6 +2,7 @@
 
 namespace Drupal\dashboard;
 
+use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Config\Entity\DraggableListBuilder;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
@@ -43,7 +44,7 @@ class DashboardListBuilder extends DraggableListBuilder {
   /**
    * {@inheritdoc}
    */
-  public function getDefaultOperations(EntityInterface $entity) {
+  public function getDefaultOperations(EntityInterface $entity, ?CacheableMetadata $cacheability = NULL) {
     /** @var \Drupal\dashboard\Entity\Dashboard $entity */
     $operations = [];
     $operations['edit_layout'] = [
@@ -56,13 +57,22 @@ class DashboardListBuilder extends DraggableListBuilder {
       'weight' => 0,
       'url' => $this->getPreviewUrl($entity),
     ];
-    $operations['manage_permission'] = [
-      'title' => $this->t('Manage permissions'),
-      'weight' => 25,
-      'url' => Url::fromRoute('entity.dashboard.permissions_form', ['dashboard' => $entity->id()]),
-    ];
+    // The permissions form route is gated on the core 'administer permissions'
+    // permission, which is not implied by 'administer dashboard'. Only offer
+    // the operation when the current user can actually reach it, and record the
+    // access result so the listing is cached per that permission.
+    $manage_permission_url = Url::fromRoute('entity.dashboard.permissions_form', ['dashboard' => $entity->id()]);
+    $manage_permission_access = $manage_permission_url->access(return_as_object: TRUE);
+    $cacheability?->addCacheableDependency($manage_permission_access);
+    if ($manage_permission_access->isAllowed()) {
+      $operations['manage_permission'] = [
+        'title' => $this->t('Manage permissions'),
+        'weight' => 25,
+        'url' => $manage_permission_url,
+      ];
+    }
 
-    return $operations + parent::getDefaultOperations($entity);
+    return $operations + parent::getDefaultOperations($entity, $cacheability);
   }
 
   /**

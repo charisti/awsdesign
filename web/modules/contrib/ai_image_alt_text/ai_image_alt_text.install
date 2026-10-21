@@ -12,5 +12,7 @@ declare(strict_types=1);
  */
 function ai_image_alt_text_uninstall() {
   // Remove the image style.
-  \Drupal::configFactory()->getEditable('image.style.ai_image_alt_text')->delete();
+  \Drupal::configFactory()
+    ->getEditable('image.style.ai_image_alt_text')
+    ->delete();
 }

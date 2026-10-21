@@ -72,11 +72,13 @@ class Linkit extends Plugin {
               this.set('entitySubstitution', '');
             }
 
-            // If the displayed text is empty use the entity label as the default value.
+            // If the displayed text is empty and not read only (paragraph is selected)
+            // use the entity label as the default value.
             if (
               linkFormView.hasOwnProperty('displayedTextInputView') &&
               linkFormView.displayedTextInputView.fieldView.element.value === '' &&
-              item.label
+              item.label &&
+              !linkFormView.displayedTextInputView.fieldView.element.readOnly
             ) {
               // The item label has been sanitized for display as HTML. We want this back in the original format so that
               // characters are not double encoded (e.g. we want "foo &amp; bar" to be "foo & bar").
@@ -126,7 +128,6 @@ class Linkit extends Plugin {
         if (this._isValidHttpUrl(args[0])) {
           args[1]['linkit_attributes'] = {
             'displayedText': displayedText,
-            'linkDataEntityType': 'external',
           }
         }
         else {

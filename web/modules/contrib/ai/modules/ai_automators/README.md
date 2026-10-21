@@ -18,6 +18,7 @@ depending on your specific needs.
 Some of the other sub-modules provided by the AI Core module interact with the
 AI Automators, and you may wish to use them depending on how complex your use
 case is.
+
 1. The AI CKEditor Integration module can be optionally enabled to allow content
    creators choose to run selected AI Automators against WYSIWYG fields. See the
    [Advanced section](#advanced-usage) for more details.
@@ -30,6 +31,48 @@ modules installed on your site to allow use in a number of different ways. We
 recommend that you use the [AI Automators module guide](https://project.pages.drupalcode.org/ai/latest/modules/ai_automators/index) to assist with
 using the module.
 
+### Rich-text image descriptions
+Selected text-based automators can enrich prompt context with AI-generated
+descriptions of images embedded in formatted text. This is opt-in per automator
+through advanced settings.
+
+When enabled, the automator can:
+
+1. Detect image candidates in the configured base field's HTML.
+2. Generate image descriptions using the default vision provider/model.
+3. Append those descriptions to `{{ context }}`.
+4. Optionally store image metadata as JSON in a configured field.
+
+The relevant settings are:
+
+- `Include image descriptions in output`
+- `Include external image URLs`
+- `Max images to describe`
+- `Image description prompt`
+- `Metadata field name`
+
+If `Include external image URLs` is disabled, plain `<img src="https://...">`
+tags without resolvable Drupal file/media references are detected but not
+analyzed.
+
+For moderation workflows, configurations can enforce human review when image
+analysis is incomplete (for example, when detected images exceed the configured
+max or cannot be fully processed).
+
 ## Develop for it
 Check the [developers guide](https://project.pages.drupalcode.org/ai/developers/developer_information) for information on how to develop using the
 AI module.
+
+### Override field processing decisions
+To override whether an automator field should run after `checkIfEmpty()`
+normalization, subscribe to
+`Drupal\ai_automators\Event\ShouldProcessFieldEvent::EVENT_NAME`
+(`ai_automator.should_process_field`), and call `setShouldProcess(TRUE|FALSE)`.
+
+Rules extending `RuleBase` can override `postCheckIfEmpty()` and return an
+empty array to force the value to be treated as empty before the event is
+dispatched.
+
+Rules not extending `RuleBase` can implement
+`Drupal\ai_automators\PluginInterfaces\AiAutomatorPostCheckIfEmptyInterface`
+to provide the same behavior.

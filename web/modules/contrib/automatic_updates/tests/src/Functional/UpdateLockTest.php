@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\automatic_updates\Functional;
 
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+
 /**
  * Tests that only one Automatic Update operation can be performed at a time.
  *
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[RunTestsInSeparateProcesses]
 class UpdateLockTest extends AutomaticUpdatesFunctionalTestBase {
 
   /**

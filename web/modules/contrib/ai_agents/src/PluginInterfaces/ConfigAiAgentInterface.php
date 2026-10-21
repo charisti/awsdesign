@@ -135,4 +135,40 @@ interface ConfigAiAgentInterface extends AiAgentInterface {
    */
   public function fromArray(array $data): void;
 
+  /**
+   * Set provider tags.
+   *
+   * Sets extra tags to be added to AI provider calls for tracking/filtering.
+   *
+   * @param array $tags
+   *   Array of tags to add to provider calls.
+   */
+  public function setProviderTags(array $tags): void;
+
+  /**
+   * Get provider tags.
+   *
+   * Gets the extra tags that will be added to AI provider calls.
+   *
+   * @return array
+   *   Array of provider tags.
+   */
+  public function getProviderTags(): array;
+
+  /**
+   * Sets the streaming mode.
+   *
+   * @param bool $streaming
+   *   Whether to enable streaming mode.
+   */
+  public function setStreaming(bool $streaming);
+
+  /**
+   * Take instructions from the PM AI and solve it.
+   *
+   * @return string|\Drupal\ai\OperationType\Chat\StreamedChatMessageIteratorInterface
+   *   The solution from the agent.
+   */
+  public function solve();
+
 }

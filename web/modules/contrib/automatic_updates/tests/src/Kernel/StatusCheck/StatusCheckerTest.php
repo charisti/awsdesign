@@ -13,16 +13,20 @@ use Drupal\automatic_updates_test\EventSubscriber\TestSubscriber1;
 use Drupal\automatic_updates_test_status_checker\EventSubscriber\TestSubscriber2;
 use Drupal\Core\Config\ConfigInstallerInterface;
 use Drupal\Core\Extension\ModuleInstallerInterface;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Drupal\Core\Installer\InstallerKernel;
 use Drupal\package_manager\Event\StatusCheckEvent;
-use Drupal\system\SystemManager;
 use Drupal\Tests\automatic_updates\Kernel\AutomaticUpdatesKernelTestBase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @coversDefaultClass \Drupal\automatic_updates\Validation\StatusChecker
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(StatusChecker::class)]
+#[RunTestsInSeparateProcesses]
 class StatusCheckerTest extends AutomaticUpdatesKernelTestBase {
 
   /**
@@ -51,14 +55,14 @@ class StatusCheckerTest extends AutomaticUpdatesKernelTestBase {
   }
 
   /**
-   * @covers ::getResults
+   * Tests retrieving results from the status checker.
    */
   public function testGetResults(): void {
     $this->container->get('module_installer')
       ->install(['automatic_updates', 'automatic_updates_test_status_checker']);
     $this->assertCheckerResultsFromManager([], TRUE);
-    $checker_1_expected = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
-    $checker_2_expected = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $checker_1_expected = [$this->createValidationResult(RequirementSeverity::Error->value)];
+    $checker_2_expected = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($checker_1_expected, StatusCheckEvent::class);
     TestSubscriber2::setTestResult($checker_2_expected, StatusCheckEvent::class);
     $expected_results_all = array_merge($checker_1_expected, $checker_2_expected);
@@ -79,12 +83,12 @@ class StatusCheckerTest extends AutomaticUpdatesKernelTestBase {
     $this->assertValidationResultsEqual($checker_1_expected, $status_checker->run()->getResults());
 
     $checker_1_expected = [
-      'checker 1 errors' => $this->createValidationResult(SystemManager::REQUIREMENT_ERROR),
-      'checker 1 warnings' => $this->createValidationResult(SystemManager::REQUIREMENT_WARNING),
+      'checker 1 errors' => $this->createValidationResult(RequirementSeverity::Error->value),
+      'checker 1 warnings' => $this->createValidationResult(RequirementSeverity::Warning->value),
     ];
     $checker_2_expected = [
-      'checker 2 errors' => $this->createValidationResult(SystemManager::REQUIREMENT_ERROR),
-      'checker 2 warnings' => $this->createValidationResult(SystemManager::REQUIREMENT_WARNING),
+      'checker 2 errors' => $this->createValidationResult(RequirementSeverity::Error->value),
+      'checker 2 warnings' => $this->createValidationResult(RequirementSeverity::Warning->value),
     ];
     TestSubscriber1::setTestResult($checker_1_expected, StatusCheckEvent::class);
     TestSubscriber2::setTestResult($checker_2_expected, StatusCheckEvent::class);
@@ -96,20 +100,20 @@ class StatusCheckerTest extends AutomaticUpdatesKernelTestBase {
       $checker_1_expected['checker 1 warnings'],
       $checker_2_expected['checker 2 warnings'],
     ];
-    $this->assertValidationResultsEqual($warnings_only_results, $status_checker->getResults(SystemManager::REQUIREMENT_WARNING));
+    $this->assertValidationResultsEqual($warnings_only_results, $status_checker->getResults(RequirementSeverity::Warning->value));
 
     $errors_only_results = [
       $checker_1_expected['checker 1 errors'],
       $checker_2_expected['checker 2 errors'],
     ];
-    $this->assertValidationResultsEqual($errors_only_results, $status_checker->getResults(SystemManager::REQUIREMENT_ERROR));
+    $this->assertValidationResultsEqual($errors_only_results, $status_checker->getResults(RequirementSeverity::Error->value));
   }
 
   /**
    * Tests that the manager is run after modules are installed.
    */
   public function testRunOnInstall(): void {
-    $checker_1_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $checker_1_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($checker_1_results, StatusCheckEvent::class);
     // Confirm that messages from an existing module are displayed when
     // 'automatic_updates' is installed.
@@ -118,8 +122,8 @@ class StatusCheckerTest extends AutomaticUpdatesKernelTestBase {
 
     // Confirm that the checkers are run when a module that provides a status
     // checker is installed.
-    $checker_1_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
-    $checker_2_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $checker_1_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
+    $checker_2_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($checker_1_results, StatusCheckEvent::class);
     TestSubscriber2::setTestResult($checker_2_results, StatusCheckEvent::class);
     $this->container->get('module_installer')->install(['automatic_updates_test_status_checker']);
@@ -128,8 +132,8 @@ class StatusCheckerTest extends AutomaticUpdatesKernelTestBase {
 
     // Confirm that the checkers are run when a module that does not provide a
     // status checker is installed.
-    $checker_1_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
-    $checker_2_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $checker_1_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
+    $checker_2_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($checker_1_results, StatusCheckEvent::class);
     TestSubscriber2::setTestResult($checker_2_results, StatusCheckEvent::class);
     $expected_results_all = array_merge($checker_1_results, $checker_2_results);
@@ -141,20 +145,24 @@ class StatusCheckerTest extends AutomaticUpdatesKernelTestBase {
    * Tests that the manager is run after modules are uninstalled.
    */
   public function testRunOnUninstall(): void {
-    $checker_1_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
-    $checker_2_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $checker_1_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
+    $checker_2_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($checker_1_results, StatusCheckEvent::class);
     TestSubscriber2::setTestResult($checker_2_results, StatusCheckEvent::class);
     // Confirm that messages from existing modules are displayed when
     // 'automatic_updates' is installed.
-    $this->container->get('module_installer')->install(['automatic_updates', 'automatic_updates_test_status_checker', 'help']);
+    $this->container->get('module_installer')->install([
+      'automatic_updates',
+      'automatic_updates_test_status_checker',
+      'help',
+    ]);
     $expected_results_all = array_merge($checker_1_results, $checker_2_results);
     $this->assertCheckerResultsFromManager($expected_results_all);
 
     // Confirm that the checkers are run when a module that provides a status
     // checker is uninstalled.
-    $checker_1_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
-    $checker_2_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $checker_1_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
+    $checker_2_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($checker_1_results, StatusCheckEvent::class);
     TestSubscriber2::setTestResult($checker_2_results, StatusCheckEvent::class);
     $this->container->get('module_installer')->uninstall(['automatic_updates_test_status_checker']);
@@ -162,23 +170,22 @@ class StatusCheckerTest extends AutomaticUpdatesKernelTestBase {
 
     // Confirm that the checkers are run when a module that does not provide a
     // status checker is uninstalled.
-    $checker_1_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $checker_1_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($checker_1_results, StatusCheckEvent::class);
     $this->container->get('module_installer')->uninstall(['help']);
     $this->assertCheckerResultsFromManager($checker_1_results);
   }
 
   /**
-   * @covers ::runIfNoStoredResults
-   * @covers ::clearStoredResults
+   * Tests that the status checks are not run unless needed.
    */
   public function testRunIfNeeded(): void {
-    $expected_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $expected_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($expected_results, StatusCheckEvent::class);
     $this->container->get('module_installer')->install(['automatic_updates', 'automatic_updates_test_status_checker']);
     $this->assertCheckerResultsFromManager($expected_results);
 
-    $unexpected_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $unexpected_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($unexpected_results, StatusCheckEvent::class);
     $manager = $this->container->get(StatusChecker::class);
     // Confirm that the new results will not be returned because the checkers
@@ -194,7 +201,7 @@ class StatusCheckerTest extends AutomaticUpdatesKernelTestBase {
     $this->assertCheckerResultsFromManager($expected_results);
 
     // Confirm that the results are the same after rebuilding the container.
-    $unexpected_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $unexpected_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($unexpected_results, StatusCheckEvent::class);
     /** @var \Drupal\Core\DrupalKernel $kernel */
     $kernel = $this->container->get('kernel');
@@ -235,7 +242,7 @@ class StatusCheckerTest extends AutomaticUpdatesKernelTestBase {
 
     // The status checker should raise a warning, so that the update is not
     // blocked or aborted.
-    $results = [$this->createValidationResult(SystemManager::REQUIREMENT_WARNING)];
+    $results = [$this->createValidationResult(RequirementSeverity::Warning->value)];
     TestSubscriber1::setTestResult($results, StatusCheckEvent::class);
 
     // Ensure that the validation manager collects the warning.
@@ -270,7 +277,7 @@ class StatusCheckerTest extends AutomaticUpdatesKernelTestBase {
   public function testStoredResultsClearedOnConfigChanges(): void {
     $this->container->get('module_installer')->install(['automatic_updates']);
 
-    $results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($results, StatusCheckEvent::class);
     $this->assertCheckerResultsFromManager($results, TRUE);
     // The results should be stored.
@@ -288,7 +295,7 @@ class StatusCheckerTest extends AutomaticUpdatesKernelTestBase {
   }
 
   /**
-   * @covers ::getLastRunTime
+   * Tests that the status checker respects the most recent run time.
    */
   public function testLastRunTime(): void {
     $this->enableModules(['automatic_updates']);

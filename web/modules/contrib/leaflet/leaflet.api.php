@@ -57,9 +57,9 @@ function leaflet_map_info_default_settings() {
  */
 function hook_leaflet_map_info() {
   return [
-    'OSM Mapnik' => [
-      'label' => 'OSM Mapnik',
-      'description' => t('Leaflet default map.'),
+    'openstreetmap' => [
+      'label' => 'OpenStreetMap',
+      'description' => t('Leaflet default base Map.'),
       'settings' => leaflet_map_info_default_settings(),
       'layers' => [
         'OpenStreetMap' => [
@@ -206,7 +206,7 @@ function hook_leaflet_map_info() {
  */
 function hook_leaflet_map_info_alter(array &$map_info) {
   // Set a custom iconUrl for the default map type.
-  $map_info['OSM Mapnik']['icon']['iconUrl'] = '/sites/default/files/icon.png';
+  $map_info['openstreetmap']['icon']['iconUrl'] = '/sites/default/files/icon.png';
 }
 
 /**

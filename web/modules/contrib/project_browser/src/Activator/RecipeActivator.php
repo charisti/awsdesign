@@ -20,6 +20,8 @@ use Drupal\Core\Url;
 use Drupal\project_browser\Plugin\ProjectBrowserSource\Recipes;
 use Drupal\project_browser\ProjectBrowser\Project;
 use Drupal\project_browser\ProjectType;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Process\PhpExecutableFinder;
 
@@ -30,9 +32,10 @@ use Symfony\Component\Process\PhpExecutableFinder;
  *   This is an internal part of Project Browser and may be changed or removed
  *   at any time. It should not be used by external code.
  */
-final class RecipeActivator implements InstructionsInterface, EventSubscriberInterface, TasksInterface {
+final class RecipeActivator implements InstructionsInterface, EventSubscriberInterface, TasksInterface, LoggerAwareInterface {
 
   use InstructionsTrait;
+  use LoggerAwareTrait;
 
   /**
    * The state key that stores the record of all applied recipes.
@@ -155,7 +158,24 @@ final class RecipeActivator implements InstructionsInterface, EventSubscriberInt
     // call above would have returned ActivationStatus::Absent.
     $path = $this->getPath($project);
     assert(is_string($path));
-    $extra = Recipe::createFromDirectory($path)->getExtra('project_browser');
+
+    // Instantiating an applied recipe can fail — most commonly a strict recipe
+    // throws RecipePreExistingConfigException once a config it ships has
+    // diverged from the active config (recalculated dependencies, an editor
+    // tweaking a view, etc.). The recipe's follow-up tasks are best-effort
+    // decoration of an already-applied recipe, so a recipe that can no longer
+    // be loaded must not abort normalization and blank the whole project
+    // browser listing. Degrade to exposing only the generic tasks below.
+    try {
+      $extra = Recipe::createFromDirectory($path)->getExtra('project_browser');
+    }
+    catch (\Throwable $e) {
+      $this->logger?->warning('Could not read the follow-up tasks of the applied %recipe recipe: @message', [
+        '%recipe' => $project->machineName,
+        '@message' => $e->getMessage(),
+      ]);
+      $extra = [];
+    }
 
     $link_from_array = function (array $link): Link {
       $url = array_key_exists('uri', $link)
@@ -171,7 +191,7 @@ final class RecipeActivator implements InstructionsInterface, EventSubscriberInt
       $url = Url::fromRoute('project_browser.activate')
         ->setOption('query', [
           // @see \Drupal\project_browser\Controller\ProjectBrowserEndpointController::activate()
-          'projects' => $source_id . '/' . $project->id,
+          'projects' => [$source_id . '/' . $project->id],
         ])
         // @see \Drupal\project_browser\ProjectBrowser\Normalizer::getActivationInfo()
         ->setOption('project_browser', [

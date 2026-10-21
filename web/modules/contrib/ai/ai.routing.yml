@@ -2,6 +2,63 @@ ai.settings.menu:
   path: '/admin/config/ai'
   defaults:
     _title: 'AI'
+    _controller: '\Drupal\ai\Controller\AiAdminController::overview'
+  requirements:
+    _permission: 'administer ai'
+
+# Category routes for grouped menu display.
+ai.admin_config_infrastructure:
+  path: '/admin/config/ai/infrastructure'
+  defaults:
+    _title: 'AI Infrastructure'
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+  requirements:
+    _permission: 'administer ai'
+
+ai.admin_config_tools:
+  path: '/admin/config/ai/tools-automation'
+  defaults:
+    _title: 'Tools & Automation'
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+  requirements:
+    _permission: 'administer ai'
+
+ai.admin_config_content:
+  path: '/admin/config/ai/content-creation'
+  defaults:
+    _title: 'Content Creation & Support'
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+  requirements:
+    _permission: 'administer ai'
+
+ai.admin_config_people:
+  path: '/admin/config/ai/people-accounts'
+  defaults:
+    _title: 'People, Accounts & Users'
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+  requirements:
+    _permission: 'administer ai'
+
+ai.admin_config_safety:
+  path: '/admin/config/ai/safety-compliance'
+  defaults:
+    _title: 'Safety & Compliance'
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+  requirements:
+    _permission: 'administer ai'
+
+ai.admin_config_search:
+  path: '/admin/config/ai/search-discovery'
+  defaults:
+    _title: 'Search & Discovery'
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+  requirements:
+    _permission: 'administer ai'
+
+ai.admin_config_site_building:
+  path: '/admin/config/ai/site-building'
+  defaults:
+    _title: 'Site Building & Design'
     _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
   requirements:
     _permission: 'administer ai'
@@ -12,6 +69,14 @@ ai.settings_form:
     _form: '\Drupal\ai\Form\AiSettingsForm'
     _title: 'AI Settings'
     nojs: 'ajax'
+  requirements:
+    _permission: 'administer ai'
+
+ai.html_to_markdown_settings:
+  path: '/admin/config/ai/html-to-markdown'
+  defaults:
+    _controller: '\Drupal\ai\Controller\HtmlToMarkdownSettingsController::build'
+    _title: 'HTML to Markdown Converter'
   requirements:
     _permission: 'administer ai'
 
@@ -68,13 +133,13 @@ ai.tools_library:
     _controller: '\Drupal\ai\Controller\ToolsLibrary::overview'
     _title: 'Tools Library'
   requirements:
-    _permission: 'access ai tools overview'
+    _custom_access: 'ai.tools_library.ui_builder:checkAccess'
 
 # Prompt management.
 entity.ai_prompt.collection:
   path: '/admin/config/ai/prompts'
   defaults:
-    _entity_list: 'ai_prompt'
+    _controller: '\Drupal\ai\Controller\AiPromptCollectionController::collection'
     _title: 'AI Prompts'
   requirements:
     _permission: 'manage ai prompts'
@@ -136,7 +201,7 @@ entity.ai_prompt_type.add_form:
   path: '/admin/config/ai/prompts/prompt-types/add'
   defaults:
     _entity_form: 'ai_prompt_type.add'
-    _title: 'Add AI Prompt types'
+    _title: 'Add AI Prompt type'
   requirements:
     _permission: 'administer ai prompt types'
   options:
@@ -161,3 +226,101 @@ entity.ai_prompt_type.delete_form:
     _permission: 'administer ai prompt types'
   options:
     _admin_route: TRUE
+
+entity.ai_file.collection:
+  path: '/admin/config/ai/files'
+  defaults:
+    _entity_list: 'ai_file'
+    _title: 'AI Files'
+  requirements:
+    _permission: 'access ai files overview'
+  options:
+    _admin_route: TRUE
+
+entity.ai_file.delete_form:
+  path: '/admin/config/ai/files/{ai_file}/delete'
+  defaults:
+    _entity_form: 'ai_file.delete'
+    _title: 'Delete AI File'
+  requirements:
+    _entity_access: 'ai_file.delete'
+  options:
+    _admin_route: TRUE
+    parameters:
+      ai_file:
+        type: entity:ai_file
+
+# Guardrails management.
+entity.ai_guardrail.collection:
+  path: '/admin/config/ai/guardrails'
+  defaults:
+    _entity_list: 'ai_guardrail'
+    _title: 'AI Guardrails configuration'
+  requirements:
+    _permission: 'administer guardrails'
+
+entity.ai_guardrail.add_form:
+  path: '/admin/config/ai/guardrails/add'
+  defaults:
+    _entity_form: 'ai_guardrail.add'
+    _title: 'Add an AI guardrail'
+  requirements:
+    _permission: 'administer guardrails'
+
+entity.ai_guardrail.edit_form:
+  path: '/admin/config/ai/guardrails/{ai_guardrail}'
+  defaults:
+    _entity_form: 'ai_guardrail.edit'
+    _title: 'Edit an AI guardrail'
+  requirements:
+    _permission: 'administer guardrails'
+
+entity.ai_guardrail.delete_form:
+  path: '/admin/config/ai/guardrails/{ai_guardrail}/delete'
+  defaults:
+    _entity_form: 'ai_guardrail.delete'
+    _title: 'Delete an AI guardrail'
+  requirements:
+    _permission: 'administer guardrails'
+
+# Guardrail sets management.
+entity.ai_guardrail_set.collection:
+  path: '/admin/config/ai/guardrails/guardrail-sets'
+  defaults:
+    _entity_list: 'ai_guardrail_set'
+    _title: 'AI Guardrails sets configuration'
+  requirements:
+    _permission: 'administer guardrail sets'
+
+entity.ai_guardrail_set.add_form:
+  path: '/admin/config/ai/guardrails/guardrail_sets/add'
+  defaults:
+    _entity_form: 'ai_guardrail_set.add'
+    _title: 'Add an AI guardrail set'
+  requirements:
+    _permission: 'administer guardrail sets'
+
+entity.ai_guardrail_set.edit_form:
+  path: '/admin/config/ai/guardrails/guardrail_sets/{ai_guardrail_set}'
+  defaults:
+    _entity_form: 'ai_guardrail_set.edit'
+    _title: 'Edit an AI guardrail set'
+  requirements:
+    _permission: 'administer guardrail sets'
+
+entity.ai_guardrail_set.delete_form:
+  path: '/admin/config/ai/guardrails/guardrail_sets/{ai_guardrail_set}/delete'
+  defaults:
+    _entity_form: 'ai_guardrail_set.delete'
+    _title: 'Delete an AI guardrail set'
+  requirements:
+    _permission: 'administer guardrail sets'
+
+# Global guardrails settings.
+ai.global_guardrails_settings:
+  path: '/admin/config/ai/guardrails/global'
+  defaults:
+    _form: '\Drupal\ai\Form\GlobalGuardrailsSettingsForm'
+    _title: 'Global AI guardrails'
+  requirements:
+    _permission: 'administer guardrail sets'

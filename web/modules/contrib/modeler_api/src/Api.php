@@ -15,22 +15,29 @@ use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Menu\MenuLinkManagerInterface;
 use Drupal\Core\Routing\RouteProviderInterface;
+use Drupal\Core\Session\AccountProxy;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
+use Drupal\Core\Utility\Token as BaseToken;
 use Drupal\modeler_api\Form\Settings;
 use Drupal\modeler_api\Plugin\ModelerApiModelOwner\ModelOwnerInterface;
 use Drupal\modeler_api\Plugin\ModelerApiModeler\ModelerInterface;
+use Drupal\modeler_api\Plugin\ContextPluginManager;
+use Drupal\modeler_api\Plugin\DependencyPluginManager;
 use Drupal\modeler_api\Plugin\ModelerPluginManager;
 use Drupal\modeler_api\Plugin\ModelOwnerPluginManager;
+use Drupal\modeler_api\Plugin\TemplateTokenPluginManager;
+use Drupal\modeler_api\Plugin\ThemePluginManager;
+use Symfony\Component\DependencyInjection\Attribute\AutowireServiceClosure;
 use Symfony\Component\Routing\Exception\RouteNotFoundException;
 use Symfony\Component\Routing\Route;
+use Symfony\Component\Routing\RouterInterface;
 
 /**
  * Provides services of the modeler API.
  */
 class Api {
 
-  use EntityOriginalTrait;
   use StringTranslationTrait;
 
   /**
@@ -50,15 +57,15 @@ class Api {
     return \Drupal::service('modeler_api.service');
   }
 
-  public const COMPONENT_TYPE_START = 1;
-  public const COMPONENT_TYPE_SUBPROCESS = 2;
-  public const COMPONENT_TYPE_SWIMLANE = 3;
-  public const COMPONENT_TYPE_ELEMENT = 4;
-  public const COMPONENT_TYPE_LINK = 5;
-  public const COMPONENT_TYPE_GATEWAY = 6;
-  public const COMPONENT_TYPE_ANNOTATION = 7;
+  public const int COMPONENT_TYPE_START = 1;
+  public const int COMPONENT_TYPE_SUBPROCESS = 2;
+  public const int COMPONENT_TYPE_SWIMLANE = 3;
+  public const int COMPONENT_TYPE_ELEMENT = 4;
+  public const int COMPONENT_TYPE_LINK = 5;
+  public const int COMPONENT_TYPE_GATEWAY = 6;
+  public const int COMPONENT_TYPE_ANNOTATION = 7;
 
-  public const AVAILABLE_COMPONENT_TYPES = [
+  public const array AVAILABLE_COMPONENT_TYPES = [
     self::COMPONENT_TYPE_START,
     self::COMPONENT_TYPE_SUBPROCESS,
     self::COMPONENT_TYPE_SWIMLANE,
@@ -69,18 +76,295 @@ class Api {
   ];
 
   /**
+   * Maps component type constants to their YAML key names.
+   */
+  public const array COMPONENT_TYPE_NAMES = [
+    self::COMPONENT_TYPE_START => 'start',
+    self::COMPONENT_TYPE_SUBPROCESS => 'subprocess',
+    self::COMPONENT_TYPE_SWIMLANE => 'swimlane',
+    self::COMPONENT_TYPE_ELEMENT => 'element',
+    self::COMPONENT_TYPE_LINK => 'link',
+    self::COMPONENT_TYPE_GATEWAY => 'gateway',
+    self::COMPONENT_TYPE_ANNOTATION => 'annotation',
+  ];
+
+  /**
    * Constructs the modeler API plugin manager.
+   *
+   * Every dependency is injected as a lazy service closure so that none of
+   * them is instantiated at container-build time. This avoids circular service
+   * references. Each closure is resolved on demand through the matching
+   * private accessor method below.
+   *
+   * @param \Closure(): \Drupal\Core\Session\AccountProxy $currentUserFactory
+   *   Factory for the current user service.
+   * @param \Closure(): \Drupal\modeler_api\Plugin\ModelOwnerPluginManager $modelOwnerPluginManagerFactory
+   *   Factory for the model owner plugin manager.
+   * @param \Closure(): \Drupal\modeler_api\Plugin\ModelerPluginManager $modelerPluginManagerFactory
+   *   Factory for the modeler plugin manager.
+   * @param \Closure(): \Drupal\Core\Config\ConfigFactoryInterface $configFactoryFactory
+   *   Factory for the config factory service.
+   * @param \Closure(): \Drupal\Core\Config\ManagedStorage $configStorageFactory
+   *   Factory for the export config storage service.
+   * @param \Closure(): \Drupal\Core\File\FileSystemInterface $fileSystemFactory
+   *   Factory for the file system service.
+   * @param \Closure(): \Drupal\Core\Menu\MenuLinkManagerInterface $menuLinkManagerFactory
+   *   Factory for the menu link manager service.
+   * @param \Closure(): \Drupal\modeler_api\Plugin\ContextPluginManager $contextPluginManagerFactory
+   *   Factory for the context plugin manager.
+   * @param \Closure(): \Drupal\modeler_api\Plugin\DependencyPluginManager $dependencyPluginManagerFactory
+   *   Factory for the dependency plugin manager.
+   * @param \Closure(): \Drupal\modeler_api\Plugin\TemplateTokenPluginManager $templateTokenPluginManagerFactory
+   *   Factory for the template token plugin manager.
+   * @param \Closure(): \Drupal\modeler_api\Plugin\ThemePluginManager $themePluginManagerFactory
+   *   Factory for the theme plugin manager.
+   * @param \Closure(): \Drupal\modeler_api\ContextListBuilder $contextListBuilderFactory
+   *   Factory for the context list builder.
+   * @param \Closure(): \Drupal\modeler_api\DependencyListBuilder $dependencyListBuilderFactory
+   *   Factory for the dependency list builder.
+   * @param \Closure(): \Drupal\modeler_api\TemplateTokenListBuilder $templateTokenListBuilderFactory
+   *   Factory for the template token list builder.
+   * @param \Closure(): \Symfony\Component\Routing\RouterInterface $routerFactory
+   *   Factory for the router service.
+   * @param \Closure(): \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManagerFactory
+   *   Factory for the entity type manager service.
+   * @param \Closure(): \Drupal\Core\Routing\RouteProviderInterface $routeProviderFactory
+   *   Factory for the route provider service.
+   * @param \Closure(): \Drupal\Core\Utility\Token $tokenFactory
+   *   Factory for the token service.
+   * @param \Closure(): mixed|null $tokenTreeBuilderFactory
+   *   Optional factory for the token tree builder service. Only available when
+   *   the token contrib module is installed.
    */
   public function __construct(
-    protected ModelOwnerPluginManager $modelOwnerPluginManager,
-    protected ModelerPluginManager $modelerPluginManager,
-    protected ConfigFactoryInterface $configFactory,
-    protected ManagedStorage $configStorage,
-    protected FileSystemInterface $fileSystem,
-    protected EntityTypeManagerInterface $entityTypeManager,
-    protected RouteProviderInterface $routeProvider,
-    protected MenuLinkManagerInterface $menuLinkManager,
+    #[AutowireServiceClosure('current_user')]
+    protected readonly \Closure $currentUserFactory,
+    #[AutowireServiceClosure('plugin.manager.modeler_api.model_owner')]
+    protected readonly \Closure $modelOwnerPluginManagerFactory,
+    #[AutowireServiceClosure('plugin.manager.modeler_api.modeler')]
+    protected readonly \Closure $modelerPluginManagerFactory,
+    #[AutowireServiceClosure('config.factory')]
+    protected readonly \Closure $configFactoryFactory,
+    #[AutowireServiceClosure('config.storage.export')]
+    protected readonly \Closure $configStorageFactory,
+    #[AutowireServiceClosure('file_system')]
+    protected readonly \Closure $fileSystemFactory,
+    #[AutowireServiceClosure('plugin.manager.menu.link')]
+    protected readonly \Closure $menuLinkManagerFactory,
+    #[AutowireServiceClosure('plugin.manager.modeler_api.context')]
+    protected readonly \Closure $contextPluginManagerFactory,
+    #[AutowireServiceClosure('plugin.manager.modeler_api.dependency')]
+    protected readonly \Closure $dependencyPluginManagerFactory,
+    #[AutowireServiceClosure('plugin.manager.modeler_api.template_token')]
+    protected readonly \Closure $templateTokenPluginManagerFactory,
+    #[AutowireServiceClosure('plugin.manager.modeler_api.theme')]
+    protected readonly \Closure $themePluginManagerFactory,
+    #[AutowireServiceClosure('modeler_api.context_list_builder')]
+    protected readonly \Closure $contextListBuilderFactory,
+    #[AutowireServiceClosure('modeler_api.dependency_list_builder')]
+    protected readonly \Closure $dependencyListBuilderFactory,
+    #[AutowireServiceClosure('modeler_api.template_token_list_builder')]
+    protected readonly \Closure $templateTokenListBuilderFactory,
+    #[AutowireServiceClosure('router.no_access_checks')]
+    protected readonly \Closure $routerFactory,
+    #[AutowireServiceClosure('entity_type.manager')]
+    protected readonly \Closure $entityTypeManagerFactory,
+    #[AutowireServiceClosure('router.route_provider')]
+    protected readonly \Closure $routeProviderFactory,
+    #[AutowireServiceClosure('token')]
+    protected readonly \Closure $tokenFactory,
+    protected readonly ?\Closure $tokenTreeBuilderFactory = NULL,
   ) {}
+
+  /**
+   * Get the current user service.
+   *
+   * @return \Drupal\Core\Session\AccountProxy
+   *   The current user service.
+   */
+  protected function getCurrentUser(): AccountProxy {
+    return ($this->currentUserFactory)();
+  }
+
+  /**
+   * Get the model owner plugin manager.
+   *
+   * @return \Drupal\modeler_api\Plugin\ModelOwnerPluginManager
+   *   The model owner plugin manager.
+   */
+  protected function getModelOwnerPluginManager(): ModelOwnerPluginManager {
+    return ($this->modelOwnerPluginManagerFactory)();
+  }
+
+  /**
+   * Get the modeler plugin manager.
+   *
+   * @return \Drupal\modeler_api\Plugin\ModelerPluginManager
+   *   The modeler plugin manager.
+   */
+  protected function getModelerPluginManager(): ModelerPluginManager {
+    return ($this->modelerPluginManagerFactory)();
+  }
+
+  /**
+   * Get the config factory service.
+   *
+   * @return \Drupal\Core\Config\ConfigFactoryInterface
+   *   The config factory service.
+   */
+  protected function getConfigFactory(): ConfigFactoryInterface {
+    return ($this->configFactoryFactory)();
+  }
+
+  /**
+   * Get the export config storage service.
+   *
+   * @return \Drupal\Core\Config\ManagedStorage
+   *   The export config storage service.
+   */
+  protected function getConfigStorage(): ManagedStorage {
+    return ($this->configStorageFactory)();
+  }
+
+  /**
+   * Get the file system service.
+   *
+   * @return \Drupal\Core\File\FileSystemInterface
+   *   The file system service.
+   */
+  protected function getFileSystem(): FileSystemInterface {
+    return ($this->fileSystemFactory)();
+  }
+
+  /**
+   * Get the menu link manager service.
+   *
+   * @return \Drupal\Core\Menu\MenuLinkManagerInterface
+   *   The menu link manager service.
+   */
+  protected function getMenuLinkManager(): MenuLinkManagerInterface {
+    return ($this->menuLinkManagerFactory)();
+  }
+
+  /**
+   * Get the context plugin manager.
+   *
+   * @return \Drupal\modeler_api\Plugin\ContextPluginManager
+   *   The context plugin manager.
+   */
+  protected function getContextPluginManager(): ContextPluginManager {
+    return ($this->contextPluginManagerFactory)();
+  }
+
+  /**
+   * Get the dependency plugin manager.
+   *
+   * @return \Drupal\modeler_api\Plugin\DependencyPluginManager
+   *   The dependency plugin manager.
+   */
+  protected function getDependencyPluginManager(): DependencyPluginManager {
+    return ($this->dependencyPluginManagerFactory)();
+  }
+
+  /**
+   * Get the template token plugin manager.
+   *
+   * @return \Drupal\modeler_api\Plugin\TemplateTokenPluginManager
+   *   The template token plugin manager.
+   */
+  protected function getTemplateTokenPluginManager(): TemplateTokenPluginManager {
+    return ($this->templateTokenPluginManagerFactory)();
+  }
+
+  /**
+   * Get the theme plugin manager.
+   *
+   * @return \Drupal\modeler_api\Plugin\ThemePluginManager
+   *   The theme plugin manager.
+   */
+  protected function getThemePluginManager(): ThemePluginManager {
+    return ($this->themePluginManagerFactory)();
+  }
+
+  /**
+   * Get the context list builder.
+   *
+   * @return \Drupal\modeler_api\ContextListBuilder
+   *   The context list builder.
+   */
+  protected function getContextListBuilder(): ContextListBuilder {
+    return ($this->contextListBuilderFactory)();
+  }
+
+  /**
+   * Get the dependency list builder.
+   *
+   * @return \Drupal\modeler_api\DependencyListBuilder
+   *   The dependency list builder.
+   */
+  protected function getDependencyListBuilder(): DependencyListBuilder {
+    return ($this->dependencyListBuilderFactory)();
+  }
+
+  /**
+   * Get the template token list builder.
+   *
+   * @return \Drupal\modeler_api\TemplateTokenListBuilder
+   *   The template token list builder.
+   */
+  protected function getTemplateTokenListBuilder(): TemplateTokenListBuilder {
+    return ($this->templateTokenListBuilderFactory)();
+  }
+
+  /**
+   * Get the entity type manager service.
+   *
+   * @return \Drupal\Core\Entity\EntityTypeManagerInterface
+   *   The entity type manager service.
+   */
+  protected function getEntityTypeManager(): EntityTypeManagerInterface {
+    return ($this->entityTypeManagerFactory)();
+  }
+
+  /**
+   * Get the route provider service.
+   *
+   * @return \Drupal\Core\Routing\RouteProviderInterface
+   *   The route provider service.
+   */
+  protected function getRouteProvider(): RouteProviderInterface {
+    return ($this->routeProviderFactory)();
+  }
+
+  /**
+   * Get the router service.
+   *
+   * @return \Symfony\Component\Routing\RouterInterface
+   *   The router service.
+   */
+  protected function getRouter(): RouterInterface {
+    return ($this->routerFactory)();
+  }
+
+  /**
+   * Get the token service.
+   *
+   * @return \Drupal\Core\Utility\Token
+   *   The token service.
+   */
+  protected function getTokenService(): BaseToken {
+    return ($this->tokenFactory)();
+  }
+
+  /**
+   * Get the token tree builder.
+   *
+   * @return mixed|null
+   *   The token tree builder if available.
+   */
+  protected function getTokenTreeBuilder(): mixed {
+    return is_callable($this->tokenTreeBuilderFactory) ? ($this->tokenTreeBuilderFactory)() : NULL;
+  }
 
   /**
    * Get the modeler if there's only one available, except the fallback.
@@ -89,7 +373,7 @@ class Api {
    *   The modeler if only one exists besides the fallback, NULL otherwise.
    */
   public function getModeler(): ?ModelerInterface {
-    $modelers = $this->modelerPluginManager->getAllInstances();
+    $modelers = $this->getModelerPluginManager()->getAllInstances();
     if (count($modelers) === 2) {
       unset($modelers['fallback']);
       return reset($modelers);
@@ -108,7 +392,7 @@ class Api {
    */
   public function findOwner(ConfigEntityInterface|string $model): ?ModelOwnerInterface {
     $entityTypeId = is_string($model) ? $model : $model->getEntityTypeId();
-    foreach ($this->modelOwnerPluginManager->getAllInstances() as $owner) {
+    foreach ($this->getModelOwnerPluginManager()->getAllInstances() as $owner) {
       if ($entityTypeId === $owner->configEntityTypeId()) {
         return $owner;
       }
@@ -223,7 +507,7 @@ class Api {
 
     if ($modelerId !== NULL && $modelerId !== $owner->getModelerId($model)) {
       try {
-        $modeler = $this->modelerPluginManager->createInstance($modelerId);
+        $modeler = $this->getModelerPluginManager()->createInstance($modelerId);
       }
       catch (PluginException $e) {
         return [
@@ -252,14 +536,44 @@ class Api {
       $build = $modeler->edit($owner, $model->id() ?? 'placeholder', $data, $model->isNew(), $readOnly);
     }
     // Add settings.
-    $settings = [];
+    $settings = [
+      'metadata' => [
+        'version' => $owner->getVersion($model),
+        'label' => $owner->getLabel($model),
+        'documentation' => $owner->getDocumentation($model),
+        'summary' => $owner->getSummary($model),
+        'recipes' => $owner->getRecipes($model),
+        'config_actions' => $owner->getConfigActions($model),
+        'export_config' => $owner->getExportConfig($model),
+        'modules' => $owner->getModules($model),
+        'storage' => $owner->getStorage($model),
+        'executable' => $owner->getStatus($model),
+        'template' => $owner->getTemplate($model),
+        'tags' => $owner->getTags($model),
+        'changelog' => $owner->getChangelog($model),
+      ],
+      'component_labels' => $owner->componentLabels(),
+      'component_labels_plural' => $owner->componentLabelsPlural(),
+      'model_constraints' => $this->prepareModelConstraints($owner),
+      'permissions' => ModelerApiPermissions::userPermissionsForModeler($this->getCurrentUser(), $owner->getPluginId()),
+      'favorite_components' => $owner->favoriteOwnerComponents(),
+      'global_tokens_url' => Url::fromRoute('modeler_api.global_tokens')->toString(),
+      'template_tokens_url' => Url::fromRoute('modeler_api.template_tokens', [
+        'owner_id' => $owner->getPluginId(),
+      ])->toString(),
+      'contexts' => $this->getContextListBuilder()->getList($owner->getPluginId()),
+      'dependencies' => $this->getDependencyListBuilder()->getList($owner->getPluginId()),
+      'readOnly' => $readOnly,
+      'isNew' => $model->isNew(),
+    ];
+    $modelType = $owner->configEntityTypeId();
     if ($owner->configEntityBasePath() !== NULL) {
       $settings += [
-        'save_url' => Url::fromRoute('entity.' . $owner->configEntityTypeId() . '.save', [
+        'save_url' => Url::fromRoute('entity.' . $modelType . '.save', [
           'modeler_id' => $modeler->getPluginId(),
         ])->toString(),
         'token_url' => Url::fromRoute('system.csrftoken')->toString(),
-        'collection_url' => Url::fromRoute('entity.' . $owner->configEntityTypeId() . '.collection')->toString(),
+        'collection_url' => Url::fromRoute('entity.' . $modelType . '.collection')->toString(),
       ];
     }
     else {
@@ -268,9 +582,28 @@ class Api {
       ];
     }
     $settings['mode'] = 'edit';
-    $settings['config_url'] = Url::fromRoute('entity.' . $owner->configEntityTypeId() . '.config', [
+    $settings['config_url'] = Url::fromRoute('entity.' . $modelType . '.config', [
       'modeler_id' => $modeler->getPluginId(),
     ])->toString();
+    if ($owner->supportsReplayData()) {
+      $settings['replay_url'] = Url::fromRoute('entity.' . $modelType . '.replay', [
+        'modeler_id' => $modeler->getPluginId(),
+      ])->toString();
+    }
+    if ($owner->supportsTesting()) {
+      $settings['test_url'] = Url::fromRoute('entity.' . $modelType . '.test', [
+        'modeler_id' => $modeler->getPluginId(),
+      ])->toString();
+    }
+    if (!$model->isNew() && $owner->isExportable($model)) {
+      $settings['export_url'] = Url::fromRoute('entity.' . $modelType . '.export', [
+        $modelType => $model->id(),
+      ])->toString();
+      $settings['export_recipe_url'] = Url::fromRoute('entity.' . $modelType . '.export_recipe', [
+        $modelType => $model->id(),
+      ])->toString();
+    }
+    $settings['theme'] = $this->attachTheme($build, $owner, $modeler);
     $build['#attached']['drupalSettings']['modeler_api'] = $settings;
     $build['#title'] = $this->t(':type Model: :label', [':type' => $owner->label(), ':label' => $model->label()]);
     $build['config_form'] = [
@@ -298,6 +631,57 @@ class Api {
   }
 
   /**
+   * Attaches the theme configured for an owner-modeler combination.
+   *
+   * The asset libraries of the theme are appended to the libraries the modeler
+   * attached itself, so that the CSS of the theme is loaded after the CSS of
+   * the modeler. A theme that can not be resolved, either because no module
+   * provides it anymore or because it no longer applies to this combination,
+   * is silently ignored and the modeler keeps its own look and feel.
+   *
+   * The setting carries three kinds of value: 'auto' lets the theme plugin
+   * manager pick an applicable theme, 'default' keeps the look and feel of the
+   * modeler itself, and anything else is a theme ID pinned by an
+   * administrator. A missing setting is treated as 'auto', so that a theme
+   * built for this combination takes effect as soon as its module is
+   * installed.
+   *
+   * @param array $build
+   *   The render array of the modeler, altered by reference.
+   * @param \Drupal\modeler_api\Plugin\ModelerApiModelOwner\ModelOwnerInterface $owner
+   *   The model owner.
+   * @param \Drupal\modeler_api\Plugin\ModelerApiModeler\ModelerInterface $modeler
+   *   The modeler.
+   *
+   * @return string
+   *   The ID of the theme that got attached, or 'default' if none did. This
+   *   value is handed to the client, so it is always a theme that is really
+   *   applied: 'auto' never appears here, it is resolved first.
+   */
+  protected function attachTheme(array &$build, ModelOwnerInterface $owner, ModelerInterface $modeler): string {
+    $themeId = (string) Settings::value($owner, $modeler, 'theme', Settings::THEME_OPTION_AUTO);
+    if ($themeId === Settings::THEME_OPTION_DEFAULT) {
+      return Settings::THEME_OPTION_DEFAULT;
+    }
+    if ($themeId === Settings::THEME_OPTION_AUTO) {
+      $theme = $this->getThemePluginManager()->resolveTheme($owner->getPluginId(), $modeler->getPluginId());
+    }
+    else {
+      $theme = $this->getThemePluginManager()->getTheme($themeId);
+      if ($theme !== NULL && !$theme->appliesTo($owner->getPluginId(), $modeler->getPluginId())) {
+        $theme = NULL;
+      }
+    }
+    if ($theme === NULL) {
+      return Settings::THEME_OPTION_DEFAULT;
+    }
+    foreach ($theme->getLibraries() as $library) {
+      $build['#attached']['library'][] = $library;
+    }
+    return $theme->getId();
+  }
+
+  /**
    * Parses the raw modeler data and creates/updates the model entity.
    *
    * @param string $data
@@ -320,9 +704,9 @@ class Api {
    */
   public function prepareModelFromData(string $data, string $model_owner_id, string $modeler_id, bool $isNew, bool $dry_run = FALSE, ?ConfigEntityInterface $model = NULL): ?ConfigEntityInterface {
     /** @var \Drupal\modeler_api\Plugin\ModelerApiModelOwner\ModelOwnerInterface $owner */
-    $owner = $this->modelOwnerPluginManager->createInstance($model_owner_id);
+    $owner = $this->getModelOwnerPluginManager()->createInstance($model_owner_id);
     /** @var \Drupal\modeler_api\Plugin\ModelerApiModeler\ModelerInterface $modeler */
-    $modeler = $this->modelerPluginManager->createInstance($modeler_id);
+    $modeler = $this->getModelerPluginManager()->createInstance($modeler_id);
 
     $this->errors = [];
     $modeler->parseData($owner, $data);
@@ -335,11 +719,11 @@ class Api {
     }
 
     if ($model !== NULL) {
-      $this->setOriginal($model, clone $model);
+      $model->setOriginal(clone $model);
       $owner->resetComponents($model);
     }
     else {
-      $storage = $this->entityTypeManager->getStorage($owner->configEntityTypeId());
+      $storage = $this->getEntityTypeManager()->getStorage($owner->configEntityTypeId());
       if ($dry_run) {
         /** @var \Drupal\Core\Config\Entity\ConfigEntityInterface|null $model */
         $model = $storage->create(['id' => $modelId]);
@@ -348,7 +732,7 @@ class Api {
         /** @var \Drupal\Core\Config\Entity\ConfigEntityInterface|null $model */
         $model = $storage->load($modelId);
         if ($model) {
-          $this->setOriginal($model, clone $model);
+          $model->setOriginal(clone $model);
           $owner->resetComponents($model);
         }
         else {
@@ -360,6 +744,9 @@ class Api {
     if ($owner->supportsStatus()) {
       $owner->setStatus($model, $modeler->getStatus());
     }
+    if ($owner->supportsTemplate()) {
+      $owner->setTemplate($model, $modeler->getTemplate());
+    }
     $owner
       ->setModelerId($model, $modeler_id)
       ->setChangelog($model, $modeler->getChangelog())
@@ -368,9 +755,32 @@ class Api {
       ->setDocumentation($model, $modeler->getDocumentation())
       ->setTags($model, $modeler->getTags())
       ->setVersion($model, $modeler->getVersion());
+    // The recipe metadata is optional for a modeler to carry in its raw model
+    // data. A modeler that does not returns NULL rather than an empty value,
+    // so that saving a model in it leaves settings alone that it has no way of
+    // knowing about, instead of silently dropping them.
+    if (($summary = $modeler->getSummary()) !== NULL) {
+      $owner->setSummary($model, $summary);
+    }
+    if (($recipes = $modeler->getRecipes()) !== NULL) {
+      $owner->setRecipes($model, $recipes);
+    }
+    if (($configActions = $modeler->getConfigActions()) !== NULL) {
+      $owner->setConfigActions($model, $configActions);
+    }
+    if (($exportConfig = $modeler->getExportConfig()) !== NULL) {
+      $owner->setExportConfig($model, $exportConfig);
+    }
+    if (($modules = $modeler->getModules()) !== NULL) {
+      $owner->setModules($model, $modules);
+    }
     $annotations = [];
     $colors = [];
     $swimlanes = [];
+    $componentTypeCounts = [];
+    // Track successor counts per component for successor constraints.
+    // Key: component type, Value: array of successor counts per component.
+    $successorCountsByType = [];
     foreach ($modeler->readComponents() as $component) {
       if ($color = $component->getColor()) {
         $colors[$component->getId()] = $color;
@@ -394,6 +804,23 @@ class Api {
         $annotations[] = $component;
         continue;
       }
+      // Count components by type for cardinality constraint validation.
+      $type = $component->getType();
+      $componentTypeCounts[$type] = ($componentTypeCounts[$type] ?? 0) + 1;
+      $successors = $component->getSuccessors();
+      $successorInfo = [];
+      foreach ($successors as $successor) {
+        $successorInfo[] = [
+          'targetId' => $successor->getId(),
+          'conditionId' => $successor->getConditionId(),
+        ];
+      }
+      $successorCountsByType[$type][] = [
+        'id' => $component->getId(),
+        'label' => $component->getLabel(),
+        'count' => count($successors),
+        'successors' => $successorInfo,
+      ];
       if ($errors = $component->validate()) {
         $this->errors = array_merge($this->errors, $errors);
       }
@@ -401,6 +828,8 @@ class Api {
         $this->errors[] = 'A component can not be added.';
       }
     }
+    // Validate model-level cardinality constraints.
+    $this->validateModelConstraints($owner, $componentTypeCounts, $successorCountsByType);
     $owner->setAnnotations($model, $annotations);
     $owner->setColors($model, $colors);
     $owner->setSwimlanes($model, $swimlanes);
@@ -413,6 +842,135 @@ class Api {
     }
     $this->errors = array_unique($this->errors);
     return NULL;
+  }
+
+  /**
+   * Prepares model constraints for the frontend.
+   *
+   * Translates integer component type keys to string names that the
+   * frontend understands (e.g., 'start', 'element', 'gateway').
+   *
+   * @param \Drupal\modeler_api\Plugin\ModelerApiModelOwner\ModelOwnerInterface $owner
+   *   The model owner.
+   *
+   * @return array<string, array{min?: int, max?: int}>
+   *   Constraints keyed by component type name string.
+   */
+  protected function prepareModelConstraints(ModelOwnerInterface $owner): array {
+    $constraints = $owner->modelConstraints();
+    if (empty($constraints)) {
+      return [];
+    }
+    $result = [];
+    foreach ($constraints as $type => $constraint) {
+      $typeName = self::COMPONENT_TYPE_NAMES[$type] ?? NULL;
+      if ($typeName !== NULL) {
+        $result[$typeName] = $constraint;
+      }
+    }
+    return $result;
+  }
+
+  /**
+   * Validates model-level cardinality constraints.
+   *
+   * Checks the component counts per type and per-component successor counts
+   * against the constraints declared by the model owner.
+   *
+   * @param \Drupal\modeler_api\Plugin\ModelerApiModelOwner\ModelOwnerInterface $owner
+   *   The model owner.
+   * @param array<int, int> $componentTypeCounts
+   *   Component counts keyed by component type constant.
+   * @param array<int, array<int, array{id: string, label: string, count: int, successors: array<int, array{targetId: string, conditionId: string}>}>> $successorCountsByType
+   *   Per-type list of component successor info. The 'successors' sub-array
+   *   contains one entry per outgoing edge, with the target component ID and
+   *   the condition ID (empty string when no condition is set).
+   */
+  protected function validateModelConstraints(ModelOwnerInterface $owner, array $componentTypeCounts, array $successorCountsByType): void {
+    $constraints = $owner->modelConstraints();
+    if (empty($constraints)) {
+      return;
+    }
+    $labels = $owner->componentLabels();
+    $labelsPlural = $owner->componentLabelsPlural();
+    foreach ($constraints as $type => $constraint) {
+      $count = $componentTypeCounts[$type] ?? 0;
+      $typeName = self::COMPONENT_TYPE_NAMES[$type] ?? 'unknown';
+      $label = $labels[$typeName] ?? $typeName;
+      $labelPlural = $labelsPlural[$typeName] ?? $label . 's';
+      if (isset($constraint['min']) && $count < $constraint['min']) {
+        $this->errors[] = $constraint['min'] === 1
+          ? (string) $this->t('A model requires at least one @label.', [
+            '@label' => $label,
+          ])
+          : (string) $this->t('A model requires at least @min @label_plural.', [
+            '@min' => $constraint['min'],
+            '@label_plural' => $labelPlural,
+          ]);
+      }
+      if (isset($constraint['max']) && $count > $constraint['max']) {
+        $this->errors[] = $constraint['max'] === 1
+          ? (string) $this->t('A model allows at most one @label.', [
+            '@label' => $label,
+          ])
+          : (string) $this->t('A model allows at most @max @label_plural.', [
+            '@max' => $constraint['max'],
+            '@label_plural' => $labelPlural,
+          ]);
+      }
+      // Validate successor cardinality per component.
+      if (isset($constraint['successors']) && isset($successorCountsByType[$type])) {
+        $sConstraint = $constraint['successors'];
+        foreach ($successorCountsByType[$type] as $info) {
+          if (isset($sConstraint['min']) && $info['count'] < $sConstraint['min']) {
+            $this->errors[] = (string) $this->t('@label "@name" requires at least @min successor(s).', [
+              '@label' => $label,
+              '@name' => $info['label'],
+              '@min' => $sConstraint['min'],
+            ]);
+          }
+          if (isset($sConstraint['max']) && $info['count'] > $sConstraint['max']) {
+            $this->errors[] = $sConstraint['max'] === 0
+              ? (string) $this->t('@label "@name" must not have any successors.', [
+                '@label' => $label,
+                '@name' => $info['label'],
+              ])
+              : (string) $this->t('@label "@name" allows at most @max successor(s).', [
+                '@label' => $label,
+                '@name' => $info['label'],
+                '@max' => $sConstraint['max'],
+              ]);
+          }
+          // Validate the opt-in "parallel successors require conditions" rule.
+          // When two or more successors of the same component point at the
+          // same target, every one of them must carry a non-empty conditionId.
+          // Otherwise the runtime semantics are degenerate (the same target
+          // would be invoked multiple times unconditionally).
+          if (!empty($sConstraint['requireConditionWhenParallel']) && !empty($info['successors'])) {
+            $byTarget = [];
+            foreach ($info['successors'] as $successorInfo) {
+              $byTarget[$successorInfo['targetId']][] = $successorInfo;
+            }
+            foreach ($byTarget as $targetId => $group) {
+              if (count($group) < 2) {
+                continue;
+              }
+              foreach ($group as $successorInfo) {
+                if ($successorInfo['conditionId'] === '') {
+                  $this->errors[] = (string) $this->t('@label "@name" has parallel successors to "@target" without a condition on every edge. When multiple edges connect the same source and target, each edge must carry a condition.', [
+                    '@label' => $label,
+                    '@name' => $info['label'],
+                    '@target' => $targetId,
+                  ]);
+                  // One error per (source, target) pair is enough.
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -444,7 +1002,7 @@ class Api {
     if ($archiveFileName !== NULL) {
       if (file_exists($archiveFileName)) {
         try {
-          @$this->fileSystem->delete($archiveFileName);
+          @$this->getFileSystem()->delete($archiveFileName);
         }
         catch (FileException) {
           // Ignore failed deletes.
@@ -452,7 +1010,7 @@ class Api {
       }
       $archiver = new ArchiveTar($archiveFileName, 'gz');
       foreach ($dependencies['config'] as $name) {
-        $config = $this->configStorage->read($name);
+        $config = $this->getConfigStorage()->read($name);
         if ($config) {
           unset($config['uuid'], $config['_core']);
           $archiver->addString("$name.yml", Yaml::encode($config));
@@ -475,14 +1033,35 @@ class Api {
   }
 
   /**
+   * Exports a model as a standalone graph artifact.
+   *
+   * @param \Drupal\modeler_api\Plugin\ModelerApiModelOwner\ModelOwnerInterface $owner
+   *   The model owner.
+   * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
+   *   The model to export.
+   *
+   * @return string|null
+   *   The serialized graph artifact, or NULL when the modeler's export format
+   *   does not support a standalone graph artifact.
+   */
+  public function exportModelGraph(ModelOwnerInterface $owner, ConfigEntityInterface $model): ?string {
+    return $owner->getModeler($model)?->export($owner, $model);
+  }
+
+  /**
    * Recursively determines config dependencies.
    *
    * @param array $allDependencies
    *   The list of all dependencies.
    * @param array $dependencies
    *   The list of dependencies to be added.
+   * @param bool $followRoles
+   *   Whether to descend into the dependencies of a role. A role depends on
+   *   whatever the permissions it carries on this site target, so a caller
+   *   that ships the role without its permissions passes FALSE to keep those
+   *   objects and modules out of the closure.
    */
-  public function getNestedDependencies(array &$allDependencies, array $dependencies): void {
+  public function getNestedDependencies(array &$allDependencies, array $dependencies, bool $followRoles = TRUE): void {
     foreach ($dependencies['module'] ?? [] as $module) {
       if (!in_array($module, $allDependencies['module'], TRUE)) {
         $allDependencies['module'][] = $module;
@@ -494,9 +1073,12 @@ class Api {
     foreach ($dependencies['config'] as $dependency) {
       if (!in_array($dependency, $allDependencies['config'], TRUE)) {
         $allDependencies['config'][] = $dependency;
-        $depConfig = $this->configFactory->get($dependency)->getStorage()->read($dependency);
+        if (!$followRoles && str_starts_with($dependency, 'user.role.')) {
+          continue;
+        }
+        $depConfig = $this->getConfigFactory()->get($dependency)->getStorage()->read($dependency);
         if ($depConfig && isset($depConfig['dependencies'])) {
-          $this->getNestedDependencies($allDependencies, $depConfig['dependencies']);
+          $this->getNestedDependencies($allDependencies, $depConfig['dependencies'], $followRoles);
         }
       }
     }
@@ -519,13 +1101,87 @@ class Api {
   }
 
   /**
+   * Gets all available contexts.
+   *
+   * @return \Drupal\modeler_api\Context[]
+   *   The list of all contexts, keyed by context ID.
+   */
+  public function getContexts(): array {
+    return $this->getContextPluginManager()->getAllContexts();
+  }
+
+  /**
+   * Gets a single context by its ID.
+   *
+   * @param string $id
+   *   The context ID.
+   *
+   * @return \Drupal\modeler_api\Context|null
+   *   The context, or NULL if not found.
+   */
+  public function getContext(string $id): ?Context {
+    return $this->getContextPluginManager()->getContext($id);
+  }
+
+  /**
+   * Gets all contexts for a given model owner.
+   *
+   * @param \Drupal\modeler_api\Plugin\ModelerApiModelOwner\ModelOwnerInterface|string $owner
+   *   The model owner plugin instance or its ID.
+   *
+   * @return \Drupal\modeler_api\Context[]
+   *   The list of contexts for the given model owner, keyed by context ID.
+   */
+  public function getContextsByModelOwner(ModelOwnerInterface|string $owner): array {
+    $ownerId = is_string($owner) ? $owner : $owner->getPluginId();
+    return $this->getContextPluginManager()->getContextsByModelOwner($ownerId);
+  }
+
+  /**
+   * Gets all dependency definitions.
+   *
+   * @return \Drupal\modeler_api\Dependency[]
+   *   The list of all dependency definitions, keyed by dependency ID.
+   */
+  public function getDependencies(): array {
+    return $this->getDependencyPluginManager()->getAllDependencies();
+  }
+
+  /**
+   * Gets a single dependency definition by its ID.
+   *
+   * @param string $id
+   *   The dependency ID.
+   *
+   * @return \Drupal\modeler_api\Dependency|null
+   *   The dependency, or NULL if not found.
+   */
+  public function getDependency(string $id): ?Dependency {
+    return $this->getDependencyPluginManager()->getDependency($id);
+  }
+
+  /**
+   * Gets all dependency definitions for a given model owner.
+   *
+   * @param \Drupal\modeler_api\Plugin\ModelerApiModelOwner\ModelOwnerInterface|string $owner
+   *   The model owner plugin instance or its ID.
+   *
+   * @return \Drupal\modeler_api\Dependency[]
+   *   The list of dependencies for the given model owner, keyed by ID.
+   */
+  public function getDependenciesByModelOwner(ModelOwnerInterface|string $owner): array {
+    $ownerId = is_string($owner) ? $owner : $owner->getPluginId();
+    return $this->getDependencyPluginManager()->getDependenciesByModelOwner($ownerId);
+  }
+
+  /**
    * Gets error messages that got collected through data preparation.
    *
    * @return string[]
    *   The error messages that got collected through data preparation.
    */
   public function getErrors(): array {
-    return $this->errors ?? [];
+    return $this->errors;
   }
 
   /**
@@ -539,7 +1195,7 @@ class Api {
    */
   public function getRouteByName(string $name): ?Route {
     try {
-      return $this->routeProvider->getRouteByName($name);
+      return $this->getRouteProvider()->getRouteByName($name);
     }
     catch (RouteNotFoundException) {
       // If the route can not be found, don't set the configure route.
@@ -548,25 +1204,52 @@ class Api {
   }
 
   /**
-   * Gets the menu name of the parent path.
+   * Gets the parent menu link plugin ID for the given path.
+   *
+   * The parent path is resolved to a route, and that route is then mapped to
+   * the menu link plugin ID that points at it. Drupal's menu system expects
+   * the "parent" key of a menu link to be a menu link plugin ID, not a route
+   * name. These are only sometimes identical (e.g. many core system links name
+   * the plugin after its route), so resolving the actual plugin ID is required
+   * for derived links to attach to the menu tree.
    *
    * @param string $path
    *   The path of which we search for the parent path.
    *
    * @return string|null
-   *   The menu name of the parent path, if we can find it, FALSE otherwise.
+   *   The menu link plugin ID of the parent path, if we can find it, NULL
+   *   otherwise.
    */
   public function getParentMenuName(string $path): ?string {
-    $parts = explode('/', trim($path, '/'));
-    array_pop($parts);
-    $path = implode('/', $parts);
-    $url = Url::fromUri('internal:/' . $path);
-    $links = $this->menuLinkManager->loadLinksByRoute($url->getRouteName(), $url->getRouteParameters());
-    if (!empty($links)) {
-      $menuLink = reset($links);
-      return $menuLink->getPluginId();
+    // Strip the last path segment to get the parent path.
+    $parentPath = substr($path, 0, strrpos(trim($path, '/'), '/'));
+    if (empty($parentPath)) {
+      return NULL;
     }
-    return NULL;
+
+    try {
+      $result = $this->getRouter()->match('/' . $parentPath);
+    }
+    catch (\Exception) {
+      return NULL;
+    }
+    $routeName = $result['_route'] ?? NULL;
+    if ($routeName === NULL) {
+      return NULL;
+    }
+
+    // Map the route name to a menu link plugin ID. A single route may have
+    // more than one menu link pointing at it; the first match is sufficient
+    // to attach the derived link to the menu tree.
+    $links = $this->getMenuLinkManager()->loadLinksByRoute($routeName);
+    if ($links !== []) {
+      return (string) array_key_first($links);
+    }
+
+    // Fall back to the route name. This preserves the behavior for parents
+    // whose menu link plugin ID is identical to the route name (e.g. core's
+    // "system.admin_config_workflow") and for which no link was loaded above.
+    return $routeName;
   }
 
   /**
@@ -589,6 +1272,105 @@ class Api {
       }
     }
     return Url::fromRoute($name, [$type => $id]);
+  }
+
+  /**
+   * Prepares the global tokens for the modeler.
+   *
+   * @return array
+   *   The global tokens.
+   */
+  public function prepareGlobalTokens(): array {
+    $treeBuilder = $this->getTokenTreeBuilder();
+    if ($treeBuilder === NULL) {
+      return [];
+    }
+    // If the token tree builder is available, the token service will be the
+    // one from contrib module. But we don't declare the dependency.
+    $tokenService = $this->getTokenService();
+
+    $tokens = [];
+    try {
+      $tokenInfo = $tokenService->getInfo();
+    }
+    catch (\Throwable) {
+      return [];
+    }
+    // @phpstan-ignore-next-line
+    foreach ($tokenService->getGlobalTokenTypes() as $type) {
+      try {
+        $tree = $treeBuilder->buildTree($type);
+      }
+      catch (\Throwable) {
+        // Skip this token type to prevent WSOD.
+        continue;
+      }
+      $tokens[$type] = [
+        'name' => $tokenInfo['types'][$type]['name'] ?? (string) $type,
+        'children' => [],
+      ];
+      foreach ($tree as $token => $def) {
+        try {
+          $tokens[$type]['children'][$token] = $this->prepareTokenDefinition($def, $tokenService);
+        }
+        catch (\Throwable) {
+          // Skip this single token to prevent WSOD.
+          continue;
+        }
+      }
+    }
+    return $tokens;
+  }
+
+  /**
+   * Prepares the template tokens for the modeler.
+   *
+   * @param \Drupal\modeler_api\Plugin\ModelerApiModelOwner\ModelOwnerInterface $owner
+   *   The model owner.
+   *
+   * @return array
+   *   The template tokens.
+   */
+  public function prepareTemplateTokens(ModelOwnerInterface $owner): array {
+    if (!$owner->supportsTemplate()) {
+      return [];
+    }
+    return $this->getTemplateTokenListBuilder()->getList($owner->getPluginId());
+  }
+
+  /**
+   * Recursively prepare token definitions by resolving its value and children.
+   *
+   * @param array $def
+   *   The token definitions.
+   * @param \Drupal\Core\Utility\Token $tokenService
+   *   The token service.
+   *
+   * @return array
+   *   The token definitions.
+   */
+  private function prepareTokenDefinition(array $def, BaseToken $tokenService): array {
+    if (empty($def['children'])) {
+      try {
+        $def['value'] = $tokenService->replace($def['raw token'] ?? '', [], ['clear' => TRUE]);
+      }
+      catch (\Throwable) {
+        // Ignore this single token replacement to prevent WSOD.
+        $def['value'] = '';
+      }
+    }
+    else {
+      foreach ($def['children'] as $childToken => $childDef) {
+        try {
+          $def['children'][$childToken] = $this->prepareTokenDefinition($childDef, $tokenService);
+        }
+        catch (\Throwable) {
+          // Skip this single child token to prevent WSOD.
+          unset($def['children'][$childToken]);
+        }
+      }
+    }
+    return $def;
   }
 
 }

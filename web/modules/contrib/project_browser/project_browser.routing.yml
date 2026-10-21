@@ -46,6 +46,7 @@ project_browser.activate:
     _controller: '\Drupal\project_browser\Controller\ProjectBrowserEndpointController::activate'
   requirements:
     _permission: 'administer modules'
+    _csrf_token: 'TRUE'
   options:
     requirements:
       _format: json
@@ -56,6 +57,7 @@ project_browser.uninstall:
     _controller: '\Drupal\project_browser\Controller\ProjectBrowserEndpointController::uninstall'
   requirements:
     _permission: 'administer modules'
+    _csrf_token: 'TRUE'
 
 route_callbacks:
   - '\Drupal\project_browser\Routing\ProjectBrowserRoutes::routes'

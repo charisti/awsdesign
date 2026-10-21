@@ -50,12 +50,12 @@ props:
             description: The header object for the toast with title, subtitle, and optional classes.
             properties:
               title:
-                type: string
+                type: ['string', 'null', 'object', 'array', 'boolean', 'number']
                 title: Title
                 description: The title displayed in the toast header.
                 default: ''
               subtitle:
-                type: string
+                type: ['string', 'null', 'object', 'array', 'boolean', 'number']
                 title: Subtitle
                 description: The subtitle displayed in the toast header.
                 default: ''
@@ -65,7 +65,7 @@ props:
                 description: Additional classes for styling the toast header.
                 default: ''
           body:
-            type: string
+            type: ['string', 'null', 'object', 'array', 'boolean', 'number']
             title: Body
             description: The body content of the toast.
             default: ''

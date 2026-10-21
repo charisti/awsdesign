@@ -5,15 +5,22 @@ declare(strict_types=1);
 namespace Drupal\Tests\automatic_updates\Kernel\StatusCheck;
 
 use Drupal\automatic_updates\CronUpdateRunner;
+use Drupal\automatic_updates\Validator\CronFrequencyValidator;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\package_manager\ValidationResult;
 use Drupal\Tests\automatic_updates\Kernel\AutomaticUpdatesKernelTestBase;
 use Drupal\Tests\automatic_updates\Kernel\TestCronUpdateRunner;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @covers \Drupal\automatic_updates\Validator\CronFrequencyValidator
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(CronFrequencyValidator::class)]
+#[RunTestsInSeparateProcesses]
 class CronFrequencyValidatorTest extends AutomaticUpdatesKernelTestBase {
 
   /**
@@ -65,7 +72,7 @@ class CronFrequencyValidatorTest extends AutomaticUpdatesKernelTestBase {
       ->set('unattended.method', 'web')
       ->save();
     $error = ValidationResult::createError([
-      t('Cron has not run recently. For more information, see the online handbook entry for <a href="https://www.drupal.org/cron">configuring cron jobs</a> to run at least every 3 hours.'),
+      new TranslatableMarkup('Cron has not run recently. For more information, see the online handbook entry for <a href="https://www.drupal.org/cron">configuring cron jobs</a> to run at least every 3 hours.'),
     ]);
     $this->assertCheckerResultsFromManager([$error], TRUE);
   }
@@ -104,9 +111,8 @@ class CronFrequencyValidatorTest extends AutomaticUpdatesKernelTestBase {
    *   A timestamp of the last time cron ran.
    * @param \Drupal\package_manager\ValidationResult[] $expected_results
    *   The expected validation results.
-   *
-   * @dataProvider providerLastCronRunValidation
    */
+  #[DataProvider('providerLastCronRunValidation')]
   public function testLastCronRunValidation(int $last_run, array $expected_results): void {
     $this->container->get('state')->set('system.cron_last', $last_run);
     $this->assertCheckerResultsFromManager($expected_results, TRUE);

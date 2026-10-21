@@ -3,11 +3,11 @@
 namespace Drupal\dashboard\Form;
 
 use Drupal\Component\Utility\Html;
+use Drupal\Core\DependencyInjection\AutowireTrait;
 use Drupal\Core\Entity\EntityForm;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\layout_builder\LayoutTempstoreRepositoryInterface;
 use Drupal\layout_builder\SectionStorageInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Dashboard form.
@@ -15,6 +15,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * @property \Drupal\dashboard\DashboardInterface $entity
  */
 class DashboardLayoutBuilderForm extends EntityForm {
+
+  use AutowireTrait;
 
   /**
    * The section storage.
@@ -31,17 +33,7 @@ class DashboardLayoutBuilderForm extends EntityForm {
    */
   public function __construct(
     protected LayoutTempstoreRepositoryInterface $layoutTempstoreRepository,
-  ) {
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function create(ContainerInterface $container) {
-    return new static(
-      $container->get('layout_builder.tempstore_repository')
-    );
-  }
+  ) {}
 
   /**
    * {@inheritdoc}

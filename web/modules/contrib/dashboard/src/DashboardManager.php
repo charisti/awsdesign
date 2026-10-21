@@ -21,8 +21,7 @@ class DashboardManager {
   public function __construct(
     protected AccountInterface $currentUser,
     protected EntityTypeManagerInterface $entityTypeManager,
-  ) {
-  }
+  ) {}
 
   /**
    * Returns the default dashboard entity for the current user if available.

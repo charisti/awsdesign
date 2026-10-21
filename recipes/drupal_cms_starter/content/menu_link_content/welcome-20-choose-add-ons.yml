@@ -16,7 +16,7 @@ default:
       value: welcome
   link:
     -
-      uri: 'internal:/admin/modules/browse/recipes'
+      uri: 'internal:/admin/modules/browse'
       title: ''
       options: {  }
   external:

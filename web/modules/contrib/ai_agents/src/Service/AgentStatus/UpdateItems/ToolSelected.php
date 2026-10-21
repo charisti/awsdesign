@@ -39,6 +39,13 @@ class ToolSelected extends StatusBase implements ToolSelectedInterface {
   protected string $toolFeedbackMessage;
 
   /**
+   * Whether the tool was selected by the agent or run automatically.
+   *
+   * @var bool
+   */
+  protected bool $isAgentDecision;
+
+  /**
    * Modified constructor to include tool name and tool input.
    *
    * @param float $time
@@ -59,6 +66,9 @@ class ToolSelected extends StatusBase implements ToolSelectedInterface {
    *   The feedback message for the tool selected.
    * @param string|null $calling_agent_id
    *   The calling agent id in the hierarchy. This is optional and can be null.
+   * @param bool $is_agent_decision
+   *   Whether the tool was selected by the agent (TRUE) or is a default
+   *   information tool run automatically (FALSE).
    */
   public function __construct(
     float $time,
@@ -70,6 +80,7 @@ class ToolSelected extends StatusBase implements ToolSelectedInterface {
     string $tool_id,
     string $tool_feedback_message = '',
     ?string $calling_agent_id = NULL,
+    bool $is_agent_decision = TRUE,
   ) {
     parent::__construct(
       time: $time,
@@ -82,6 +93,17 @@ class ToolSelected extends StatusBase implements ToolSelectedInterface {
     $this->toolName = $tool_name;
     $this->toolInput = $tool_input;
     $this->toolFeedbackMessage = $tool_feedback_message;
+    $this->isAgentDecision = $is_agent_decision;
+  }
+
+  /**
+   * Whether the tool was selected by the agent or run automatically.
+   *
+   * @return bool
+   *   TRUE if agent-decided, FALSE if a default information tool.
+   */
+  public function isAgentDecision(): bool {
+    return $this->isAgentDecision;
   }
 
   /**
@@ -157,6 +179,7 @@ class ToolSelected extends StatusBase implements ToolSelectedInterface {
       'tool_input' => $this->toolInput,
       'tool_feedback_message' => $this->toolFeedbackMessage,
       'tool_id' => $this->toolId,
+      'is_agent_decision' => $this->isAgentDecision,
     ];
   }
 
@@ -174,6 +197,7 @@ class ToolSelected extends StatusBase implements ToolSelectedInterface {
       calling_agent_id: $data['calling_agent_id'] ?? NULL,
       tool_id: $data['tool_id'] ?? '',
       tool_feedback_message: $data['tool_feedback_message'] ?? '',
+      is_agent_decision: $data['is_agent_decision'] ?? TRUE,
     );
   }
 

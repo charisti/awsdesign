@@ -11,12 +11,17 @@ use Drupal\Core\Logger\RfcLogLevel;
 use Drupal\package_manager\ValidationResult;
 use Drupal\Tests\automatic_updates\Kernel\AutomaticUpdatesKernelTestBase;
 use Drupal\Tests\user\Traits\UserCreationTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @covers \Drupal\automatic_updates\Validator\WindowsValidator
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(WindowsValidator::class)]
+#[RunTestsInSeparateProcesses]
 class WindowsValidatorTest extends AutomaticUpdatesKernelTestBase {
 
   use UserCreationTrait;
@@ -110,12 +115,11 @@ class WindowsValidatorTest extends AutomaticUpdatesKernelTestBase {
    *   The `automatic_updates.settings:unattended` config values.
    * @param \Drupal\package_manager\ValidationResult[] $expected_results
    *   The expected validation results on Windows.
-   *
-   * @dataProvider providerBackgroundUpdatesDisallowedOnWindows
    */
+  #[DataProvider('providerBackgroundUpdatesDisallowedOnWindows')]
   public function testBackgroundUpdatesDisallowedOnWindows(array $user_permissions, array $unattended_update_settings, array $expected_results): void {
     if ($user_permissions) {
-      $this->setUpCurrentUser([], $user_permissions, FALSE);
+      $this->setUpCurrentUser(permissions: $user_permissions);
     }
 
     $this->config('automatic_updates.settings')

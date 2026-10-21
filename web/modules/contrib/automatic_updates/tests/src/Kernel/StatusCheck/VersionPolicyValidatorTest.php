@@ -7,18 +7,24 @@ namespace Drupal\Tests\automatic_updates\Kernel\StatusCheck;
 use Drupal\automatic_updates\CronUpdateRunner;
 use Drupal\automatic_updates\ConsoleUpdateSandboxManager;
 use Drupal\automatic_updates\UpdateSandboxManager;
+use Drupal\automatic_updates\Validator\VersionPolicyValidator;
 use Drupal\fixture_manipulator\ActiveFixtureManipulator;
 use Drupal\package_manager\Event\PreCreateEvent;
 use Drupal\package_manager\Exception\SandboxEventException;
 use Drupal\package_manager\Exception\SandboxException;
 use Drupal\package_manager\ValidationResult;
 use Drupal\Tests\automatic_updates\Kernel\AutomaticUpdatesKernelTestBase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @covers \Drupal\automatic_updates\Validator\VersionPolicyValidator
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(VersionPolicyValidator::class)]
+#[RunTestsInSeparateProcesses]
 class VersionPolicyValidatorTest extends AutomaticUpdatesKernelTestBase {
 
   /**
@@ -189,10 +195,9 @@ class VersionPolicyValidatorTest extends AutomaticUpdatesKernelTestBase {
    * @param bool $allow_minor_updates
    *   (optional) Whether or not attended updates across minor updates are
    *   allowed. Defaults to FALSE.
-   *
-   * @dataProvider providerGeneric
-   * @dataProvider providerStatusCheckSpecific
    */
+  #[DataProvider('providerStatusCheckSpecific')]
+  #[DataProvider('providerGeneric')]
   public function testStatusCheck(string $installed_version, ?string $target_version, string $release_metadata, array $cron_modes, array $expected_validation_messages, bool $allow_minor_updates = FALSE): void {
     $this->setCoreVersion($installed_version);
     $this->setReleaseMetadata(['drupal' => $release_metadata]);
@@ -390,10 +395,9 @@ class VersionPolicyValidatorTest extends AutomaticUpdatesKernelTestBase {
    * @param bool $allow_minor_updates
    *   (optional) Whether or not attended updates across minor updates are
    *   allowed. Defaults to FALSE.
-   *
-   * @dataProvider providerGeneric
-   * @dataProvider providerCronPreCreateSpecific
    */
+  #[DataProvider('providerCronPreCreateSpecific')]
+  #[DataProvider('providerGeneric')]
   public function testCronPreCreate(string $installed_version, string $target_version, string $release_metadata, array $cron_modes, array $expected_validation_messages, bool $allow_minor_updates = FALSE): void {
     $this->setCoreVersion($installed_version);
     $this->setReleaseMetadata(['drupal' => $release_metadata]);
@@ -612,9 +616,8 @@ class VersionPolicyValidatorTest extends AutomaticUpdatesKernelTestBase {
    * @param bool $allow_minor_updates
    *   (optional) Whether to allow attended updates across minor versions.
    *   Defaults to FALSE.
-   *
-   * @dataProvider providerApi
    */
+  #[DataProvider('providerApi')]
   public function testApi(string $installed_version, string $release_metadata, array $project_versions, array $expected_results, bool $allow_minor_updates = FALSE): void {
     $this->setCoreVersion($installed_version);
     $this->setReleaseMetadata(['drupal' => $release_metadata]);

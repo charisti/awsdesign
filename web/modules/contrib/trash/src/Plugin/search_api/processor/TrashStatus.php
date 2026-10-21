@@ -7,6 +7,7 @@ namespace Drupal\trash\Plugin\search_api\processor;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\search_api\IndexInterface;
 use Drupal\search_api\Processor\ProcessorPluginBase;
+use Drupal\trash\Trash;
 
 /**
  * Excludes soft-deleted entities.
@@ -51,7 +52,7 @@ class TrashStatus extends ProcessorPluginBase {
     /** @var \Drupal\search_api\Item\ItemInterface $item */
     foreach ($items as $item_id => $item) {
       $object = $item->getOriginalObject()->getValue();
-      if ($object instanceof EntityInterface && trash_entity_is_deleted($object)) {
+      if ($object instanceof EntityInterface && Trash::entityIsDeleted($object)) {
         unset($items[$item_id]);
       }
     }

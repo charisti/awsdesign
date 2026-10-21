@@ -2,10 +2,13 @@
 
 namespace Drupal\checklistapi\Storage;
 
+use Drupal\Core\Cache\Cache;
+use Drupal\Core\Cache\CacheableDependencyInterface;
+
 /**
  * Provides a base storage implementation for others to extend.
  */
-abstract class StorageBase implements StorageInterface {
+abstract class StorageBase implements StorageInterface, CacheableDependencyInterface {
 
   /**
    * The checklist ID.
@@ -42,6 +45,27 @@ abstract class StorageBase implements StorageInterface {
       throw new \LogicException('You must set the checklist ID before accessing saved progress.');
     }
     return $this->checklistId;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getCacheTags() {
+    return ['checklistapi:' . $this->getChecklistId()];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getCacheContexts() {
+    return [];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getCacheMaxAge() {
+    return Cache::PERMANENT;
   }
 
 }

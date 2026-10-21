@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\addtocal_augment\Unit;
 
+use PHPUnit\Framework\Attributes\Group;
 use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Tests\UnitTestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -16,6 +17,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  *
  * @see \Drupal\addtocal_augment\Plugin\DateAugmenter\AddToCal
  */
+#[Group('addtocal_augment')]
 class BasicLinkTest extends UnitTestCase {
 
   /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\trash;
 
 use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\trash\Handler\TrashHandlerInterface;
 
 /**
@@ -95,13 +96,26 @@ interface TrashManagerInterface {
    *
    * @param string $context
    *   One of 'active', 'inactive' or 'ignore'.
-   * @param callable $function
+   * @param callable(): T $function
    *   The callback to be executed.
    *
    * @return mixed
    *   The callable's return value.
+   *
+   * @template T
+   * @phpstan-return T
    */
   public function executeInTrashContext($context, callable $function): mixed;
+
+  /**
+   * Registers a trash handler.
+   *
+   * @param \Drupal\trash\Handler\TrashHandlerInterface $handler
+   *   The trash handler service.
+   * @param string $entity_type_id
+   *   The entity type ID the handler is registered for.
+   */
+  public function addHandler(TrashHandlerInterface $handler, string $entity_type_id): void;
 
   /**
    * Gets the trash handler for a given entity type.
@@ -116,5 +130,13 @@ interface TrashManagerInterface {
    * @see \Drupal\trash\Handler\TrashHandlerPass
    */
   public function getHandler(string $entity_type_id): ?TrashHandlerInterface;
+
+  /**
+   * Gets the base field definition for the 'deleted' field.
+   *
+   * @return \Drupal\Core\Field\BaseFieldDefinition
+   *   The base field definition.
+   */
+  public function getDeletedFieldDefinition(): BaseFieldDefinition;
 
 }

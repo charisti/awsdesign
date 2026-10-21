@@ -25,6 +25,6 @@ interface DateAugmenterInterface extends PluginInspectionInterface {
    * @return array
    *   Returns a render array for the output of the task;
    */
-  public function augmentOutput(array &$output, DrupalDateTime $start, DrupalDateTime $end = NULL, array $options = []);
+  public function augmentOutput(array &$output, DrupalDateTime $start, ?DrupalDateTime $end = NULL, array $options = []);
 
 }

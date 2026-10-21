@@ -7,12 +7,15 @@ namespace Drupal\Tests\migrate_plus\Kernel\Plugin\migrate_plus\data_parser;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\migrate_plus\DataParserPluginInterface;
 use Drupal\migrate_plus\DataParserPluginManager;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Test of the data_parser SimpleXml migrate_plus plugin.
- *
- * @group migrate_plus
  */
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 abstract class BaseXml extends KernelTestBase {
 
   /**
@@ -23,7 +26,7 @@ abstract class BaseXml extends KernelTestBase {
   /**
    * Path for the xml file.
    */
-  protected ?string $path;
+  protected ?string $path = NULL;
 
   /**
    * The plugin manager.
@@ -33,12 +36,12 @@ abstract class BaseXml extends KernelTestBase {
   /**
    * The plugin configuration.
    */
-  protected ?array $configuration;
+  protected ?array $configuration = NULL;
 
   /**
    * The expected result.
    */
-  protected ?array $expected;
+  protected ?array $expected = NULL;
 
   /**
    * {@inheritdoc}
@@ -199,6 +202,7 @@ abstract class BaseXml extends KernelTestBase {
    *
    * @dataProvider predicateMatchProvider
    */
+  #[DataProvider('predicateMatchProvider')]
   public function testPredicateMatch(string $item_selector, array $expected_items): void {
     $url = $this->path . '/tests/data/xml_items.xml';
     $this->configuration['urls'][0] = $url;

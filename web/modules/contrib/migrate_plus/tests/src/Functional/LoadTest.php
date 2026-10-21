@@ -6,12 +6,14 @@ namespace Drupal\Tests\migrate_plus\Functional;
 
 use Drupal\Core\Url;
 use Drupal\Tests\BrowserTestBase;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Simple test to ensure that main page loads with module enabled.
- *
- * @group migrate_plus
  */
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 final class LoadTest extends BrowserTestBase {
 
   /**

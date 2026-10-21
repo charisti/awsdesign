@@ -4,22 +4,19 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\migrate_plus\Unit\data_fetcher;
 
-use org\bovigo\vfs\vfsStreamDirectory;
 use Drupal\migrate\MigrateException;
 use Drupal\migrate_plus\Plugin\migrate_plus\data_fetcher\File;
 use Drupal\Tests\migrate\Unit\MigrateTestCase;
 use org\bovigo\vfs\vfsStream;
+use org\bovigo\vfs\vfsStreamDirectory;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
- * @file
- * PHPUnit tests for the Migrate Plus File 'data fetcher' plugin.
+ * Test the file data fetcher plugin.
  */
-
-/**
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate_plus\data_fetcher\File
- *
- * @group migrate_plus
- */
+#[CoversClass(File::class)]
+#[Group('migrate_plus')]
 final class FileTest extends MigrateTestCase {
 
   /**

@@ -2,6 +2,8 @@
 
 namespace Drupal\ai_automators\FormAlter;
 
+use Drupal\ai\Guardrail\AiGuardrailHelper;
+use Drupal\ai\Utility\Textarea;
 use Drupal\Core\DependencyInjection\DependencySerializationTrait;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
@@ -34,6 +36,8 @@ class AiAutomatorFieldConfig {
    *   The process manager.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
+   * @param \Drupal\ai\Guardrail\AiGuardrailHelper $aiGuardrailHelper
+   *   The AI guardrail helper.
    */
   public function __construct(
     protected EntityFieldManagerInterface $fieldManager,
@@ -41,6 +45,7 @@ class AiAutomatorFieldConfig {
     protected RouteMatchInterface $routeMatch,
     protected AiAutomatorFieldProcessManager $processes,
     protected EntityTypeManagerInterface $entityTypeManager,
+    protected AiGuardrailHelper $aiGuardrailHelper,
   ) {
   }
 
@@ -108,7 +113,7 @@ class AiAutomatorFieldConfig {
 
     /** @var \Drupal\ai_automators\Entity\AiAutomator $aiConfig */
     $aiConfig = $this->entityTypeManager->getStorage('ai_automator')->load($id);
-
+    $formState->set('ai_automator', $aiConfig);
     $form['automator_enabled'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Enable AI Automator'),
@@ -125,7 +130,7 @@ class AiAutomatorFieldConfig {
       $rulesOptions[$ruleKey] = $rule->title;
     }
 
-    $chosenRule = $formState->getValue('automator_rule') ?? NULL;
+    $chosenRule = $formState->getValue('automator_rule');
     if (empty($chosenRule) && !is_null($aiConfig)) {
       $chosenRule = $aiConfig->get('rule');
     }
@@ -257,18 +262,27 @@ class AiAutomatorFieldConfig {
         $form['automator_container']['normal_prompt']['automator_prompt'] = [
           '#type' => 'textarea',
           '#title' => $this->t('Automator Prompt'),
-          '#description' => $this->t('The prompt to use to fill this field.'),
+          '#description' => $this->t('The prompt to use to fill this field. The Base Field content is only included if the prompt references it: <code>{{ context }}</code> for the text with HTML stripped, or <code>{{ raw_context }}</code> to keep it.'),
           '#attributes' => [
             'placeholder' => $rule->placeholderText(),
           ],
           '#default_value' => !is_null($aiConfig) ? $aiConfig->get('prompt') : NULL,
           '#weight' => 10,
+          // This property will land into core soon, see
+          // https://www.drupal.org/project/drupal/issues/3202631. It can stay
+          // after this is added to Drupal core.
+          '#normalize_newlines' => TRUE,
+          // Until that the custom value callback is needed. Should be removed
+          // after the issue mentioned above is merged into core and the minimum
+          // supported Drupal version includes `#normalize_newlines` property.
+          '#value_callback' => [Textarea::class, 'valueCallback'],
         ];
 
         // Placeholders available.
         $form['automator_container']['normal_prompt']['automator_prompt_placeholders'] = [
           '#type' => 'details',
           '#title' => $this->t('Placeholders available'),
+          '#open' => TRUE,
           '#weight' => 15,
         ];
 
@@ -304,6 +318,14 @@ class AiAutomatorFieldConfig {
           '#title' => $this->t('Automator Prompt (Token)'),
           '#description' => $this->t('The prompt to use to fill this field.'),
           '#default_value' => !is_null($aiConfig) ? $aiConfig->get('token') : NULL,
+          // This property will land into core soon, see
+          // https://www.drupal.org/project/drupal/issues/3202631. It can stay
+          // after this is added to Drupal core.
+          '#normalize_newlines' => TRUE,
+          // Until that the custom value callback is needed. Should be removed
+          // after the issue mentioned above is merged into core and the minimum
+          // supported Drupal version includes `#normalize_newlines` property.
+          '#value_callback' => [Textarea::class, 'valueCallback'],
         ];
 
         $form['automator_container']['token_prompt']['token_help'] = [
@@ -366,6 +388,18 @@ class AiAutomatorFieldConfig {
         '#options' => $workerOptions,
         '#description' => $this->t('This defines how the saving of an interpolation happens. Direct saving is the easiest, but since it can take time you need to have longer timeouts.'),
         '#default_value' => !is_null($aiConfig) ? $aiConfig->get('worker_type') : 'direct',
+      ];
+
+      $form['automator_container']['automator_advanced']['automator_queue_allow_requeue'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Re-queue on each save'),
+        '#description' => $this->t('By default, a new queue item is not added if this field is already waiting to be processed. Enable this to add a new queue item on every save, even when processing is still pending.'),
+        '#default_value' => !is_null($aiConfig) ? ($aiConfig->get('plugin_config')['automator_queue_allow_requeue'] ?? FALSE) : FALSE,
+        '#states' => [
+          'visible' => [
+            ':input[name="automator_worker_type"]' => ['value' => 'queue'],
+          ],
+        ],
       ];
 
       $subForm = $rule->extraAdvancedFormFields($entity, $fieldInfo, $formState, $defaultValues);
@@ -470,6 +504,7 @@ class AiAutomatorFieldConfig {
       $aiConfig->set('base_field', $formState->getValue('automator_base_field') ?? '');
       $aiConfig->set('prompt', $formState->getValue('automator_prompt') ?? '');
       $aiConfig->set('token', $formState->getValue('automator_token') ?? '');
+      $aiConfig->set('guardrail_set_id', $formState->getValue('automator_guardrail_set_id') ?: NULL);
 
       $pluginConfig = [];
       foreach ($formState->getValues() as $key => $val) {

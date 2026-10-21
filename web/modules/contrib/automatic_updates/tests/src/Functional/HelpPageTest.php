@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Drupal\Tests\automatic_updates\Functional;
 
 use Drupal\Tests\package_manager\Traits\AssertPreconditionsTrait;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[RunTestsInSeparateProcesses]
 class HelpPageTest extends AutomaticUpdatesFunctionalTestBase {
 
   use AssertPreconditionsTrait;

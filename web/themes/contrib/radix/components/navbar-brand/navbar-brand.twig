@@ -50,6 +50,9 @@
 {% endif %}
 
 {% macro image(src, width, height, alt) %}
-  {% set height_attribute = height != 'auto' ? 'height="' ~ height ~ '"'  %}
-  <img src="{{ src }}" width="{{ width|default(140) }}" {{ height_attribute }} alt="{{ alt|default('') }}" />
+  {% if height and height != 'auto' %}
+    <img src="{{ src }}" width="{{ width|default(140) }}" height="{{ height }}" alt="{{ alt|default('') }}" />
+  {% else %}
+    <img src="{{ src }}" width="{{ width|default(140) }}" alt="{{ alt|default('') }}" />
+  {% endif %}
 {% endmacro %}

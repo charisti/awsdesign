@@ -23,14 +23,23 @@
 {% set image_attributes = attributes ?: (image_attributes ?: create_attribute()) %}
 
 {% if src %}
-  {% set image_attributes = image_attributes
-    .setAttribute('src', src ?: '')
-    .setAttribute('alt', alt ?: '')
-    .setAttribute('title', title ?: '')
-    .setAttribute('width', width ?: '')
-    .setAttribute('height', height ?: '')
-    .setAttribute('loading', loading ?: 'auto')
-  %}
+  {% set image_attributes = image_attributes.setAttribute('src', src) %}
+
+  {% set image_attributes = image_attributes.setAttribute('alt', alt|default('')) %}
+
+  {% if title is not empty %}
+    {% set image_attributes = image_attributes.setAttribute('title', title) %}
+  {% endif %}
+
+  {% if width is not empty %}
+    {% set image_attributes = image_attributes.setAttribute('width', width) %}
+  {% endif %}
+
+  {% if height is not empty %}
+    {% set image_attributes = image_attributes.setAttribute('height', height) %}
+  {% endif %}
+
+  {% set image_attributes = image_attributes.setAttribute('loading', loading|default('auto')) %}
 {% endif %}
 
 {%

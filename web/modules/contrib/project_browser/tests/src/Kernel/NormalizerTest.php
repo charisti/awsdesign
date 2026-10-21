@@ -12,6 +12,7 @@ use Drupal\project_browser\ProjectRepository;
 use Drupal\Tests\user\Traits\UserCreationTrait;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the Normalizer class.
@@ -20,6 +21,7 @@ use PHPUnit\Framework\Attributes\Group;
  */
 #[CoversClass(NormalizerTest::class)]
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class NormalizerTest extends KernelTestBase {
 
   use UserCreationTrait;
@@ -40,15 +42,15 @@ final class NormalizerTest extends KernelTestBase {
       ->save();
 
     // Prime the project cache.
-    $this->container->get(QueryManager::class)
+    \Drupal::service(QueryManager::class)
       ->getProjects('drupal_core');
-    $project = $this->container->get(ProjectRepository::class)
+    $project = \Drupal::service(ProjectRepository::class)
       ->get('drupal_core/field');
 
     $this->assertFalse(
-      $this->container->get(AccountInterface::class)->hasPermission('administer modules'),
+      \Drupal::service(AccountInterface::class)->hasPermission('administer modules'),
     );
-    $normalizer = $this->container->get(Normalizer::class);
+    $normalizer = \Drupal::service(Normalizer::class);
     $normalized = $normalizer->normalize($project, context: ['source' => 'drupal_core']);
     $this->assertEmpty($normalized['tasks']);
 

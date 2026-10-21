@@ -49,3 +49,10 @@ props:
       type: Drupal\Core\Template\Attribute
       description: 'HTML attributes for the table element.'
       title: Attributes
+    header_style:
+      type: string
+      enum:
+        - light
+        - dark
+      description: 'Bootstrap header style, light or dark'
+      title: Header Style

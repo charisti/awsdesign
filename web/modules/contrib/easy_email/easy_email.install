@@ -10,19 +10,24 @@ function easy_email_requirements($phase) {
       'symfony_mailer' => [
         'label' => t('Drupal Symfony Mailer'),
         'url' => 'https://www.drupal.org/project/symfony_mailer',
-        'test_class' => 'Drupal\symfony_mailer\Mailer',
+        'test_classes' => [
+          'Drupal\symfony_mailer\Mailer',
+          'Drupal\symfony_mailer\MailerPlus',
+        ],
       ],
       'symfony_mailer_lite' => [
         'label' => t('Drupal Symfony Mailer Lite'),
         'url' => 'https://www.drupal.org/project/symfony_mailer_lite',
-        'test_class' => 'Drupal\symfony_mailer_lite\Plugin\Mail\SymfonyMailer',
+        'test_classes' => ['Drupal\symfony_mailer_lite\Plugin\Mail\SymfonyMailer'],
       ],
     ];
     $has_acceptable_mailer = FALSE;
     foreach ($mailers as $mailer) {
-      if (class_exists($mailer['test_class'])) {
-        $has_acceptable_mailer = TRUE;
-        break;
+      foreach ($mailer['test_classes'] as $test_class) {
+        if (class_exists($test_class)) {
+          $has_acceptable_mailer = TRUE;
+          break 2;
+        }
       }
     }
     if (!$has_acceptable_mailer) {

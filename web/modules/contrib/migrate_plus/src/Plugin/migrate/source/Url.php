@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Drupal\migrate_plus\Plugin\migrate\source;
 
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
-use Drupal\migrate_plus\DataParserPluginInterface;
+use Drupal\migrate\Attribute\MigrateSource;
 use Drupal\migrate\Plugin\MigrationInterface;
+use Drupal\migrate_plus\DataParserPluginInterface;
 use Drupal\migrate_plus\DataParserPluginManager;
 
 /**
@@ -16,6 +17,7 @@ use Drupal\migrate_plus\DataParserPluginManager;
  *   id = "url"
  * )
  */
+#[MigrateSource(id: "url")]
 class Url extends SourcePluginExtension implements ContainerFactoryPluginInterface {
 
   /**

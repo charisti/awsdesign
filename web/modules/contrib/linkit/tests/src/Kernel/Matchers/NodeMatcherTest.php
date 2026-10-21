@@ -8,12 +8,14 @@ use Drupal\language\Entity\ConfigurableLanguage;
 use Drupal\node\Entity\Node;
 use Drupal\node\Entity\NodeType;
 use Drupal\Tests\linkit\Kernel\LinkitKernelTestBase;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests node matcher.
  *
  * @group linkit
  */
+#[RunTestsInSeparateProcesses]
 class NodeMatcherTest extends LinkitKernelTestBase {
 
   /**
@@ -271,6 +273,35 @@ class NodeMatcherTest extends LinkitKernelTestBase {
       $matches = $plugin->findEntityIdByUrl($translated_url, $base_url);
       $this->assertEquals([], $matches);
     }
+  }
+
+  /**
+   * Tests node matcher when searching on the node path.
+   */
+  public function testNodeMatcherPathSearch() {
+    /** @var \Drupal\linkit\MatcherInterface $plugin */
+    $plugin = $this->manager->createInstance('entity:node', []);
+
+    // Test that a search on node path works.
+    $suggestions = $plugin->execute('/node/1');
+    $this->assertCount(1, $suggestions->getSuggestions());
+    $this->assertEquals('/node/1', $suggestions->getSuggestions()[0]->getPath());
+
+    // Test that query parameters are preserved in the suggested path.
+    $suggestions = $plugin->execute('/node/1?test=true');
+    $this->assertCount(1, $suggestions->getSuggestions());
+    $this->assertEquals('/node/1?test=true', $suggestions->getSuggestions()[0]->getPath());
+
+    // Test that a fragment is preserved in the suggested path.
+    $suggestions = $plugin->execute('/node/1#test');
+    $this->assertCount(1, $suggestions->getSuggestions());
+    $this->assertEquals('/node/1#test', $suggestions->getSuggestions()[0]->getPath());
+
+    // Test that query parameters and a fragment are both preserved in the
+    // suggested path.
+    $suggestions = $plugin->execute('/node/1?test=true#test');
+    $this->assertCount(1, $suggestions->getSuggestions());
+    $this->assertEquals('/node/1?test=true#test', $suggestions->getSuggestions()[0]->getPath());
   }
 
 }

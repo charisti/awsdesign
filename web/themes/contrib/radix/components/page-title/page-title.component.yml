@@ -28,8 +28,8 @@ props:
     title_attributes:
       type: Drupal\Core\Template\Attribute
     title_prefix:
-      type: array
+      type: ['array', 'null', 'string', 'object']
       description: 'An array of renderable elements that are displayed before the title.'
     title_suffix:
-      type: array
+      type: ['array', 'null', 'string', 'object']
       description: 'An array of renderable elements that are displayed after the title.'

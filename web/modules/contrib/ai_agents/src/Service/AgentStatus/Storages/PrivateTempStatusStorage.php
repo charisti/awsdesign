@@ -13,6 +13,7 @@ use Drupal\ai_agents\Service\AgentStatus\Interfaces\UpdateItems\StatusBaseInterf
  * Temporary storage for agent status updates.
  */
 class PrivateTempStatusStorage implements AiAgentStatusStorageInterface {
+
   /**
    * The store name for the temp store.
    *
@@ -38,15 +39,18 @@ class PrivateTempStatusStorage implements AiAgentStatusStorageInterface {
   public function __construct(
     protected PrivateTempStoreFactory $tempStore,
     protected SessionManagerInterface $sessionManager,
-  ) {}
+  ) {
+  }
 
   /**
    * {@inheritdoc}
    */
   public function startStatusUpdate(string $id): bool {
-    // Check that a session exists at all.
+    // If no session exists (e.g. CLI context), skip status tracking silently.
+    // The calling context (e.g. a web controller) is responsible for starting
+    // the session before invoking the agent.
     if (!$this->sessionManager->isStarted()) {
-      throw new \RuntimeException('There is no session for the private temp storage, are you sure you ran authenticate()?');
+      return FALSE;
     }
     // Make sure that nothing exists yet for this UUID.
     $store = $this->tempStore->get($this->tempStoreName);
@@ -61,14 +65,18 @@ class PrivateTempStatusStorage implements AiAgentStatusStorageInterface {
    * {@inheritdoc}
    */
   public function storeStatusUpdateItem(string $id, StatusBaseInterface $thread): void {
-    // Check if there is already data stored for this id, otherwise fail.
-    $store = $this->tempStore->get($this->tempStoreName);
-    if ($store === NULL) {
-      throw new \RuntimeException('This store has not been started.');
+    // If no session exists, status tracking was never started — skip silently.
+    if (!$this->sessionManager->isStarted()) {
+      return;
     }
+    // Check if there is already data stored for this id, otherwise skip.
+    // The store may not have been initialized (e.g. subagent without a root
+    // startStatusUpdate call, or data expired). Status tracking is
+    // supplementary and should never crash the agent.
+    $store = $this->tempStore->get($this->tempStoreName);
     $data = $store->get($this->getTempStoreKey($id));
     if (empty($data)) {
-      throw new \RuntimeException('This store has not been started.');
+      return;
     }
     $object = AiAgentStatusUpdate::fromJson($data);
     $object->addItem($thread);

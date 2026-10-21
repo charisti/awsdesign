@@ -32,7 +32,7 @@ class AgentCkeditorOutput extends FunctionCallBase implements ExecutableFunction
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Get the HTML context.
     $html = $this->getContextValue('html');
     // Just output it.

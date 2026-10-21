@@ -81,7 +81,7 @@ class TagifyUserListEntityReferenceAutocompleteWidget extends TagifyEntityRefere
     $element['image_style'] = [
       '#type' => 'select',
       '#title' => $this->t('Avatar image style'),
-      '#options' => image_style_options(FALSE),
+      '#options' => $this->imageStyleOptions(),
       '#default_value' => $this->getSetting('image_style'),
       '#description' => $this->t('Image style used for the avatar.'),
     ];
@@ -202,6 +202,8 @@ class TagifyUserListEntityReferenceAutocompleteWidget extends TagifyEntityRefere
       '#placeholder' => $this->getSetting('placeholder'),
       '#suggestions_dropdown' => $this->getSetting('suggestions_dropdown'),
       '#image' => $this->getSetting('image'),
+      // Pass the identifier including any field parent position suffix.
+      '#identifier' => $tags_identifier,
       '#image_style' => $this->getSetting('image_style'),
       '#attributes' => [
         'class' => [$limited, $autocreate, $tags_identifier],
@@ -216,6 +218,32 @@ class TagifyUserListEntityReferenceAutocompleteWidget extends TagifyEntityRefere
     }
 
     return $element;
+  }
+
+  /**
+   * Returns the available image styles as select options.
+   *
+   * Replaces the deprecated image_style_options(), which is removed in
+   * drupal:13.0.0. ImageDerivativeUtilities::styleOptions() is not used
+   * because it only exists from drupal:11.4.0 and this branch supports
+   * older core versions.
+   *
+   * @return array
+   *   An array of image style labels keyed by machine name.
+   *
+   * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
+   * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
+   */
+  protected function imageStyleOptions() {
+    $options = [];
+    $styles = $this->entityTypeManager->getStorage('image_style')->loadMultiple();
+    foreach ($styles as $name => $style) {
+      $options[$name] = $style->label();
+    }
+    if (empty($options)) {
+      $options[''] = $this->t('No defined styles');
+    }
+    return $options;
   }
 
 }

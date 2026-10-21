@@ -20,8 +20,7 @@ class DashboardLocalTask extends DeriverBase implements ContainerDeriverInterfac
    */
   public function __construct(
     protected EntityTypeManagerInterface $entityTypeManager,
-  ) {
-  }
+  ) {}
 
   /**
    * {@inheritdoc}

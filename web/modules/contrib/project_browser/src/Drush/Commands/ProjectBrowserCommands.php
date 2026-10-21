@@ -32,7 +32,7 @@ final class ProjectBrowserCommands extends DrushCommands {
   #[Usage(name: 'project-browser:storage-clear', description: 'Clear stored Project Browser data')]
   public function storageClear(): void {
     $this->projectRepository->clearAll();
-    $this->logger()?->success(dt('Stored data from Project Browser sources have been cleared.'));
+    $this->io()->success(dt('Stored data from Project Browser sources have been cleared.'));
   }
 
 }

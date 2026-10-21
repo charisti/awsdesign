@@ -6,12 +6,17 @@ namespace Drupal\Tests\automatic_updates\Kernel\StatusCheck\VersionPolicy;
 
 use Drupal\automatic_updates\Validator\VersionPolicy\SupportedBranchInstalled;
 use Drupal\Tests\automatic_updates\Kernel\AutomaticUpdatesKernelTestBase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @covers \Drupal\automatic_updates\Validator\VersionPolicy\SupportedBranchInstalled
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(SupportedBranchInstalled::class)]
+#[RunTestsInSeparateProcesses]
 class SupportedBranchInstalledTest extends AutomaticUpdatesKernelTestBase {
 
   /**
@@ -71,9 +76,8 @@ class SupportedBranchInstalledTest extends AutomaticUpdatesKernelTestBase {
    *   be tested.
    * @param string[] $expected_errors
    *   The expected error messages, if any.
-   *
-   * @dataProvider providerSupportedBranchInstalled
    */
+  #[DataProvider('providerSupportedBranchInstalled')]
   public function testSupportedBranchInstalled(string $installed_version, array $allow_minor_updates, array $expected_errors): void {
     $this->setCoreVersion($installed_version);
     $this->setReleaseMetadata([

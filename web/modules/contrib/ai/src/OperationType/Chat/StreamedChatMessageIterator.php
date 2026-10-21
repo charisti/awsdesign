@@ -5,8 +5,11 @@ namespace Drupal\ai\OperationType\Chat;
 use Drupal\Component\Serialization\Json;
 use Drupal\ai\Dto\TokenUsageDto;
 use Drupal\ai\Event\PostStreamingResponseEvent;
+use Drupal\ai\Guardrail\Result\PassResult;
+use Drupal\ai\Guardrail\StreamableGuardrailInterface;
 use Drupal\ai\OperationType\Chat\Tools\ToolsFunctionOutput;
 use Drupal\ai\Traits\OperationType\EventDispatcherTrait;
+use Drupal\ai\Traits\OperationType\StreamChatMessageIteratorTrait;
 
 /**
  * Streamed chat message iterator interface.
@@ -14,6 +17,19 @@ use Drupal\ai\Traits\OperationType\EventDispatcherTrait;
 abstract class StreamedChatMessageIterator implements StreamedChatMessageIteratorInterface {
 
   use EventDispatcherTrait;
+  use StreamChatMessageIteratorTrait;
+
+  /**
+   * Hard ceiling for buffering unbalanced HTML before forcing a flush.
+   *
+   * The shouldFlush() method normally holds the buffer until all open HTML
+   * tags are closed, so the HostnameFilter never re-serializes a partial
+   * fragment. This
+   * ceiling guarantees the buffer is still flushed if a tag never closes (e.g.
+   * malformed model output), preventing unbounded memory growth. It is large
+   * enough that any realistic single HTML element fits within it.
+   */
+  protected const MAX_HTML_BUFFER_SIZE = 102400;
 
   /**
    * The iterator.
@@ -94,11 +110,25 @@ abstract class StreamedChatMessageIterator implements StreamedChatMessageIterato
   protected $reasoningTokenUsage = NULL;
 
   /**
-   * Cached token usage.
+   * Cached (read) token usage.
    *
    * @var int|null
    */
   protected $cachedTokenUsage = NULL;
+
+  /**
+   * Cached write (creation) token usage.
+   *
+   * @var int|null
+   */
+  protected $cachedWriteTokenUsage = NULL;
+
+  /**
+   * Tool use token usage.
+   *
+   * @var int|null
+   */
+  protected $toolUseTokenUsage = NULL;
 
   /**
    * The created chat output after iteration.
@@ -159,6 +189,61 @@ abstract class StreamedChatMessageIterator implements StreamedChatMessageIterato
    * @var array
    */
   protected array $tags = [];
+
+  /**
+   * Message buffer.
+   *
+   * Because we need to be able to filter html and images for html reasons,
+   * we will keep a buffer when a html/markdown starts with this, until its
+   * finally finished, so that it can run on the full markup.
+   *
+   * @var string
+   */
+  protected string $buffer = '';
+
+  /**
+   * The max buffer size.
+   *
+   * We always try to buffer on a natural paragraph, but longer text or inject
+   * attack can make it go for longer, so we need a max buffer for streaming.
+   *
+   * @var int
+   */
+  private int $maxBufferSize = 100;
+
+  /**
+   * The closing pattern we are looking for.
+   *
+   * @var string
+   */
+  protected $bufferClosingPattern = '';
+
+  /**
+   * Per-guardrail state for streaming guardrail evaluation.
+   *
+   * Each entry has the shape:
+   *   'guardrail' => StreamableGuardrailInterface
+   *   'active'    => bool   (TRUE while buffering this guardrail's content)
+   *   'buffer'    => string (accumulated text since the start regex matched)
+   *
+   * @var array<int, array{guardrail: \Drupal\ai\Guardrail\StreamableGuardrailInterface, active: bool, buffer: string, window: string}>
+   */
+  protected array $streamingGuardrailStates = [];
+
+  /**
+   * The maximum number of characters a guardrail buffer may accumulate.
+   *
+   * When a guardrail's active buffer reaches this size the buffer is
+   * force-evaluated even if the stop regex has not yet matched. This prevents
+   * unbounded memory growth caused by a misconfigured or never-matching stop
+   * regex when the LLM produces a very long response.
+   *
+   * Default is 8192 characters (~2000 tokens). Callers may lower or raise
+   * this value via setMaxGuardrailBufferSize().
+   *
+   * @var int
+   */
+  protected int $maxGuardrailBufferSize = 8192;
 
   /**
    * Constructor.
@@ -304,8 +389,62 @@ abstract class StreamedChatMessageIterator implements StreamedChatMessageIterato
    */
   public function getIterator(): \Generator {
     foreach ($this->doIterate() as $data) {
-      yield $data;
+      // Yield each flushed chunk word-by-word so consumers see smooth
+      // token-level output regardless of how the URL-safety buffer batches.
+      // Empty chunks (still buffering) pass through unchanged.
+      if ($data->getText() !== '') {
+        foreach ($this->splitIntoWordTokens($data->getText()) as $token) {
+          yield new StreamedChatMessage($data->getRole(), $token, [], $data->getTools(), $data->getRaw());
+        }
+      }
+      else {
+        yield $data;
+      }
     }
+    // Flush the URL-safety buffer at the end of the stream.
+    if (!empty($this->buffer)) {
+      $text_message = $this->flushInternal();
+      $text_message = $this->processStreamingGuardrails($text_message);
+      if (!empty($text_message)) {
+        $message = new StreamedChatMessage('assistant', $text_message, []);
+        $this->messages[] = $message;
+        foreach ($this->splitIntoWordTokens($text_message) as $token) {
+          yield new StreamedChatMessage('assistant', $token, []);
+        }
+      }
+    }
+    // Flush any streaming guardrail buffers still active at end-of-stream.
+    foreach ($this->streamingGuardrailStates as &$state) {
+      // Evaluate any active guardrail buffer (may be empty if stream ended
+      // immediately after the start match with no follow-up chunks).
+      if ($state['active']) {
+        $buffered = $state['buffer'];
+        $state['active'] = FALSE;
+        $state['buffer'] = '';
+        $result = $state['guardrail']->processStreamedBuffer($buffered);
+        $final_text = ($result instanceof PassResult) ? $buffered : $result->getMessage();
+        if ($final_text !== '') {
+          $message = new StreamedChatMessage('assistant', $final_text, []);
+          $this->messages[] = $message;
+          foreach ($this->splitIntoWordTokens($final_text) as $token) {
+            yield new StreamedChatMessage('assistant', $token, []);
+          }
+        }
+      }
+      elseif ($state['buffer'] !== '') {
+        // The stream has ended but text remains in the buffer. This can happen
+        // when no sentence boundary (period or newline) was found and the start
+        // regex never matched. Yield it as-is to prevent data loss.
+        $final_text = $state['buffer'];
+        $state['buffer'] = '';
+        $message = new StreamedChatMessage('assistant', $final_text, []);
+        $this->messages[] = $message;
+        foreach ($this->splitIntoWordTokens($final_text) as $token) {
+          yield new StreamedChatMessage('assistant', $token, []);
+        }
+      }
+    }
+    unset($state);
     $this->reconstructChatOutput();
     $this->triggerEvent();
 
@@ -380,9 +519,20 @@ abstract class StreamedChatMessageIterator implements StreamedChatMessageIterato
     ?array $tools = NULL,
     ?array $raw = NULL,
   ): StreamedChatMessageInterface {
-    $message = new StreamedChatMessage($role, $message, $metadata, $tools, $raw);
-    $this->messages[] = $message;
-    return $message;
+    // Check if we need to buffer the output (URL-safety buffer).
+    $this->buffer .= $message;
+    // Return empty chunk if the URL-safety buffer has not flushed yet.
+    if (!$this->shouldFlush()) {
+      $msg = new StreamedChatMessage($role, '', $metadata, $tools, $raw);
+      $this->messages[] = $msg;
+      return $msg;
+    }
+    $text_message = $this->flushInternal();
+    // Run the flushed text through any registered streaming guardrails.
+    $text_message = $this->processStreamingGuardrails($text_message);
+    $msg = new StreamedChatMessage($role, $text_message, $metadata, $tools, $raw);
+    $this->messages[] = $msg;
+    return $msg;
   }
 
   /**
@@ -521,6 +671,12 @@ abstract class StreamedChatMessageIterator implements StreamedChatMessageIterato
     if ($message->getCachedTokenUsage() !== NULL) {
       $this->cachedTokenUsage = $message->getCachedTokenUsage();
     }
+    if ($message->getCachedWriteTokenUsage() !== NULL) {
+      $this->cachedWriteTokenUsage = $message->getCachedWriteTokenUsage();
+    }
+    if ($message->getToolUseTokenUsage() !== NULL) {
+      $this->toolUseTokenUsage = $message->getToolUseTokenUsage();
+    }
   }
 
   /**
@@ -538,7 +694,9 @@ abstract class StreamedChatMessageIterator implements StreamedChatMessageIterato
       input: $this->inputTokenUsage,
       output: $this->outputTokenUsage,
       reasoning: $this->reasoningTokenUsage,
-      cached: $this->cachedTokenUsage
+      cached: $this->cachedTokenUsage,
+      cachedWrite: $this->cachedWriteTokenUsage,
+      toolUse: $this->toolUseTokenUsage,
     ));
     return $output;
   }
@@ -555,6 +713,330 @@ abstract class StreamedChatMessageIterator implements StreamedChatMessageIterato
    */
   public function getFinishReason(): ?string {
     return $this->finishReason;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getMaxBufferSize(): int {
+    return $this->maxBufferSize;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  public function setMaxBufferSize(int $size): void {
+    $this->maxBufferSize = $size;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getMaxGuardrailBufferSize(): int {
+    return $this->maxGuardrailBufferSize;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setMaxGuardrailBufferSize(int $size): void {
+    $this->maxGuardrailBufferSize = $size;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function addStreamingGuardrail(StreamableGuardrailInterface $guardrail): void {
+    $this->streamingGuardrailStates[] = [
+      'guardrail' => $guardrail,
+      'active' => FALSE,
+      'buffer' => '',
+    ];
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getStreamingGuardrails(): array {
+    return array_column($this->streamingGuardrailStates, 'guardrail');
+  }
+
+  /**
+   * Passes a flushed text chunk through all registered streaming guardrails.
+   *
+   * Each guardrail independently manages its own start/stop state.
+   *
+   * Before the guardrail activates, incoming chunks are appended to the buffer
+   * but only content up to the last sentence boundary (period or newline) is
+   * flushed to the consumer. The tail is held back so that start patterns
+   * split across chunk boundaries are still detected reliably.
+   *
+   * Once buffering is active, all content is suppressed until the stop regex
+   * matches the accumulated buffer (or the stream ends). If the buffer grows
+   * beyond $maxGuardrailBufferSize the buffer is force-evaluated to prevent
+   * unbounded memory growth.
+   *
+   * Guardrails are applied in registration order; each guardrail sees the
+   * output of the previous one.
+   *
+   * @param string $text
+   *   The text chunk to process.
+   *
+   * @return string
+   *   The (possibly suppressed or rewritten) text to yield to the consumer.
+   */
+  protected function processStreamingGuardrails(string $text): string {
+    if (empty($this->streamingGuardrailStates)) {
+      return $text;
+    }
+
+    foreach ($this->streamingGuardrailStates as &$state) {
+      /** @var \Drupal\ai\Guardrail\StreamableGuardrailInterface $guardrail */
+      $guardrail = $state['guardrail'];
+
+      if ($state['active']) {
+        // A previous chunk has triggered this guardrail. The buffered text will
+        // be evaluated once the stop regex matches or maxGuardrailBufferSize is
+        // exceeded. First, append the current chunk to the buffer.
+        $state['buffer'] .= $text;
+        $text = '';
+        $stop_regex = $guardrail->getStopRegex();
+        // Checks if the text in the buffer has exceeded the max guardrail
+        // buffer size.
+        $force_flush = strlen($state['buffer']) >= $this->maxGuardrailBufferSize;
+
+        if ($force_flush || ($stop_regex !== '' && preg_match($stop_regex, $state['buffer']))) {
+          // Stop pattern matched or buffer exceeded max size. Evaluate
+          // the guardrail on the buffered content and reset state.
+          $buffered = $state['buffer'];
+          // Deactivate the guardrail since buffering is complete. It will
+          // reactivate once the start regex matches again.
+          $state['active'] = FALSE;
+          $state['buffer'] = '';
+          $result = $guardrail->processStreamedBuffer($buffered);
+          // Return the processed output to continue the stream.
+          $text = ($result instanceof PassResult) ? $buffered : $result->getMessage();
+        }
+      }
+      else {
+        // Guardrail is not active. Check if it should become active based
+        // on the start regex.
+        $start_regex = $guardrail->getStartRegex();
+
+        if ($start_regex === '') {
+          // An empty start regex means the guardrail should activate on the
+          // very first token the model outputs. Store the current chunk in the
+          // guardrail buffer for evaluation instead of passing it through.
+          // Activate the guardrail so it evaluates buffered text once the stop
+          // regex matches or the buffer exceeds maxGuardrailBufferSize.
+          $state['active'] = TRUE;
+          // Store the current chunk in the guardrail buffer.
+          $state['buffer'] = $text;
+          // Clear the outgoing text so nothing is streamed to the user. The
+          // current content is held in the buffer until the stop regex matches
+          // or the buffer exceeds maxGuardrailBufferSize.
+          $text = '';
+        }
+        else {
+          // Append the current chunk to the buffer. The buffer holds all
+          // unsent content accumulated since the guardrail became inactive.
+          // Nothing in the buffer has been shown to the user yet.
+          $state['buffer'] .= $text;
+
+          // Check if the accumulated unsent content matches the start regex.
+          if (preg_match($start_regex, $state['buffer'])) {
+            // Start pattern found. Activate the guardrail — the buffer
+            // already holds all unsent content and will be evaluated once
+            // the stop regex matches or the buffer exceeds
+            // maxGuardrailBufferSize.
+            $state['active'] = TRUE;
+            $text = '';
+          }
+          else {
+            // No start regex match yet. We cannot safely stream the entire
+            // buffer because the start pattern might begin in this chunk and
+            // complete in the next one (e.g. a word split mid-chunk). Instead,
+            // find the last sentence boundary (period or newline) in the
+            // buffer. Everything up to that boundary is safe to stream because
+            // no sentence-spanning pattern can start after a completed
+            // sentence. The tail after the boundary is kept in the buffer and
+            // re-evaluated when the next chunk arrives.
+            $boundary = max(
+              ($p = strrpos($state['buffer'], '.')) !== FALSE ? $p : -1,
+              ($p = strrpos($state['buffer'], "\n")) !== FALSE ? $p : -1,
+            );
+
+            if ($boundary >= 0) {
+              // Stream the safe portion up to and including the boundary
+              // character.
+              $text = substr($state['buffer'], 0, $boundary + 1);
+              // Keep only the tail (after the boundary) in the buffer.
+              $state['buffer'] = substr($state['buffer'], $boundary + 1);
+            }
+            else {
+              // No sentence boundary found anywhere in the buffer. Hold
+              // everything and stream nothing until a boundary or start
+              // regex appears.
+              $text = '';
+            }
+
+            // If the buffer has grown beyond maxGuardrailBufferSize without a
+            // sentence boundary or start regex match, the content is clearly
+            // safe to stream. Flush it all to the user and start fresh.
+            if (strlen($state['buffer']) > $this->maxGuardrailBufferSize) {
+              $text .= $state['buffer'];
+              $state['buffer'] = '';
+            }
+          }
+        }
+      }
+    }
+    unset($state);
+
+    return $text;
+  }
+
+  /**
+   * Splits text into word-level tokens for smooth consumer output.
+   *
+   * Each token is either a word (including trailing whitespace) or a run of
+   * whitespace-only characters, preserving the original text exactly so that
+   * concatenating all tokens reproduces the input.
+   *
+   * @param string $text
+   *   The text to split.
+   *
+   * @return string[]
+   *   Ordered array of tokens.
+   */
+  private function splitIntoWordTokens(string $text): array {
+    preg_match_all('/[\p{Han}\p{Hiragana}\p{Katakana}\p{Hangul}]|\S+\s*|\s+/u', $text, $matches);
+    return $matches[0];
+  }
+
+  /**
+   * Flushes buffer and sanitizes content.
+   *
+   * @return string
+   *   Sanitized HTML output.
+   */
+  private function flushInternal(): string {
+    $raw = $this->buffer;
+    $this->buffer = '';
+
+    return $this->getHostnameFilterService()->filterText($raw);
+  }
+
+  /**
+   * Determines whether buffer is safe to flush.
+   *
+   * @return bool
+   *   TRUE if buffer should flush.
+   */
+  private function shouldFlush(): bool {
+    // If a URL is being built, hold the buffer until it's complete, so we can
+    // check the full url for safety.
+    if (preg_match('/"(?:http|\/\/:|\/)[^"]*$/', $this->buffer) || preg_match('/\((?:http|\/\/:|\/)[^)]*$/', $this->buffer)) {
+      return FALSE;
+    }
+
+    // Never flush while the buffer contains an incomplete or unbalanced HTML
+    // structure. flushInternal() runs the buffer through the HostnameFilter,
+    // which parses the text as an HTML fragment and re-serializes it. When a
+    // partial fragment is parsed (e.g. an open "<strong>" or "<p>" whose
+    // closing tag has not streamed yet), the HTML5 parser auto-closes the open
+    // tags and drops orphaned closing tags, corrupting the markup. Holding the
+    // buffer until every open tag is closed guarantees the filter only ever
+    // sees balanced HTML. Any remainder is flushed at end-of-stream, where the
+    // full message is always balanced. A hard ceiling still forces a flush if a
+    // tag never closes, preventing unbounded buffer growth.
+    //
+    // This is skipped while a streaming guardrail is registered: guardrails do
+    // their own start/stop buffering on the post-filter chunks emitted here, so
+    // holding the buffer across their markers would merge content across a
+    // guardrail boundary and change what the guardrail evaluates. Guardrail
+    // payloads are plain text in practice, so they do not need HTML balancing.
+    if (empty($this->streamingGuardrailStates)
+      && $this->bufferHasUnclosedHtml()
+      && strlen($this->buffer) < self::MAX_HTML_BUFFER_SIZE) {
+      return FALSE;
+    }
+
+    // Paragraph or block boundary.
+    if (str_contains($this->buffer, "\n")) {
+      return TRUE;
+    }
+
+    // It reached max buffer size.
+    if (strlen($this->buffer) >= $this->maxBufferSize) {
+      return TRUE;
+    }
+
+    return FALSE;
+  }
+
+  /**
+   * Determines whether the buffer holds an incomplete/unbalanced HTML fragment.
+   *
+   * The buffer is considered unsafe to flush when either:
+   * - it ends inside an unclosed tag delimiter (a "<" with no matching ">"), or
+   * - one or more non-void elements have been opened but not yet closed.
+   *
+   * Void elements (e.g. <br>, <img>) and explicitly self-closed tags are not
+   * counted as open.
+   *
+   * @return bool
+   *   TRUE if the buffer should keep accumulating, FALSE if it is balanced.
+   */
+  private function bufferHasUnclosedHtml(): bool {
+    // If there are no tags at all, the buffer is plain text and safe to flush.
+    if (!str_contains($this->buffer, '<')) {
+      return FALSE;
+    }
+
+    // Trailing, unfinished tag delimiter, e.g. '...<a href="htt'.
+    $last_lt = strrpos($this->buffer, '<');
+    $last_gt = strrpos($this->buffer, '>');
+    if ($last_lt !== FALSE && ($last_gt === FALSE || $last_lt > $last_gt)) {
+      return TRUE;
+    }
+
+    // Track opened/closed elements to detect unbalanced inline/block tags.
+    if (!preg_match_all('/<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b[^>]*?(\/?)>/', $this->buffer, $matches, PREG_SET_ORDER)) {
+      return FALSE;
+    }
+
+    // HTML void elements never need a closing tag.
+    static $void_elements = [
+      'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link',
+      'meta', 'param', 'source', 'track', 'wbr',
+    ];
+
+    $stack = [];
+    foreach ($matches as $match) {
+      $is_closing = $match[1] === '/';
+      $name = strtolower($match[2]);
+      $is_self_closing = $match[3] === '/';
+
+      if (in_array($name, $void_elements, TRUE) || $is_self_closing) {
+        continue;
+      }
+
+      if ($is_closing) {
+        // Pop the nearest matching open tag, if any.
+        for ($i = count($stack) - 1; $i >= 0; $i--) {
+          if ($stack[$i] === $name) {
+            array_splice($stack, $i);
+            break;
+          }
+        }
+      }
+      else {
+        $stack[] = $name;
+      }
+    }
+
+    return !empty($stack);
   }
 
 }

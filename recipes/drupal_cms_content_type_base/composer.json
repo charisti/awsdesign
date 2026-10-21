@@ -17,5 +17,10 @@
         "drupal/scheduler_content_moderation_integration": "^3.0.4",
         "drupal/tagify": "^1.2"
     },
-    "version": "1.2.8"
+    "autoload": {
+        "classmap": [
+            "tests/src/Traits/ContentModelTestTrait.php"
+        ]
+    },
+    "version": "1.2.11"
 }

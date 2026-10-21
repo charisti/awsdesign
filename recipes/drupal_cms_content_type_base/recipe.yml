@@ -26,6 +26,11 @@ install:
   - pathauto
   - scheduler
   - scheduler_content_moderation_integration
+  # In order for CKEditor configuration to be installed and validate without
+  # errors, the default theme needs to be installed. In plain core, the
+  # default theme is Stark, so ensure it's installed so that CKEditor
+  # configuration is valid when this recipe is applied.
+  - stark
   - taxonomy
   - token
   - trash

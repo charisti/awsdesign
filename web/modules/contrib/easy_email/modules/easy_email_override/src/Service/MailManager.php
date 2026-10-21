@@ -2,10 +2,14 @@
 
 namespace Drupal\easy_email_override\Service;
 
+use Drupal\Component\Plugin\Discovery\CachedDiscoveryInterface;
 use Drupal\Component\Render\MarkupInterface;
+use Drupal\Core\Cache\Cache;
+use Drupal\Core\Cache\CacheableDependencyInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Mail\MailInterface;
 use Drupal\Core\Mail\MailManagerInterface;
 use Drupal\Core\Plugin\DefaultPluginManager;
 use Drupal\Core\Render\Markup;
@@ -21,46 +25,79 @@ use Symfony\Component\Mime\Header\MailboxHeader;
  *
  * @package Drupal\easy_email
  */
-class MailManager extends DefaultPluginManager implements MailManagerInterface {
+class MailManager implements MailManagerInterface, CachedDiscoveryInterface, CacheableDependencyInterface {
+
+  public function __construct(
+    protected MailManagerInterface&DefaultPluginManager $decorated,
+    protected ModuleHandlerInterface $moduleHandler,
+    protected RendererInterface $renderer,
+    protected EntityTypeManagerInterface $entityTypeManager,
+    protected ConfigFactoryInterface $configFactory,
+  ) {}
 
   /**
-   * Decorated service object.
-   *
-   * @var \Drupal\Core\Mail\MailManagerInterface
+   * @inheritDoc
    */
-  protected $decorated;
+  public function getCacheContexts(): array {
+    return $this->decorated->getCacheContexts();
+  }
 
   /**
-   * The renderer.
-   *
-   * @var \Drupal\Core\Render\RendererInterface
+   * @inheritDoc
    */
-  protected $renderer;
+  public function getCacheTags(): array {
+    return $this->decorated->getCacheTags();
+  }
 
   /**
-   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
+   * @inheritDoc
    */
-  protected EntityTypeManagerInterface $entityTypeManager;
+  public function getCacheMaxAge(): int {
+    return $this->decorated->getCacheMaxAge();
+  }
 
   /**
-   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   * @inheritDoc
    */
-  protected ConfigFactoryInterface $configFactory;
+  public function clearCachedDefinitions(): void {
+    $this->decorated->clearCachedDefinitions();
+  }
 
   /**
-   * Constructs the EmailManager object.
-   *
-   * @param \Drupal\Core\Mail\MailManagerInterface $decorated
-   * @param \Traversable $namespaces
-   * @param ModuleHandlerInterface $module_handler
-   * @param \Drupal\Core\Render\RendererInterface $renderer
+   * @inheritDoc
    */
-  public function __construct(MailManagerInterface $decorated, \Traversable $namespaces, ModuleHandlerInterface $module_handler, RendererInterface $renderer, EntityTypeManagerInterface $entityTypeManager, ConfigFactoryInterface $configFactory) {
-    parent::__construct('Plugin/Mail', $namespaces, $module_handler, 'Drupal\Core\Mail\MailInterface', 'Drupal\Core\Annotation\Mail');
-    $this->decorated = $decorated;
-    $this->renderer = $renderer;
-    $this->entityTypeManager = $entityTypeManager;
-    $this->configFactory = $configFactory;
+  public function useCaches($use_caches = FALSE): void {
+    $this->decorated->useCaches($use_caches);
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function getDefinition($plugin_id, $exception_on_invalid = TRUE): mixed {
+    return $this->decorated->getDefinition($plugin_id, $exception_on_invalid);
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function getDefinitions(): array {
+    return $this->decorated->getDefinitions();
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function hasDefinition($plugin_id): bool {
+    return $this->decorated->hasDefinition($plugin_id);
+  }
+
+  /**
+   * @inheritDoc
+   */
+  public function createInstance($plugin_id, array $configuration = []): MailInterface {
+    $instance = $this->decorated->createInstance($plugin_id, $configuration);
+    assert($instance instanceof MailInterface);
+    return $instance;
   }
 
   /**

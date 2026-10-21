@@ -137,10 +137,10 @@ class ConfigEvent extends EventBase {
    */
   public function submitConfigurationForm(array &$form, FormStateInterface $form_state): void {
     if ($this->eventClass() === ConfigCrudEvent::class) {
-      $this->configuration['config_name'] = trim($form_state->getValue('config_name'));
-      $this->configuration['sync_mode'] = trim($form_state->getValue('sync_mode'));
+      $this->configuration['config_name'] = trim($form_state->getValue('config_name', ''));
+      $this->configuration['sync_mode'] = trim($form_state->getValue('sync_mode', ''));
       if ($this->eventName() === ConfigEvents::SAVE) {
-        $this->configuration['write_mode'] = trim($form_state->getValue('write_mode'));
+        $this->configuration['write_mode'] = trim($form_state->getValue('write_mode', ''));
       }
     }
     parent::submitConfigurationForm($form, $form_state);

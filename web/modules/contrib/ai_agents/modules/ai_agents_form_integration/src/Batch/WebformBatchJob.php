@@ -9,6 +9,7 @@ use Drupal\ai\OperationType\GenericType\ImageFile;
 use Drupal\ai_agents\PluginInterfaces\AiAgentInterface;
 use Drupal\ai_agents\Task\Task;
 use Drupal\file\Entity\File;
+use Drupal\unstructured\Formatters\MarkdownFormatter;
 use Drupal\webform\Entity\Webform;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -69,8 +70,7 @@ class WebformBatchJob {
     ]) && class_exists('\Drupal\unstructured\Formatters\MarkdownFormatter')) {
       // Run unstructured data extraction.
       $data = \Drupal::service('unstructured.api')->structure($file);
-      // @codingStandardsIgnoreLine
-      $format = new \Drupal\unstructured\Formatters\MarkdownFormatter();
+      $format = new MarkdownFormatter();
       $gotten_text = $format->format($data, "all");
       $file_context = '';
       if (isset($gotten_text[0])) {

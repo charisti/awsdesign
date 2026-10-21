@@ -68,7 +68,7 @@ trait PluginFormTrait {
       if (!empty($value['#eca_token_replacement'])) {
         $containsTokenReplacement = TRUE;
         $description = 'This field supports tokens.';
-        $separator = '<br/>';
+        $separator = '<br />';
       }
       elseif (!empty($value['#eca_token_reference'])) {
         $description = 'Please provide the token name only, without brackets.';
@@ -80,7 +80,7 @@ trait PluginFormTrait {
           $value['#options'][''] = 'undefined';
         }
         $description = 'When using the "Defined by token" option, make sure there is a token with this name: <em>' . $this->buildTokenName($child_key) . '</em>';
-        $separator = '<br/>';
+        $separator = '<br />';
       }
       else {
         continue;

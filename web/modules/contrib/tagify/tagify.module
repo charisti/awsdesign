@@ -61,9 +61,10 @@ function tagify_options_list_alter(array &$options, array $context): void {
   if (empty($context['widget']) || !$context['widget'] instanceof WidgetInterface) {
     return;
   }
+  $widget_id = $context['widget']->getPluginId();
   $provider = $context['widget']->getPluginDefinition()['provider'];
 
-  if ($provider === 'tagify' && $targetType === 'taxonomy_term') {
+  if ($provider === 'tagify' && $targetType === 'taxonomy_term' && $widget_id !== 'tagify_select_widget') {
     _tagify_process_options($options);
   }
 }

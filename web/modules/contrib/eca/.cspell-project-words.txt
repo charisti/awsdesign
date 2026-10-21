@@ -84,6 +84,7 @@ sharedtempstore
 sidplaceholder
 solcast
 someprop
+ssti
 storageload
 successorid
 successorlabel

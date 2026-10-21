@@ -94,7 +94,7 @@ class GetFieldConfig extends FunctionCallBase implements ExecutableFunctionCallI
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Get the entity id.
     $field_name = $this->getContextValue('field_name');
     $bundle = $this->getContextValue('bundle');

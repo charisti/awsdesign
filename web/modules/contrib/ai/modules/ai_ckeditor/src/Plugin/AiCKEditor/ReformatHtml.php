@@ -1,7 +1,8 @@
 <?php
 
-namespace Drupal\ai_ckeditor\Plugin\AICKEditor;
+namespace Drupal\ai_ckeditor\Plugin\AiCKEditor;
 
+use Drupal\ai\Utility\Textarea;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
@@ -33,9 +34,7 @@ final class ReformatHtml extends AiCKEditorPluginBase {
    * {@inheritdoc}
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
-    $options = $this->aiProviderManager->getSimpleProviderModelOptions('chat');
-    array_shift($options);
-    array_splice($options, 0, 1);
+    $options = $this->aiProviderManager->getSimpleProviderModelOptions('chat', FALSE);
     $form['provider'] = [
       '#type' => 'select',
       '#title' => $this->t('AI provider'),
@@ -48,15 +47,33 @@ final class ReformatHtml extends AiCKEditorPluginBase {
     $prompts_config = $this->getConfigFactory()->get('ai_ckeditor.settings');
     $prompt_reformat = $prompts_config->get('prompts.reformat');
     $form['prompt'] = [
-      '#type' => 'textarea',
+      '#type' => 'ai_prompt',
       '#title' => $this->t('Reformat prompt'),
+      '#prompt_types' => ['ai_ckeditor_reformat'],
       '#default_value' => $prompt_reformat,
+      '#parents' => [
+        'editor',
+        'settings',
+        'plugins',
+        'ai_ckeditor_ai',
+        'plugins',
+        'ai_ckeditor_reformat_html',
+        'prompt',
+      ],
       '#description' => $this->t('This prompt will be used to reformat the html.'),
       '#states' => [
         'required' => [
           ':input[name="editor[settings][plugins][ai_ckeditor_ai][plugins][ai_ckeditor_reformat_html][enabled]"]' => ['checked' => TRUE],
         ],
       ],
+      // This property will land into core soon, see
+      // https://www.drupal.org/project/drupal/issues/3202631. It can stay
+      // after this is added to Drupal core.
+      '#normalize_newlines' => TRUE,
+      // Until that the custom value callback is needed. Should be removed
+      // after the issue mentioned above is merged into core and the minimum
+      // supported Drupal version includes `#normalize_newlines` property.
+      '#value_callback' => [Textarea::class, 'valueCallback'],
     ];
 
     return $form;
@@ -101,6 +118,13 @@ final class ReformatHtml extends AiCKEditorPluginBase {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  protected function getNoSelectedTextMessage(): TranslatableMarkup {
+    return $this->t('You must select some text before you can reformat it.');
+  }
+
+  /**
    * Generate text callback.
    *
    * @param array $form
@@ -116,11 +140,16 @@ final class ReformatHtml extends AiCKEditorPluginBase {
 
     try {
       $prompts_config = $this->getConfigFactory()->get('ai_ckeditor.settings');
-      $prompt = $prompts_config->get('prompts.reformat');
-      $prompt = $prompt . '\r\n"' . $values["plugin_config"]["selected_text"];
+      $promptId = $prompts_config->get('prompts.reformat');
+      $promptText = $this->getConfigFactory()->get('ai.ai_prompt.' . $promptId)?->get('prompt') ?? '';
+      // Replace the placeholders.
+      $promptText = strtr($promptText, [
+        '{inputText}' => $values['plugin_config']['selected_text'],
+      ]);
       $response = new AjaxResponse();
       $values = $form_state->getValues();
-      $response->addCommand(new AiRequestCommand($prompt, $values["editor_id"], $this->pluginDefinition['id'], 'ai-ckeditor-response'));
+      assert(is_array($this->pluginDefinition));
+      $response->addCommand(new AiRequestCommand($promptText, $values["editor_id"], $this->pluginDefinition['id'], 'ai-ckeditor-response'));
       return $response;
     }
     catch (\Exception $e) {

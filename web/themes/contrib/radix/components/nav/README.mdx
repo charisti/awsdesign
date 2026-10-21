@@ -11,6 +11,7 @@ https://getbootstrap.com/docs/5.3/components/navs-tabs/
 - **Flexible Alignment**: Supports multiple alignment options including left, right, center, and vertical.
 - **Style Variations**: Offers styles such as tabs and pills for different visual appearances.
 - **Fill Options**: Includes fill and justify options to control the distribution of navigation items.
+- **Optional Dropdowns**: Expanded items render as Bootstrap dropdowns by default, or as inline nested lists when `is_dropdown` is `false` (ideal for sidebars and secondary navigation).
 - **Utility Class Integration**: Allows for the addition of custom utility classes for further customization.
 
 ## Customization Options
@@ -39,6 +40,43 @@ https://getbootstrap.com/docs/5.3/components/navs-tabs/
     navbar_utility_classes: ['bg-light'],
     nav_link_utility_classes: ['text-dark'],
     nav_item_utility_classes: ['px-2'],
+  }
+%}
+```
+
+### Non-dropdown (sidebar / vertical) navigation
+
+Set `is_dropdown: false` to render expanded parent items with their children
+inline as a nested vertical list instead of a Bootstrap dropdown. This is the
+recommended pattern for secondary menus and side navigation.
+
+```twig
+{%
+  include 'radix:nav' with {
+    alignment: 'vertical',
+    is_dropdown: false,
+    items: links,
+  }
+%}
+```
+
+> **Note:** Children are only rendered when the menu item is expanded. For a
+> static sidebar that should always show its child links, enable **"Expand all
+> menu items"** on the menu block placement (`expand_all_items`). The
+> non-dropdown list recurses, so menus deeper than two levels render in full.
+
+### Horizontal (side-opening) dropdowns
+
+For multi-level dropdown menus, set `dropdown_direction` to open nested
+submenus to the side instead of below. Use `dropend` to open to the right or
+`dropstart` to open to the left. The direction propagates to every nesting
+level. Leave it empty (default) for submenus that open below.
+
+```twig
+{%
+  include 'radix:nav' with {
+    items: links,
+    dropdown_direction: 'dropend',
   }
 %}
 ```

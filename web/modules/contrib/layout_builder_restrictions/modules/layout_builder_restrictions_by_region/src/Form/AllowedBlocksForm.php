@@ -5,13 +5,13 @@ namespace Drupal\layout_builder_restrictions_by_region\Form;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\CloseModalDialogCommand;
 use Drupal\Core\Ajax\ReplaceCommand;
-use Drupal\Core\Entity\EntityTypeManager;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormBuilderInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Layout\LayoutPluginManagerInterface;
 use Drupal\Core\Messenger\MessengerInterface;
-use Drupal\Core\Render\Renderer;
+use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\TempStore\PrivateTempStoreFactory;
 use Drupal\Core\Url;
 use Drupal\layout_builder_restrictions\Traits\PluginHelperTrait;
@@ -44,7 +44,7 @@ class AllowedBlocksForm extends FormBase {
   /**
    * Manages entity type plugin definitions.
    *
-   * @var \Drupal\Core\Entity\EntityTypeManager
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
   protected $entityTypeManager;
 
@@ -65,7 +65,7 @@ class AllowedBlocksForm extends FormBase {
   /**
    * Turns a render array into a HTML string.
    *
-   * @var \Drupal\Core\Render\Renderer
+   * @var \Drupal\Core\Render\RendererInterface
    */
   protected $renderer;
 
@@ -130,18 +130,18 @@ class AllowedBlocksForm extends FormBase {
    *
    * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
    *   Request stack that controls the lifecycle of requests.
-   * @param \Drupal\Core\Block\LayoutPluginManagerInterface $layout_manager
+   * @param \Drupal\Core\Layout\LayoutPluginManagerInterface $layout_manager
    *   The layout plugin manager.
-   * @param \Drupal\Core\Entity\EntityTypeManager $entity_type_manager
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
    *   Manages entity type plugin definitions.
    * @param \Drupal\Core\TempStore\PrivateTempStoreFactory $private_temp_store_factory
    *   Creates a private temporary storage for a collection.
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
    *   The messenger service.
-   * @param \Drupal\Core\Render\Renderer $renderer
+   * @param \Drupal\Core\Render\RendererInterface $renderer
    *   Turns a render array into a HTML string.
    */
-  public function __construct(RequestStack $request_stack, LayoutPluginManagerInterface $layout_manager, EntityTypeManager $entity_type_manager, PrivateTempStoreFactory $private_temp_store_factory, MessengerInterface $messenger, Renderer $renderer) {
+  public function __construct(RequestStack $request_stack, LayoutPluginManagerInterface $layout_manager, EntityTypeManagerInterface $entity_type_manager, PrivateTempStoreFactory $private_temp_store_factory, MessengerInterface $messenger, RendererInterface $renderer) {
     $this->requestStack = $request_stack;
     $this->layoutManager = $layout_manager;
     $this->entityTypeManager = $entity_type_manager;

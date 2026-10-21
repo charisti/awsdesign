@@ -7,6 +7,7 @@ namespace Drupal\Tests\project_browser\FunctionalJavascript;
 use Drupal\Core\Language\LanguageInterface;
 use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 // cspell:ignore soorch foor moodools
 
@@ -16,6 +17,7 @@ use PHPUnit\Framework\Attributes\Group;
  * @group project_browser
  */
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class TranslatedSvelteAppTest extends WebDriverTestBase {
 
   use ProjectBrowserUiTestTrait;

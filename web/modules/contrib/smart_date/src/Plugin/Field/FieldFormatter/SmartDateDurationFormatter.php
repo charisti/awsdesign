@@ -99,7 +99,7 @@ class SmartDateDurationFormatter extends SmartDateFormatterBase {
    * {@inheritdoc}
    */
   public function settingsSummary() {
-    $summary[] = parent::settingsSummary();
+    $summary = parent::settingsSummary();
 
     $summary[] = $this->t('Duration separator: %duration_separator.', [
       '%duration_separator' => $this->getSetting('duration_separator'),

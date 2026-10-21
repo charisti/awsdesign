@@ -64,10 +64,16 @@ variables:
   _PHPUNIT_TESTGROUPS: ''
 
   # Broaden test coverage.
-  # Restore this when 11.2.x is the previous minor version of core.
-  OPT_IN_TEST_PREVIOUS_MINOR: '0'
+  OPT_IN_TEST_PREVIOUS_MINOR: '1'
   OPT_IN_TEST_NEXT_MINOR: 1
   OPT_IN_TEST_MAX_PHP: 1
+
+  _COMPOSER_LINT_ALLOW_FAILURE: 0
+  _CSPELL_ALLOW_FAILURE: 0
+  _CSPELL_IGNORE_PATHS: 'README.md,contributor.md,sveltejs/public/build,sveltejs/node_modules,tests/fixtures,fixtures'
+  _ESLINT_ALLOW_FAILURE: 0
+  _PHPCS_ALLOW_FAILURE: 0
+  _STYLELINT_ALLOW_FAILURE: 0
 
 # @todo Remove when https://www.drupal.org/project/gitlab_templates/issues/3452183 lands.
 .is-push-rule: &is-push-rule
@@ -113,30 +119,9 @@ composer-lint:
     - *manual-rule
 
 ################
-# Require composer checks to pass.
-################
-composer-lint:
-  allow_failure: false
-
-################
-# Require cspell to pass.
-################
-cspell:
-  allow_failure: false
-  variables:
-    _CSPELL_IGNORE_PATHS: 'README.md,contributor.md,sveltejs/public/build,sveltejs/node_modules,tests/fixtures,fixtures'
-
-################
-# Require stylelint checks to pass.
-################
-stylelint:
-  allow_failure: false
-
-################
 # Require phpcs checks to pass.
 ################
 phpcs:
-  allow_failure: false
   # @todo Remove when https://www.drupal.org/project/gitlab_templates/issues/3452183 lands.
   rules:
     - *is-push-rule
@@ -183,17 +168,10 @@ phpcs-rules-match-drupal-11:
   allow_failure: true
 
 ################
-# Require phpstan checks to pass.
-################
-phpstan:
-  allow_failure: false
-
-################
 # We want to run standard eslint for /js directory, but not /sveltejs directory.
 # .eslintignore patterns do not work due to ESLint scanning for .eslintrc.js
 ################
 eslint:
-  allow_failure: false
   before_script:
     - rm -fr sveltejs
     - rm -fr recipes
@@ -208,6 +186,7 @@ eslint-sveltejs:
     - composer
   script:
     - cd sveltejs
+    - npm -g install corepack
     - yarn install
     - yarn lint:svelte
 
@@ -224,6 +203,18 @@ phpunit:
           - FunctionalJavascript
   variables:
     _PHPUNIT_EXTRA: '--types PHPUnit-$TEST_TYPE --module project_browser'
+
+# Drupal 12 and later has a different set of test types.
+phpunit (next major):
+  parallel:
+    matrix:
+      - TEST_TYPE:
+          - unit
+          - kernel
+          - functional
+          - functional-javascript
+  variables:
+    _PHPUNIT_EXTRA: '--types $TEST_TYPE --module project_browser'
 
 ###################################################################################
 #
@@ -271,15 +262,10 @@ phpunit:
 #
 ###################################################################################
 
-phpunit (next major):
-  # Require us to be compatible with the next major version of core.
-  allow_failure: false
-
-phpstan (previous major):
-  extends: phpstan
-  rules:
-    - !reference [ .opt-in-previous-major-rule ]
-    - !reference [ .skip-phpstan-rule ]
-    - !reference [ .phpstan-allow-failure-rule ]
-  needs:
-    - 'composer (previous major)'
+# The Contact module has been removed to contrib in Drupal 12. This can be converted
+# to a hard dev dependency when Drupal 12 is the current major version of core.
+composer (next major):
+  after_script:
+    - composer require --dev "drupal/contact:^1"
+    # Contact's tests interfere with test discovery, and we don't need them anyway.
+    - rm -rf web/modules/contrib/contact/tests

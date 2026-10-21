@@ -31,14 +31,7 @@
 
   <!-- Drupal sniffs -->
   <rule ref="Drupal.Arrays.Array"/>
-  <rule ref="Drupal.Arrays.Array.LongLineDeclaration">
-    <include-pattern>core/*/Unit/*</include-pattern>
-    <include-pattern>core/*/FunctionalJavascript/*</include-pattern>
-    <include-pattern>core/*/Kernel/*</include-pattern>
-    <include-pattern>core/*/Functional/*</include-pattern>
-    <include-pattern>core/lib/*</include-pattern>
-    <include-pattern>core/modules/*/tests/modules/*</include-pattern>
-  </rule>
+  <rule ref="Drupal.Arrays.Array.LongLineDeclaration"/>
   <rule ref="Drupal.Classes.ClassCreateInstance"/>
   <rule ref="Drupal.Classes.ClassDeclaration"/>
   <rule ref="Drupal.Classes.ClassFileName"/>
@@ -59,6 +52,7 @@
     <exclude name="Drupal.Commenting.DocComment.LongFullStop"/>
   </rule>
   <rule  ref="Drupal.Commenting.DocComment.MissingShort">
+    <include-pattern>core/*/KernelTests/*</include-pattern>
     <include-pattern>core/*/Unit/*</include-pattern>
     <include-pattern>core/*/FunctionalJavascript/*</include-pattern>
   </rule>
@@ -75,6 +69,8 @@
     <include-pattern>*/KernelTests/*</include-pattern>
     <include-pattern>*/Functional/*</include-pattern>
     <include-pattern>*/Unit/*</include-pattern>
+    <include-pattern>core/lib/*</include-pattern>
+    <include-pattern>core/modules/system/tests/modules/HookOrder/*</include-pattern>
   </rule>
   <rule ref="Drupal.Commenting.FunctionComment.MissingParamType"/>
   <rule ref="Drupal.Commenting.FunctionComment.MissingReturnComment"/>

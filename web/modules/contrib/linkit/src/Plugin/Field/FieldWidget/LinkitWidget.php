@@ -3,8 +3,10 @@
 namespace Drupal\linkit\Plugin\Field\FieldWidget;
 
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Field\Attribute\FieldWidget;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\file\FileInterface;
 use Drupal\link\Plugin\Field\FieldWidget\LinkWidget;
 use Drupal\linkit\Utility\LinkitHelper;
@@ -12,15 +14,12 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Plugin implementation of the 'linkit' widget.
- *
- * @FieldWidget(
- *   id = "linkit",
- *   label = @Translation("Linkit"),
- *   field_types = {
- *     "link"
- *   }
- * )
  */
+#[FieldWidget(
+  id: 'linkit',
+  label: new TranslatableMarkup('Linkit'),
+  field_types: ['link']
+)]
 class LinkitWidget extends LinkWidget {
 
   /**
@@ -129,6 +128,7 @@ class LinkitWidget extends LinkWidget {
     /** @var \Drupal\link\LinkItemInterface $item */
     $item = $items[$delta];
     $uri = $item->uri ?? NULL;
+    $default_allowed = FALSE;
 
     try {
       // Try to fetch entity information from the URI.
@@ -140,6 +140,13 @@ class LinkitWidget extends LinkWidget {
 
     if (!empty($item->options['data-entity-type']) && !empty($item->options['data-entity-uuid'])) {
       $entity = $this->entityRepository->loadEntityByUuid($item->options['data-entity-type'], $item->options['data-entity-uuid']);
+      // Fix any mismatches between field value and options due to errors saved
+      // before https://www.drupal.org/project/linkit/issues/3570672 was fixed.
+      if ($entity && $uri && $uriEntity = LinkitHelper::getEntityFromUri($uri)) {
+        if ($entity->getEntityTypeId() !== $uriEntity->getEntityTypeId() || $entity->uuid() !== $uriEntity->uuid()) {
+          $entity = $uriEntity;
+        }
+      }
     }
     else {
       $entity = $default_allowed && $uri ? LinkitHelper::getEntityFromUri($uri) : NULL;
@@ -152,15 +159,24 @@ class LinkitWidget extends LinkWidget {
     elseif ($entity instanceof EntityInterface) {
       $uri_parts = parse_url($uri);
       $uri_options = [];
+
       // Extract query parameters and fragment and merge them into $uri_options.
       if (isset($uri_parts['fragment']) && $uri_parts['fragment'] !== '') {
         $uri_options += ['fragment' => $uri_parts['fragment']];
       }
+      elseif (!empty($item->options['fragment'])) {
+        $uri_options += ['fragment' => $item->options['fragment']];
+      }
+
       if (!empty($uri_parts['query'])) {
         $uri_query = [];
         parse_str($uri_parts['query'], $uri_query);
-        $uri_options['query'] = isset($uri_options['query']) ? $uri_options['query'] + $uri_query : $uri_query;
+        $uri_options['query'] = $uri_query;
       }
+      elseif (!empty($item->options['query'])) {
+        $uri_options['query'] = $item->options['query'];
+      }
+
       $element['uri']['#default_value'] = $entity->toUrl()->setOptions($uri_options)->toString();
     }
     // Change the URI field to use the linkit profile.
@@ -195,9 +211,21 @@ class LinkitWidget extends LinkWidget {
       '#type' => 'hidden',
       '#default_value' => $entity ? $entity->uuid() : '',
     ];
+
+    // Set the fallback substitution type.
+    $substitution_type = $entity && $entity->getEntityTypeId() === 'file' ? 'file' : 'canonical';
+    if ($entity && $linkit_profile = $this->linkitProfileStorage->load($this->getSetting('linkit_profile'))) {
+      /** @var \Drupal\linkit\ProfileInterface $linkit_profile */
+      $matcher = $linkit_profile->getMatcherByEntityType($entity->getEntityTypeId());
+      $matcher_configuration = $matcher ? $matcher->getConfiguration() : [];
+
+      // Retrieve the configured substitution_type or fallback to the default.
+      $substitution_type = $matcher_configuration['settings']['substitution_type'] ?? $substitution_type;
+    }
+
     $element['attributes']['data-entity-substitution'] = [
       '#type' => 'hidden',
-      '#default_value' => $entity ? ($entity->getEntityTypeId() === 'file' ? 'file' : 'canonical') : '',
+      '#default_value' => $substitution_type,
     ];
 
     // Add custom css for the widget representation:
@@ -212,9 +240,24 @@ class LinkitWidget extends LinkWidget {
    */
   public function massageFormValues(array $values, array $form, FormStateInterface $form_state) {
     foreach ($values as &$value) {
+      $parsed_url = parse_url($value['uri']);
+
       $value['uri'] = LinkitHelper::uriFromUserInput($value['uri']);
-      $value += ['options' => $value['attributes']];
+      $attributes = $value['attributes'];
+
+      if (!empty($parsed_url['query'])) {
+        $parsed_query = [];
+        parse_str($parsed_url['query'], $parsed_query);
+        $attributes += ['query' => $parsed_query];
+      }
+
+      if (!empty($parsed_url['fragment'])) {
+        $attributes += ['fragment' => $parsed_url['fragment']];
+      }
+
+      $value += ['options' => $attributes];
     }
+
     return $values;
   }
 

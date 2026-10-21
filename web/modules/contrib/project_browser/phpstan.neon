@@ -54,6 +54,14 @@ parameters:
         - src/Element/ProjectBrowser.php
       # This error is not found in all versions of core.
       reportUnmatched: false
+    # This method has been removed in Drupal 12.
+    -
+      message: '#^Call to an undefined method Drupal\\Core\\Extension\\ModuleInstallerInterface\:\:addUninstallValidator\(\)\.$#'
+      identifier: method.notFound
+      count: 1
+      path: tests/modules/project_browser_test/src/Extension/TestModuleInstaller.php
+      # This error is not found in Drupal 11.
+      reportUnmatched: false
 
     ### Package Manager
     # @todo Remove after resolving https://www.drupal.org/i/3501836.

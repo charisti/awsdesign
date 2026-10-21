@@ -23,3 +23,6 @@ Webform
 scrapingbot
 echoai
 AICK
+micromodal
+mdxeditor
+pluginuser

@@ -6,13 +6,14 @@ namespace Drupal\Tests\migrate_plus\Unit\process;
 
 use Drupal\migrate_plus\Plugin\migrate\process\StrReplace;
 use Drupal\Tests\migrate\Unit\process\MigrateProcessTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tests the str replace process plugin.
- *
- * @group migrate
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\StrReplace
  */
+#[CoversClass(StrReplace::class)]
+#[Group('migrate_plus')]
 final class StrReplaceTest extends MigrateProcessTestCase {
 
   /**

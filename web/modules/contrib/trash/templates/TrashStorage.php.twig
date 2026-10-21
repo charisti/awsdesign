@@ -5,7 +5,7 @@ use Drupal\trash\TrashStorageTrait;
 /**
  * Provides a custom storage class for trash-enabled entity types.
  */
-class {{ trash_class }} extends \{{ original_class }} {
+class {{ trash_class }} extends \{{ original_class }} implements \Drupal\trash\TrashStorageInterface {
 
   use TrashStorageTrait;
 

@@ -14,10 +14,10 @@ include:
   - project: $_GITLAB_TEMPLATES_REPO
     ref: $_GITLAB_TEMPLATES_REF
     file:
-      - "/includes/include.drupalci.main.yml"
-      - "/includes/include.drupalci.variables.yml"
-      - "/includes/include.drupalci.workflows.yml"
-
+      - '/includes/include.drupalci.main.yml'
+      - '/includes/include.drupalci.variables.yml'
+      - '/includes/include.drupalci.workflows.yml'
+#
 ################
 # Pipeline configuration variables are defined with default values and descriptions in the file
 # https://git.drupalcode.org/project/gitlab_templates/-/blob/main/includes/include.drupalci.variables.yml

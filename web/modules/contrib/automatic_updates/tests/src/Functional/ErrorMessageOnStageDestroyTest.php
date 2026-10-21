@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace Drupal\Tests\automatic_updates\Functional;
 
 use Drupal\automatic_updates\UpdateSandboxManager;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests error message when the stage the user is interacting with is destroyed.
  *
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[RunTestsInSeparateProcesses]
 class ErrorMessageOnStageDestroyTest extends AutomaticUpdatesFunctionalTestBase {
 
   /**
@@ -55,13 +59,13 @@ class ErrorMessageOnStageDestroyTest extends AutomaticUpdatesFunctionalTestBase 
     $this->checkForMetaRefresh();
     $this->assertUpdateReady('9.8.1');
     $sandbox_manager = $this->container->get(UpdateSandboxManager::class);
-    $random_message = $this->randomString();
+    $random_message = new TranslatableMarkup("Do you get my message?");
     // @see \Drupal\Tests\package_manager\Kernel\StageTest::testStoreDestroyInfo()
     // @see \Drupal\automatic_updates\CronUpdateRunner::performUpdate()
-    $sandbox_manager->destroy(TRUE, t($random_message));
+    $sandbox_manager->destroy(TRUE, $random_message);
     $this->checkForMetaRefresh();
     $page->pressButton('Continue');
-    $assert_session->pageTextContains($random_message);
+    $assert_session->pageTextContains((string) $random_message);
   }
 
 }

@@ -5,6 +5,7 @@
  * Tokens provided by ECA.
  */
 
+use Drupal\Component\Render\MarkupInterface;
 use Drupal\Core\Access\AccessibleInterface;
 use Drupal\Core\Cache\CacheableDependencyInterface;
 use Drupal\Core\Entity\ContentEntityInterface;
@@ -15,6 +16,7 @@ use Drupal\Core\Render\Markup;
 use Drupal\Core\TypedData\ListInterface;
 use Drupal\Core\TypedData\TraversableTypedDataInterface;
 use Drupal\Core\TypedData\TypedDataInterface;
+use Drupal\eca\Plugin\DataType\DataTransferObject;
 use Drupal\eca\Token\TokenServices;
 
 /**
@@ -229,13 +231,19 @@ function eca_tokens(string $type, array $tokens, array $data, array $options, Bu
   if ($type === '_eca_root_token') {
     $available = $data + TokenServices::get()->getTokenData();
     foreach ($tokens as $name => $original) {
-      if (isset($available[$name])) {
-        $value = $available[$name] ?? NULL;
-        $replacement = is_scalar($value) || is_null($value) || (is_object($value) && method_exists($value, '__toString')) ? (string) $value : ($value instanceof EntityInterface ? $value->id() : '');
-        if ($replacement !== '') {
-          $replacements[$original] = Markup::create($replacement);
-        }
+      if (!isset($available[$name])) {
+        continue;
       }
+      $value = $available[$name];
+      $replacement = _eca_root_token_value_to_string($value);
+      if ($replacement === '') {
+        continue;
+      }
+      $replacements[$original] = match (TRUE) {
+        $value instanceof MarkupInterface => $value,
+        $value instanceof DataTransferObject => Markup::create($replacement),
+        default => $replacement,
+      };
     }
   }
 
@@ -249,4 +257,17 @@ function eca_tokens(string $type, array $tokens, array $data, array $options, Bu
   }
 
   return $replacements;
+}
+
+/**
+ * Builds the string form of a root-level token value.
+ */
+function _eca_root_token_value_to_string(mixed $value): string {
+  if (is_scalar($value) || (is_object($value) && method_exists($value, '__toString'))) {
+    return (string) $value;
+  }
+  if ($value instanceof EntityInterface) {
+    return (string) $value->id();
+  }
+  return '';
 }

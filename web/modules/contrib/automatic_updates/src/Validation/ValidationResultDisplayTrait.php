@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\automatic_updates\Validation;
 
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
-use Drupal\system\SystemManager;
 
 /**
  * Common methods for displaying validation results in the admin UI.
@@ -27,11 +27,11 @@ trait ValidationResultDisplayTrait {
    * @return \Drupal\Core\StringTranslation\TranslatableMarkup
    *   The message.
    *
-   * @see \Drupal\system\SystemManager::REQUIREMENT_ERROR
-   * @see \Drupal\system\SystemManager::REQUIREMENT_WARNING
+   * @see \Drupal\system\RequirementSeverity::Error->value
+   * @see \Drupal\system\RequirementSeverity::Warning->value
    */
   private function getFailureMessageForSeverity(int $severity): TranslatableMarkup {
-    return $severity === SystemManager::REQUIREMENT_WARNING ?
+    return $severity === RequirementSeverity::Warning->value ?
       // @todo Link "automatic updates" to documentation in
       //   https://www.drupal.org/node/3168405.
       $this->t('Your site does not pass some readiness checks for automatic updates. Depending on the nature of the failures, it might affect the eligibility for automatic updates.') :

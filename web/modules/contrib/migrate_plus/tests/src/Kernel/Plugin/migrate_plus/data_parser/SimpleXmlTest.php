@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Drupal\Tests\migrate_plus\Kernel\Plugin\migrate_plus\data_parser;
 
 use Drupal\migrate\MigrateException;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Test of the data_parser SimpleXml migrate_plus plugin.
- *
- * @group migrate_plus
  */
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 class SimpleXmlTest extends BaseXml {
 
   /**

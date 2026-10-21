@@ -1,5 +1,5 @@
 import { openPopup } from './util';
-import { BASE_URL } from './constants';
+import { ACTIVATE_URL, BASE_URL } from './constants';
 
 const {
   Drupal,
@@ -88,11 +88,19 @@ async function activateProject (projectIds) {
     messenger.remove(messageId);
   }
 
+  // Start from the PHP-built activate URL (includes a valid path CSRF token),
+  // then append only dynamic query parameters.
+  const activateUrl = new URL(ACTIVATE_URL, BASE_URL);
+  projectIds.forEach((id, index) => {
+    activateUrl.searchParams.set(`projects[${index}]`, id);
+  });
+  activateUrl.searchParams.set('destination', window.location.pathname);
+
   await new Drupal.Ajax(
     null,
     document.createElement('div'),
     {
-      url: `${BASE_URL}admin/modules/project_browser/activate?projects=${projectIds.join(',')}&destination=${window.location.pathname}`,
+      url: activateUrl.toString(),
     },
   ).execute();
 }

@@ -9,6 +9,7 @@ use Drupal\automatic_updates\ConsoleUpdateSandboxManager;
 use Drupal\automatic_updates_test\EventSubscriber\TestSubscriber1;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\Logger\RfcLogLevel;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
 use Drupal\package_manager\Event\PostApplyEvent;
 use Drupal\package_manager\Event\PostCreateEvent;
@@ -33,13 +34,18 @@ use PhpTuf\ComposerStager\API\Exception\InvalidArgumentException;
 use PhpTuf\ComposerStager\API\Exception\PreconditionException;
 use PhpTuf\ComposerStager\API\Precondition\Service\PreconditionInterface;
 use ColinODell\PsrTestLogger\TestLogger;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Symfony\Component\DependencyInjection\Reference;
 
 /**
- * @covers \Drupal\automatic_updates\ConsoleUpdateSandboxManager
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(ConsoleUpdateSandboxManager::class)]
+#[RunTestsInSeparateProcesses]
 class ConsoleUpdateSandboxManagerTest extends AutomaticUpdatesKernelTestBase {
 
   use EmailNotificationsTestTrait;
@@ -183,9 +189,8 @@ END;
    *   keyed by project name.
    * @param bool $will_update
    *   Whether an update should be performed, given the previous two arguments.
-   *
-   * @dataProvider providerUpdateStageCalled
    */
+  #[DataProvider('providerUpdateStageCalled')]
   public function testUpdateStageCalled(string $setting, array $release_data, bool $will_update): void {
     $version = strpos($release_data['drupal'], '9.8.2') ? '9.8.2' : '9.8.1';
     if ($will_update) {
@@ -273,9 +278,8 @@ END;
    *   The stage life cycle event which should raise an error.
    * @param string $exception_class
    *   The class of exception that will be thrown when the given event is fired.
-   *
-   * @dataProvider providerStageDestroyedOnError
    */
+  #[DataProvider('providerStageDestroyedOnError')]
   public function testStageDestroyedOnError(string $event_class, string $exception_class): void {
     // If the failure happens before the stage is even created, the stage
     // fixture need not be manipulated.
@@ -305,10 +309,10 @@ END;
 
     // When the event specified by $event_class is dispatched, either throw an
     // exception directly from the event subscriber, or prepare a
-    // SandboxEventException which will format the validation results its own way.
+    // SandboxEventException which will format validation results its own way.
     if ($exception_class === SandboxEventException::class) {
       $error = ValidationResult::createError([
-        t('Destroy the stage!'),
+        new TranslatableMarkup('Destroy the stage!'),
       ]);
 
       TestSubscriber1::setTestResult([$error], $event_class);
@@ -374,7 +378,7 @@ END;
     $sandbox_manager = $this->createStage();
     $sandbox_manager->create();
     $sandbox_manager->require(['drupal/core:9.8.1']);
-    $stop_error = t('Stopping stage from applying');
+    $stop_error = new TranslatableMarkup('Stopping stage from applying');
 
     // Add a PreApplyEvent event listener so we can attempt to run cron when
     // another stage is applying.
@@ -401,7 +405,7 @@ END;
   }
 
   /**
-   * Tests stage is not destroyed if not available and site is on secure version.
+   * Tests stage is not destroyed if unavailable and site is on secure version.
    */
   public function testStageNotDestroyedIfSecure(): void {
     $this->config('automatic_updates.settings')
@@ -416,8 +420,8 @@ END;
     $sandbox_manager->require(['drupal/random']);
     $this->assertUpdateStagedTimes(1);
 
-    // Trigger CronUpdateRunner, the above should cause it to detect a stage that
-    // is applying.
+    // Trigger CronUpdateRunner, the above should cause it to detect a stage
+    // that is applying.
     $this->runConsoleUpdateStage();
 
     $this->assertTrue($this->logger->hasRecord('Cron will not perform any updates because there is an existing stage and the current version of the site is secure.', (string) RfcLogLevel::NOTICE));
@@ -478,9 +482,8 @@ END;
    *
    * @param string $event_class
    *   The event class that should trigger the failure.
-   *
-   * @dataProvider providerEmailOnFailure
    */
+  #[DataProvider('providerEmailOnFailure')]
   public function testNonUrgentFailureEmail(string $event_class): void {
     // If the failure happens before the stage is even created, the stage
     // fixture need not be manipulated.
@@ -495,7 +498,7 @@ END;
       ->save();
 
     $error = ValidationResult::createError([
-      t('Error while updating!'),
+      new TranslatableMarkup('Error while updating!'),
     ]);
     TestSubscriber1::setTestResult([$error], $event_class);
     $exception_message = $this->createStageEventExceptionFromResults([$error])
@@ -526,9 +529,8 @@ END;
    *
    * @param string $event_class
    *   The event class that should trigger the failure.
-   *
-   * @dataProvider providerEmailOnFailure
    */
+  #[DataProvider('providerEmailOnFailure')]
   public function testSecurityUpdateFailureEmail(string $event_class): void {
     // If the failure happens before the stage is even created, the stage
     // fixture need not be manipulated.
@@ -537,7 +539,7 @@ END;
     }
 
     $error = ValidationResult::createError([
-      t('Error while updating!'),
+      new TranslatableMarkup('Error while updating!'),
     ]);
     TestSubscriber1::setTestResult([$error], $event_class);
     $exception_message = $this->createStageEventExceptionFromResults([$error])
@@ -635,9 +637,8 @@ END;
    *   The class of the exception that should be thrown by the committer.
    * @param bool $will_be_in_maintenance_mode
    *   Whether or not the site will be in maintenance mode afterward.
-   *
-   * @dataProvider providerMaintenanceModeAffectedByException
    */
+  #[DataProvider('providerMaintenanceModeAffectedByException')]
   public function testMaintenanceModeAffectedByException(string $exception_class, bool $will_be_in_maintenance_mode): void {
     $this->getStageFixtureManipulator()->setCorePackageVersion('9.8.1');
 
@@ -708,7 +709,7 @@ END;
   }
 
   /**
-   * Creates a SandboxEventException from a particular set of validation results.
+   * Creates a SandboxEventException from a set of validation results.
    *
    * @param \Drupal\package_manager\ValidationResult[] $results
    *   The validation results associated with the exception.

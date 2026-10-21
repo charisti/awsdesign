@@ -36,14 +36,16 @@
  * @see template_preprocess_links()
  */
 #}
-{%
-  include 'radix:dropdown' with {
-    dropdown_button_content: button.text,
-    dropdown_button_url: button.url,
-    dropdown_button_attributes: button.attributes.addClass(split ? 'btn-outline-dark'),
-    dropdown_size: 'btn-sm',
-    split_button: split,
-    outline: true,
-    items: links|slice(1)
-  }
-%}
+{% if links is not empty %}
+  {%
+    include 'radix:dropdown' with {
+      dropdown_button_content: button.text,
+      dropdown_button_url: button.url,
+      dropdown_button_attributes: button.attributes.addClass(split ? 'btn-outline-dark'),
+      dropdown_size: 'btn-sm',
+      split_button: split,
+      outline: true,
+      items: links|slice(1)
+    }
+  %}
+{% endif %}

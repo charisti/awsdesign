@@ -102,6 +102,18 @@ class TagifyEntityAutocompleteController extends ControllerBase {
         // key/value store.
         throw new AccessDeniedHttpException();
       }
+
+      $entity_type_id = $request->query->get('entity_type');
+      if ($entity_type_id && $this->entityTypeManager()->hasDefinition($entity_type_id)) {
+        $entity_id = $request->query->get('entity_id');
+        if ($entity_id) {
+          $entity = $this->entityTypeManager()->getStorage($entity_type_id)->load($entity_id);
+          if ($entity->access('update')) {
+            $selection_settings['entity'] = $entity;
+          }
+        }
+      }
+
       $matches = $this->matcher->getMatches($target_type, $selection_handler, $selection_settings, mb_strtolower($input), $selected);
     }
 

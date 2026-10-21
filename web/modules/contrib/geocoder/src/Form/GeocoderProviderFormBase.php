@@ -7,7 +7,10 @@ namespace Drupal\geocoder\Form;
 use Drupal\Core\Entity\EntityForm;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\PluginFormInterface;
+use Drupal\Core\Url;
+use Drupal\Core\Utility\LinkGeneratorInterface;
 use Drupal\geocoder\Entity\GeocoderProvider;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Base class for forms dealing with Geocoder provider entities.
@@ -20,6 +23,32 @@ abstract class GeocoderProviderFormBase extends EntityForm {
    * @var \Drupal\geocoder\GeocoderProviderInterface
    */
   protected $entity;
+
+  /**
+   * The link generator service.
+   *
+   * @var \Drupal\Core\Utility\LinkGeneratorInterface
+   */
+  protected LinkGeneratorInterface $linkGenerator;
+
+  /**
+   * Constructs a new GeocoderProviderFormBase.
+   *
+   * @param \Drupal\Core\Utility\LinkGeneratorInterface $link_generator
+   *   The link generator service.
+   */
+  public function __construct(LinkGeneratorInterface $link_generator) {
+    $this->linkGenerator = $link_generator;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container): static {
+    return new static(
+      $container->get('link_generator'),
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -50,7 +79,33 @@ abstract class GeocoderProviderFormBase extends EntityForm {
     ];
 
     $plugin = $this->entity->getPlugin();
-    if ($plugin && $plugin instanceof PluginFormInterface) {
+    if ($plugin instanceof PluginFormInterface) {
+
+      $form['replacement_tokens_info'] = [
+        '#type' => 'html_tag',
+        '#tag' => 'div',
+        '#value' => $this->t('Replacement Tokens are supported in the following (string type) provider settings/arguments.'),
+      ];
+
+      if ($this->moduleHandler->moduleExists('token')) {
+        $form['replacement_tokens_patterns'] = [
+          '#theme' => 'token_tree_link',
+          '#token_types' => [],
+        ];
+      }
+      else {
+        $form['replacement_tokens_help'] = [
+          '#type' => 'html_tag',
+          '#tag' => 'div',
+          '#value' => $this->t('The @token_link is needed to browse available token replacements.', [
+            '@token_link' => $this->linkGenerator->generate(t('Token module'), Url::fromUri('https://www.drupal.org/project/token', [
+              'absolute' => TRUE,
+              'attributes' => ['target' => 'blank'],
+            ])),
+          ]),
+        ];
+      }
+
       $form += $plugin->buildConfigurationForm($form, $form_state);
     }
 
@@ -64,7 +119,7 @@ abstract class GeocoderProviderFormBase extends EntityForm {
     parent::validateForm($form, $form_state);
 
     $plugin = $this->entity->getPlugin();
-    if ($plugin && $plugin instanceof PluginFormInterface) {
+    if ($plugin instanceof PluginFormInterface) {
       $plugin->validateConfigurationForm($form, $form_state);
     }
   }
@@ -76,7 +131,7 @@ abstract class GeocoderProviderFormBase extends EntityForm {
     parent::submitForm($form, $form_state);
 
     $plugin = $this->entity->getPlugin();
-    if ($plugin && $plugin instanceof PluginFormInterface) {
+    if ($plugin instanceof PluginFormInterface) {
       $plugin->submitConfigurationForm($form, $form_state);
     }
   }

@@ -23,7 +23,7 @@
           if (map_container.data('leaflet_widget') === undefined && leaflet_settings.lMap) {
             const lMap = leaflet_settings.lMap;
             map_container.data('leaflet_widget', new Drupal.Leaflet_Widget(map_container, lMap, leaflet_settings));
-            // Define the global Drupal.Leaflet[mapid] object to be accessible
+            // Define the global Drupal.Leaflet_Widget[mapid] object to be accessible
             // from outside.
             Drupal.Leaflet_Widget[map_id] = map_container.data('leaflet_widget');
           }
@@ -59,13 +59,13 @@
       lMap.pm.setLang(settings.langcode);
     }
 
-    // Initialise a property to store/manage the map in.
+    // Initialize a property to store/manage the map in.
     this.map = undefined;
 
-    // Initialise the Leaflet Widget Map with its features from Value element.
+    // Initialize the Leaflet Widget Map with its features from Value element.
     this.set_leaflet_widget_map(lMap);
 
-    // If map is initialised (or re-initialised) then use the new instance.
+    // If map is initialized (or re-initialized) then use the new instance.
     this.container.on('leafletMapInit', $.proxy(function (event, _m, lMap) {
       this.set_leaflet_widget_map(lMap);
     }, this));
@@ -78,7 +78,7 @@
   };
 
   /**
-   * Initialise the Leaflet Widget Map with its features from Value element.
+   * Initialize the Leaflet Widget Map with its features from Value element.
    */
   Drupal.Leaflet_Widget.prototype.set_leaflet_widget_map = function (map) {
     if (map === undefined) {

@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace Drupal\migrate_plus\Plugin\migrate_plus\data_fetcher;
 
 use Drupal\Component\Utility\NestedArray;
-use Drupal\migrate_plus\AuthenticationPluginManager;
-use GuzzleHttp\Client;
-use Drupal\migrate_plus\AuthenticationPluginInterface;
-use Psr\Http\Message\ResponseInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\migrate\MigrateException;
+use Drupal\migrate_plus\Attribute\DataFetcher;
+use Drupal\migrate_plus\AuthenticationPluginInterface;
+use Drupal\migrate_plus\AuthenticationPluginManager;
 use Drupal\migrate_plus\DataFetcherPluginBase;
+use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
+use Psr\Http\Message\ResponseInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -35,18 +37,12 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *     timeout: 300
  *     allow_redirects: false
  * @endcode
- *
- * @DataFetcher(
- *   id = "http",
- *   title = @Translation("HTTP")
- * )
  */
+#[DataFetcher(
+  id: 'http',
+  title: new TranslatableMarkup('HTTP')
+)]
 class Http extends DataFetcherPluginBase implements ContainerFactoryPluginInterface {
-
-  /**
-   * The HTTP client.
-   */
-  protected ?Client $httpClient;
 
   /**
    * The request headers.
@@ -54,19 +50,18 @@ class Http extends DataFetcherPluginBase implements ContainerFactoryPluginInterf
   protected array $headers = [];
 
   /**
-   * The authentication plugin manager.
-   */
-  protected AuthenticationPluginManager $authenticationPluginManager;
-
-  /**
    * The data retrieval client.
    */
   protected AuthenticationPluginInterface $authenticationPlugin;
 
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, Client $client, AuthenticationPluginManager $auth_plugin_manager) {
+  public function __construct(
+    array $configuration,
+    $plugin_id,
+    $plugin_definition,
+    protected Client $httpClient,
+    protected AuthenticationPluginManager $authenticationPluginManager,
+  ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->httpClient = $client;
-    $this->authenticationPluginManager = $auth_plugin_manager;
 
     // Ensure there is a 'headers' key in the configuration.
     $configuration += ['headers' => []];
@@ -85,7 +80,7 @@ class Http extends DataFetcherPluginBase implements ContainerFactoryPluginInterf
       $plugin_id,
       $plugin_definition,
       $container->get('http_client'),
-      $container->get('plugin.manager.migrate_plus.authentication',)
+      $container->get('plugin.manager.migrate_plus.authentication'),
     );
   }
 

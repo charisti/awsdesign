@@ -15,6 +15,8 @@ use Drupal\project_browser\ProjectRepository;
 use Drupal\user\PermissionHandlerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\MockObject\MockObject;
 
 /**
@@ -24,6 +26,7 @@ use PHPUnit\Framework\MockObject\MockObject;
  */
 #[CoversClass(ModuleActivator::class)]
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class ModuleActivatorTest extends KernelTestBase {
 
   /**
@@ -71,10 +74,10 @@ final class ModuleActivatorTest extends KernelTestBase {
       ])
       ->save();
     // Prime the project cache.
-    $this->container->get(QueryManager::class)
+    \Drupal::service(QueryManager::class)
       ->getProjects('drupal_core');
 
-    $this->activator = $this->container->get(ModuleActivator::class);
+    $this->activator = \Drupal::service(ModuleActivator::class);
   }
 
   /**
@@ -92,7 +95,7 @@ final class ModuleActivatorTest extends KernelTestBase {
    */
   public function testConfigureLinksAreExposedIfDefined(): void {
     /** @var \Drupal\project_browser\ProjectRepository $repository */
-    $repository = $this->container->get(ProjectRepository::class);
+    $repository = \Drupal::service(ProjectRepository::class);
 
     // The Breakpoint module has no configuration options, so it should not have
     // any tasks.
@@ -118,17 +121,16 @@ final class ModuleActivatorTest extends KernelTestBase {
 
   /**
    * Tests that a `Permissions` task is exposed for modules that provide them.
-   *
-   * @testWith ["breakpoint", false]
-   *   ["user", true]
    */
+  #[TestWith(['breakpoint', FALSE])]
+  #[TestWith(['user', TRUE])]
   public function testPermissionsTask(string $module_name, bool $task_expected): void {
-    $project = $this->container->get(ProjectRepository::class)
+    $project = \Drupal::service(ProjectRepository::class)
       ->get('drupal_core/' . $module_name);
     $this->assertSame(ActivationStatus::Active, $this->activator->getStatus($project));
     $tasks = static::getTaskTitles($this->activator->getTasks($project));
 
-    $has_permissions = $this->container->get(PermissionHandlerInterface::class)
+    $has_permissions = \Drupal::service(PermissionHandlerInterface::class)
       ->moduleProvidesPermissions($module_name);
     // Sanity check: ensure that the module actually does, or does not, provide
     // permissions as expected.
@@ -144,17 +146,16 @@ final class ModuleActivatorTest extends KernelTestBase {
 
   /**
    * Tests that the module activator returns help links if Help is enabled.
-   *
-   * @testWith [true]
-   *   [false]
    */
+  #[TestWith([TRUE])]
+  #[TestWith([FALSE])]
   public function testHelpLinksAreExposed(bool $implements_hook_help): void {
     $this->mockModuleHandler->expects($this->atLeastOnce())
       ->method('hasImplementations')
       ->with('help', 'breakpoint')
       ->willReturn($implements_hook_help);
 
-    $project = $this->container->get(ProjectRepository::class)
+    $project = \Drupal::service(ProjectRepository::class)
       ->get('drupal_core/breakpoint');
     $this->assertSame(ActivationStatus::Active, $this->activator->getStatus($project));
     $tasks = $this->activator->getTasks($project);

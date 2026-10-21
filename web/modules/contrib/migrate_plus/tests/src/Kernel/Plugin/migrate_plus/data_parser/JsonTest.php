@@ -6,12 +6,15 @@ namespace Drupal\Tests\migrate_plus\Kernel\Plugin\migrate_plus\data_parser;
 
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\migrate_plus\DataParserPluginManager;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Test of the data_parser Json migrate_plus plugin.
- *
- * @group migrate_plus
  */
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 final class JsonTest extends KernelTestBase {
 
   /**
@@ -22,7 +25,7 @@ final class JsonTest extends KernelTestBase {
   /**
    * Path for the module.
    */
-  protected ?string $path;
+  protected ?string $path = NULL;
 
   /**
    * The plugin manager.
@@ -55,10 +58,8 @@ final class JsonTest extends KernelTestBase {
    *   Expected array from json decoded file.
    *
    * @dataProvider providerTestMissingProperties
-   *
-   * @throws \Drupal\Component\Plugin\Exception\PluginException
-   * @throws \Exception
    */
+  #[DataProvider('providerTestMissingProperties')]
   public function testMissingProperties(string $file, array $ids, array $fields, array $expected): void {
     $url = $this->path . '/tests/data/' . $file;
 
@@ -136,6 +137,7 @@ final class JsonTest extends KernelTestBase {
    *
    * @dataProvider providerItemSelector
    */
+  #[DataProvider('providerItemSelector')]
   public function testItemSelector(mixed $item_selector, array $fields, array $expected): void {
     $url = $this->path . '/tests/data/item_selector.json';
 

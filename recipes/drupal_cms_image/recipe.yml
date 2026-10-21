@@ -49,6 +49,9 @@ config:
         options:
           settings:
             image_style: media_library_square_thumbnail
+    file.settings:
+      simpleConfigUpdate:
+        filename_sanitization.replace_whitespace: true
     # Disable the `files` view because it is not clear to most users what the
     # difference is between "Files" and "Media". We favor media.
     views.view.files:

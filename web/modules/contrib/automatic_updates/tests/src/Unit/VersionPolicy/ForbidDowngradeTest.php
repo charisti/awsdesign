@@ -7,12 +7,15 @@ namespace Drupal\Tests\automatic_updates\Unit\VersionPolicy;
 use Drupal\automatic_updates\Validator\VersionPolicy\ForbidDowngrade;
 use Drupal\Tests\automatic_updates\Traits\VersionPolicyTestTrait;
 use Drupal\Tests\UnitTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
- * @covers \Drupal\automatic_updates\Validator\VersionPolicy\ForbidDowngrade
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(ForbidDowngrade::class)]
 class ForbidDowngradeTest extends UnitTestCase {
 
   use VersionPolicyTestTrait;
@@ -57,9 +60,8 @@ class ForbidDowngradeTest extends UnitTestCase {
    *   The target version of Drupal core, or NULL if not known.
    * @param string[] $expected_errors
    *   The expected error messages, if any.
-   *
-   * @dataProvider providerDowngradeForbidden
    */
+  #[DataProvider('providerDowngradeForbidden')]
   public function testDowngradeForbidden(string $installed_version, ?string $target_version, array $expected_errors): void {
     $rule = new ForbidDowngrade();
     $this->assertPolicyErrors($rule, $installed_version, $target_version, $expected_errors);

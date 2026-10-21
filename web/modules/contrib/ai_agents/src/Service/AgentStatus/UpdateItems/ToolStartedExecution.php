@@ -41,6 +41,7 @@ class ToolStartedExecution extends ToolSelected implements ToolStartedExecutionI
       calling_agent_id: $data['calling_agent_id'] ?? NULL,
       tool_id: $data['tool_id'] ?? '',
       tool_feedback_message: $data['tool_feedback_message'] ?? '',
+      is_agent_decision: $data['is_agent_decision'] ?? TRUE,
     );
   }
 

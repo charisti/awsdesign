@@ -194,7 +194,7 @@ trait SmartDatePluginTrait {
           unset($elements[$delta]['start']['join']);
           unset($elements[$delta]['start']['time']);
         }
-        if ($elements[$delta]) {
+        if (isset($elements[$delta]) && $elements[$delta]) {
           $elements[$delta]['spacer'] = ['#markup' => $settings['duration']['separator'] ?? ''];
         }
         $elements[$delta]['duration'] = ['#markup' => $duration_output];

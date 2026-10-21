@@ -16,5 +16,6 @@
     "drupal/smart_date": "^4.2.1",
     "geocoder-php/nominatim-provider": "^5.7"
   },
-  "version": "1.2.8"
+  "abandoned": true,
+  "version": "1.2.10"
 }

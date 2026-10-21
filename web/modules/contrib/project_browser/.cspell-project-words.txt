@@ -14,3 +14,4 @@ CURLOPT
 RETURNTRANSFER
 varchar
 techdebt
+Uninstantiable

@@ -224,7 +224,7 @@ abstract class WebformExporterBase extends PluginBase implements WebformExporter
    * {@inheritdoc}
    */
   public function getFileTempDirectory() {
-    return $this->configFactory->get('webform.settings')->get('export.temp_directory') ?: \Drupal::service('file_system')->getTempDirectory();
+    return \Drupal::service('webform_submission.exporter')->getFileTempDirectory();
   }
 
   /**
@@ -388,8 +388,9 @@ abstract class WebformExporterBase extends PluginBase implements WebformExporter
   protected function addToZipFile($path, $name, array $options = []) {
     if (!isset($this->archive)) {
       $this->archive = new \ZipArchive();
-      $flags = !file_exists($this->getArchiveFilePath()) ? \ZipArchive::CREATE : 0;
-      $this->archive->open($this->getArchiveFilePath(), $flags);
+      $archive_path = $this->getArchiveFilePath();
+      $flags = !file_exists($archive_path) ? \ZipArchive::CREATE : 0;
+      $this->archive->open($archive_path, $flags);
     }
 
     if (@file_exists($path)) {

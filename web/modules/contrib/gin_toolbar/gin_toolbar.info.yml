@@ -3,7 +3,7 @@ name: Gin Toolbar
 description: Gin Toolbar for Gin Theme
 core_version_requirement: ^11.2
 
-# Information added by Drupal.org packaging script on 2025-07-11
-version: '3.0.2'
+# Information added by Drupal.org packaging script on 2026-01-16
+version: '3.0.3'
 project: 'gin_toolbar'
-datestamp: 1752237932
+datestamp: 1768553645

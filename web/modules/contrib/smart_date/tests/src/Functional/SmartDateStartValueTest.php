@@ -2,6 +2,8 @@
 
 namespace Drupal\Tests\smart_date\Functional;
 
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
 
@@ -16,8 +18,10 @@ use Drupal\field\Entity\FieldStorageConfig;
  * vendor/phpunit/phpunit/phpunit -c core/phpunit.xml --printer '\Drupal\Tests\Listeners\HtmlOutputPrinter' modules/start_date/tests/src/Functional
  * @endcode
  *
- * @group start_date
+ * @group smart_date
  */
+#[Group('smart_date')]
+#[RunTestsInSeparateProcesses]
 class SmartDateStartValueTest extends SmartDateTestBase {
 
   /**
@@ -97,12 +101,9 @@ class SmartDateStartValueTest extends SmartDateTestBase {
   }
 
   /**
-   * Tests for the existence of a default menu item on the home page.
-   *
-   * We'll open the home page and look for the Tools menu link called 'Add
-   * content.'
+   * Tests that a start date after the end date triggers validation.
    */
-  public function testForStartDateAfterEndDate() {
+  public function testForStartDateAfterEndDate(): void {
     $assert = $this->assertSession();
 
     $this->drupalLogin(

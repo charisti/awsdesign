@@ -66,7 +66,7 @@ class AlterSourcePluginInfo extends ConfigurableActionBase {
       'weight' => TRUE,
     ] as $key => $localTask) {
       $configKey = $localTask ? 'local_task_' . $key : $key;
-      if ($this->configuration[$configKey] !== '') {
+      if ($this->configuration[$configKey] !== '' && $this->configuration[$configKey] !== NULL) {
         $event->setProperty($this->configuration['plugin_id'], $key, $this->configuration[$configKey], $localTask);
       }
     }

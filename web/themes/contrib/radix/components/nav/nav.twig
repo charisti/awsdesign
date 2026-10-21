@@ -8,6 +8,11 @@
  * - style: tabs | pills
  * - fill: fill | justify
  * - dropdown_direction: dropstart | dropend
+ * - is_dropdown: true | false (default: true)
+ *   When false, expanded parent items render their children inline as a nested
+ *   vertical list instead of a Bootstrap dropdown. Children are only rendered
+ *   when the menu item is expanded (enable "Expand all menu items" on the menu
+ *   block to always show them).
  * - nav_utility_classes: An array of utility classes.
  * - nav_link_utility_classes: An array of utility classes.
  */
@@ -23,9 +28,10 @@
 %}
 
 {% set alignment = alignment_classes[alignment] ?? '' %}
-{% set dropdown_direction = dropdown_direction ?? 'dropend' %}
+{% set dropdown_direction = dropdown_direction ?? '' %}
 {% set style = style ? 'nav-' ~ style : '' %}
 {% set fill = fill ? 'nav-' ~ fill : '' %}
+{% set is_dropdown = is_dropdown is defined ? is_dropdown : true %}
 
 {%
   set nav_classes = [
@@ -35,42 +41,89 @@
     fill
   ]|merge(nav_utility_classes ?: [])
 %}
+{% set heading_classes = heading_utility_classes ?: [] %}
+{% set heading_level = heading_level ? heading_level : heading.level ?? 'h2' %}
 
 {% if items %}
+  {%- if heading -%}
+      <{{ heading_level }}{{ heading_attributes.addClass(heading_classes) }}>
+      {% block nav_heading %}
+        {{ heading.text }}
+      {% endblock %}
+      </{{ heading_level }}>
+  {%- endif -%}
   <ul {{ attributes.addClass(nav_classes) }}>
     {% block nav_items %}
-      {% for item in items %}
-        {%
-          set nav_item_classes = [
-            'nav-item',
-            item.in_active_trail ? 'active' : '',
-            item.is_expanded and item.below ? 'dropdown' : ''
-          ]|merge(nav_item_utility_classes ?: [])
-        %}
-        {%
-          set nav_link_classes = [
-            'nav-link',
-            item.in_active_trail ? 'active' : ''
-          ]|merge(nav_link_utility_classes ?: [])
-        %}
-        {% if item.url.options.attributes.class is iterable %}
-          {% set nav_link_classes = nav_link_classes|merge(item.url.options.attributes.class) %}
-        {% elseif item.url.options.attributes.class %}
-          {% set nav_link_classes = nav_link_classes|merge([item.url.options.attributes.class]) %}
-        {% endif %}
-        <li{{ item.attributes.addClass(nav_item_classes) }}>
-          {% if item.is_expanded and item.below %}
-            {{ link(item.title, item.url, { 'class': nav_link_classes|merge(['dropdown-toggle']), 'data-bs-toggle': 'dropdown', 'data-bs-auto-close': 'outside', 'aria-expanded': 'false' }) }}
-            {%
-              include 'radix:dropdown-menu' with {
-                items: item.below,
-              }
-            %}
-          {% elseif item.url %}
-            {{ link(item.title, item.url, { 'class': nav_link_classes }) }}
-          {% endif %}
-        </li>
-      {% endfor %}
+      {{ menus.nav_items(menus, items, is_dropdown, dropdown_direction, nav_item_utility_classes, nav_link_utility_classes) }}
     {% endblock %}
   </ul>
 {% endif %}
+
+{#
+/**
+ * Render a list of menu items.
+ *
+ * Recurses for non-dropdown menus so child items at any depth render inline.
+ * Dropdown menus keep delegating to the radix:dropdown-menu component.
+ *
+ * @param menus
+ *   Reference to this template's macros (passed for self-recursion).
+ * @param items
+ *   The menu items to render.
+ * @param is_dropdown
+ *   Whether expanded items render as Bootstrap dropdowns (true) or inline
+ *   nested lists (false).
+ * @param dropdown_direction
+ *   Direction for nested submenus ('dropend', 'dropstart', or '' to open
+ *   below). Passed through to the radix:dropdown-menu component.
+ * @param nav_item_utility_classes
+ *   Utility classes merged onto each nav item.
+ * @param nav_link_utility_classes
+ *   Utility classes merged onto each nav link.
+ */
+#}
+{% macro nav_items(menus, items, is_dropdown, dropdown_direction, nav_item_utility_classes, nav_link_utility_classes) %}
+  {% for item in items %}
+    {%
+      set nav_item_classes = [
+        'nav-item',
+        item.in_active_trail ? 'active' : '',
+        (is_dropdown and item.is_expanded and item.below) ? 'dropdown' : ''
+      ]|merge(nav_item_utility_classes ?: [])
+    %}
+    {%
+      set nav_link_classes = [
+        'nav-link',
+        item.in_active_trail ? 'active' : ''
+      ]|merge(nav_link_utility_classes ?: [])
+    %}
+    {% if item.url.options.attributes.class is iterable %}
+      {% set nav_link_classes = nav_link_classes|merge(item.url.options.attributes.class) %}
+    {% elseif item.url.options.attributes.class %}
+      {% set nav_link_classes = nav_link_classes|merge([item.url.options.attributes.class]) %}
+    {% endif %}
+    <li{{ item.attributes.addClass(nav_item_classes) }}>
+      {% if is_dropdown and item.is_expanded and item.below %}
+        {{ link(item.title, item.url, { 'class': nav_link_classes|merge(['dropdown-toggle']), 'data-bs-toggle': 'dropdown', 'data-bs-auto-close': 'outside', 'aria-expanded': 'false' }) }}
+        {%
+          include 'radix:dropdown-menu' with {
+            items: item.below,
+            dropdown_direction: dropdown_direction,
+          } only
+        %}
+      {% else %}
+        {% if item.url %}
+          {{ link(item.title, item.url, { 'class': nav_link_classes }) }}
+        {% elseif item.link %}
+          {{ item.link }}
+        {% endif %}
+
+        {% if (not is_dropdown) and item.is_expanded and item.below %}
+          <ul class="nav flex-column ms-3">
+            {{ menus.nav_items(menus, item.below, is_dropdown, dropdown_direction, nav_item_utility_classes, nav_link_utility_classes) }}
+          </ul>
+        {% endif %}
+      {% endif %}
+    </li>
+  {% endfor %}
+{% endmacro %}

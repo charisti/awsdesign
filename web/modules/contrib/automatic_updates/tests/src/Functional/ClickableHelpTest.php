@@ -4,17 +4,21 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\automatic_updates\Functional;
 
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
 use Drupal\package_manager\Event\StatusCheckEvent;
 use Drupal\package_manager\ValidationResult;
 use Drupal\package_manager_test_validation\EventSubscriber\TestSubscriber;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests that links to online help in validation errors are clickable.
  *
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[RunTestsInSeparateProcesses]
 class ClickableHelpTest extends AutomaticUpdatesFunctionalTestBase {
 
   /**
@@ -39,7 +43,7 @@ class ClickableHelpTest extends AutomaticUpdatesFunctionalTestBase {
       ->toString();
 
     $result = ValidationResult::createError([
-      t('A problem was found! <a href=":url">Read all about it.</a>', [':url' => $url]),
+      new TranslatableMarkup('A problem was found! <a href=":url">Read all about it.</a>', [':url' => $url]),
     ]);
     TestSubscriber::setTestResult([$result], StatusCheckEvent::class);
 

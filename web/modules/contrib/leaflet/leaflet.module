@@ -67,10 +67,10 @@ function leaflet_map_get_info($map = NULL) {
  */
 function leaflet_leaflet_map_info() {
   return [
-    'OSM Mapnik' =>
+    'openstreetmap' =>
       [
-        'label' => '- Default Leaflet - OSM Mapnik - ',
-        'description' => t('Leaflet default map.'),
+        'label' => 'OpenStreetMap',
+        'description' => t('Leaflet default base Map.'),
         'settings' => [
           'dragging' => TRUE,
           'touchZoom' => TRUE,

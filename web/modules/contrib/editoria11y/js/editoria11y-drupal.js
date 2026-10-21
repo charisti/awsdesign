@@ -94,16 +94,21 @@ const ed11yInitializer = function () {
       drupalSettings.editoria11y.watch_for_changes !== 'false';
   }
 
+  options.preventCheckingIfPresent = !!drupalSettings.editoria11y.no_load ?
+    drupalSettings.editoria11y.no_load + ', .layout-builder-form' :
+    '.layout-builder-form';
+
   let delay = drupalSettings.path.currentPathIsAdmin ? 250 : 0;
   // Way too many race conditions on admin side.
   if (document.URL.indexOf('mode=same_page_preview') > -1 || (
     drupalSettings.path.currentPathIsAdmin &&
-    drupalSettings.editoria11y.disable_live === true
-  )) {
+    drupalSettings.editoria11y.disable_live === true && !document.querySelector('#ed11y-demo')
+  ) || document.querySelector(options.preventCheckingIfPresent)
+  ) {
     ed11yOnce = true;
     ed11yInitialized = 'disabled';
     return;
-  } else if (drupalSettings.path.currentPathIsAdmin && !editors) {
+  } else if (drupalSettings.path.currentPathIsAdmin && !editors && !document.querySelector('#ed11y-demo')) {
     // Ed11y will init later if a behavior brings in something editable.
     ed11yInitialized = false;
     return;
@@ -209,13 +214,26 @@ const ed11yInitializer = function () {
   options.syncedDismissals = drupalSettings.editoria11y.dismissals;
   options.showDismissed = urlParams.has('ed1ref');
   // todo postpone: ignoreAllIfPresent
-  options.preventCheckingIfPresent = !!drupalSettings.editoria11y.no_load ?
-    drupalSettings.editoria11y.no_load + ', .layout-builder-form' :
-    '.layout-builder-form';
-  if (!!(parent?.drupalSettings?.canvas) && !parent.document.body.querySelector('[class^=_PagePreviewIframe]')) {
-    // Only run when Drupal Canvas is running if it is in Preview mode.
-    options.preventCheckingIfPresent = 'body';
+  // Only probe the parent frame if we are actually embedded in one.
+  // Accessing any property of a cross-origin parent (e.g. Commerce Authnet's
+  // AcceptJS iframe, Stripe, YouTube) throws SecurityError even through
+  // optional chaining, so we must guard with self !== top and swallow the
+  // cross-origin error silently — a cross-origin parent is by definition not
+  // Drupal Canvas.
+  if (window.self !== window.top) {
+    try {
+      if (!!(parent?.drupalSettings?.canvas) && !parent.document.body.querySelector('[class^=_PagePreviewIframe]')) {
+        // Only run when Drupal Canvas is running if it is in Preview mode.
+        options.preventCheckingIfPresent = 'body';
+      }
+    } catch (error) {
+      // Cross-origin parent — not Canvas, nothing to do.
+      if (error.name !== 'SecurityError') {
+        console.error(error);
+      }
+    }
   }
+
   // todo postpone: preventCheckingIfAbsent
   options.linkStringsNewWindows = !!drupalSettings.editoria11y.link_strings_new_windows ?
     new RegExp (drupalSettings.editoria11y.link_strings_new_windows, 'gi')
@@ -517,6 +535,7 @@ const ed11yInitializer = function () {
         ed11yDismissalsCache = {};
         data = {
           page_path: drupalSettings.editoria11y.page_path,
+          element_id: detail.dismissKey,
           language: drupalSettings.editoria11y.lang,
           route_name: drupalSettings.editoria11y.route_name,
           dismissal_status: 'reset', // ok, ignore or reset

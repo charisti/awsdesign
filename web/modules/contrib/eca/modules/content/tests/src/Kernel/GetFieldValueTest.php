@@ -157,14 +157,6 @@ class GetFieldValueTest extends KernelTestBase {
 
     /** @var \Drupal\eca_content\Plugin\Action\GetFieldValue $action */
     $action = $action_manager->createInstance('eca_get_field_value', [
-      'token_name' => 'my_custom_token:body_summary',
-      'field_name' => 'body.0.summary',
-    ]);
-    $action->execute($node);
-    $this->assertEquals($summary, $token_services->replaceClear('[my_custom_token:body_summary]'));
-
-    /** @var \Drupal\eca_content\Plugin\Action\GetFieldValue $action */
-    $action = $action_manager->createInstance('eca_get_field_value', [
       'token_name' => 'another_one:string_2',
       'field_name' => 'field_string_multi:1:value',
     ]);

@@ -22,6 +22,7 @@ services:
     factory: cache_factory:get
     arguments: [project_browser]
   Drupal\project_browser\ActivationManager: ~
+  Drupal\project_browser\CsrfTokenPath: ~
   Drupal\project_browser\Activator\ModuleActivator:
     tags:
       - { name: project_browser.activator }
@@ -29,6 +30,8 @@ services:
   Drupal\project_browser\Activator\RecipeActivator:
     arguments:
       '$appRoot': '%app.root%'
+    calls:
+      - [setLogger, ['@logger.channel.project_browser']]
     tags:
       - { name: project_browser.activator }
   Drupal\project_browser\Routing\ProjectEnhancer:
@@ -36,7 +39,6 @@ services:
     tags:
       - { name: route_enhancer }
   Drupal\project_browser\Routing\SourceConverter:
-    public: false
     tags:
       - { name: paramconverter }
   Drupal\project_browser\ProjectBrowser\Normalizer: ~

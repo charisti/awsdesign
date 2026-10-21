@@ -2,6 +2,7 @@
 
 namespace Drupal\ai_automators;
 
+use Drupal\Component\Serialization\Json;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityInterface;
@@ -9,8 +10,11 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\ai_automators\Event\AutomatorConfigEvent;
 use Drupal\ai_automators\Event\ProcessFieldEvent;
+use Drupal\ai_automators\Event\ShouldProcessFieldEvent;
 use Drupal\ai_automators\PluginInterfaces\AiAutomatorDirectProcessInterface;
 use Drupal\ai_automators\PluginInterfaces\AiAutomatorFieldProcessInterface;
+use Drupal\ai_automators\PluginInterfaces\AiAutomatorPostCheckIfEmptyInterface;
+use Drupal\ai_automators\PluginInterfaces\AiAutomatorTypeInterface;
 use Drupal\ai_automators\PluginManager\AiAutomatorFieldProcessManager;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
@@ -77,11 +81,16 @@ class AiAutomatorEntityModifier {
    *   If a specific field should be processed, this is the field name.
    * @param bool $isAutomated
    *   If this is an automated process or not.
+   * @param string|null $specificAutomatorId
+   *   If a specific automator should be processed, this is the automator
+   *   config entity ID. Used to isolate a single automator when multiple
+   *   automators are configured on the same field (e.g. separate Field
+   *   Widget Action buttons for Translate and Summarize on the same field).
    *
    * @return \Drupal\Core\Entity\ContentEntityInterface|null
    *   The entity or NULL if no automator fields are found.
    */
-  public function saveEntity(EntityInterface $entity, $isInsert = FALSE, $specificField = NULL, $isAutomated = TRUE) {
+  public function saveEntity(EntityInterface $entity, $isInsert = FALSE, $specificField = NULL, $isAutomated = TRUE, $specificAutomatorId = NULL) {
     // Only run on Content Interfaces.
     if (!($entity instanceof ContentEntityInterface)) {
       return NULL;
@@ -90,6 +99,22 @@ class AiAutomatorEntityModifier {
     $configs = $this->entityHasConfig($entity);
     if (!count($configs)) {
       return NULL;
+    }
+
+    // If a specific automator ID is set, only process that one. Configs are
+    // keyed by the automator config entity ID (see entityHasConfig()), so
+    // this isolates a single automator when several are configured on the
+    // same field. This filter must run before the usort() below, which
+    // reindexes the array to sequential integer keys and would otherwise
+    // destroy the automator ID keys this filter relies on.
+    if ($specificAutomatorId) {
+      $configs = array_filter($configs, function ($config, $automatorId) use ($specificAutomatorId) {
+        return $automatorId === $specificAutomatorId;
+      }, ARRAY_FILTER_USE_BOTH);
+      // If no configs are found, return NULL.
+      if (!count($configs)) {
+        return NULL;
+      }
     }
 
     // Resort on weight to create in the right order.
@@ -164,28 +189,41 @@ class AiAutomatorEntityModifier {
    *   The entity to check for modifications.
    *
    * @return array
-   *   An array with the field configs affected.
+   *   An array keyed by automator config entity ID. Each entry holds the
+   *   'fieldDefinition' and the runtime 'automatorConfig', which carries the
+   *   'id' of the automator config entity, the 'field_name' and every
+   *   plugin_config setting with its 'automator_' prefix removed.
    */
   public function entityHasConfig(EntityInterface $entity) {
     $storage = $this->entityTypeManager->getStorage('ai_automator');
     $fields = $storage->loadByProperties([
       'entity_type' => $entity->getEntityTypeId(),
       'bundle' => $entity->bundle(),
+      'status' => TRUE,
     ]);
     $fieldDefinitions = $this->fieldManager->getFieldDefinitions($entity->getEntityTypeId(), $entity->bundle());
 
     $fieldConfigs = [];
-    $automatorConfig = [];
     /** @var \Drupal\ai_automators\Entity\AiAutomator $field */
     foreach ($fields as $field) {
-      // Check if enabled and return the config.
-      $fieldConfigs[$field->id()]['fieldDefinition'] = $fieldDefinitions[$field->get('field_name')];
+      $fieldName = $field->get('field_name');
+      if (empty($fieldName) || !isset($fieldDefinitions[$fieldName])) {
+        continue;
+      }
+      // Return the config.
+      $fieldConfigs[$field->id()]['fieldDefinition'] = $fieldDefinitions[$fieldName];
       $automatorConfig = [
-        'field_name' => $field->get('field_name'),
+        'field_name' => $fieldName,
       ];
       foreach ($field->get('plugin_config') as $key => $setting) {
-        $automatorConfig[substr($key, 10)] = $setting;
+        if (str_starts_with($key, 'automator_')) {
+          $automatorConfig[substr($key, 10)] = $setting;
+        }
       }
+      // The config entity ID identifies this automator instance on outgoing
+      // AI requests (see RuleBase::getTags()). Set it after the plugin config
+      // so a stray "automator_id" setting can never override it.
+      $automatorConfig['id'] = $field->id();
       $fieldConfigs[$field->id()]['automatorConfig'] = $automatorConfig;
     }
 
@@ -245,10 +283,10 @@ class AiAutomatorEntityModifier {
     }
 
     // Otherwise continue as normal.
-    if ((!isset($automatorConfig['mode']) || $automatorConfig['mode'] == 'base') && !$this->baseShouldSave($entity, $automatorConfig)) {
+    if ((!isset($automatorConfig['mode']) || $automatorConfig['mode'] === 'base') && !$this->baseShouldSave($entity, $fieldDefinition, $automatorConfig)) {
       return FALSE;
     }
-    elseif (isset($automatorConfig['mode']) && $automatorConfig['mode'] == 'token' && !$this->tokenShouldSave($entity, $automatorConfig)) {
+    elseif (isset($automatorConfig['mode']) && $automatorConfig['mode'] === 'token' && !$this->tokenShouldSave($entity, $fieldDefinition, $automatorConfig)) {
       return FALSE;
     }
 
@@ -258,47 +296,158 @@ class AiAutomatorEntityModifier {
   /**
    * If token mode, check if it should run.
    */
-  private function tokenShouldSave(ContentEntityInterface $entity, array $automatorConfig) {
+  private function tokenShouldSave(ContentEntityInterface $entity, FieldDefinitionInterface $fieldDefinition, array $automatorConfig) {
     // Get rule.
     $rule = $this->fieldRules->findRule($automatorConfig['rule']);
     // Check if a value exists.
     $value = $entity->get($automatorConfig['field_name'])->getValue();
     $value = $rule->checkIfEmpty($value, $automatorConfig);
+    $value = $this->applyPostCheckIfEmpty($rule, $entity, $value, $automatorConfig);
 
-    // Get prompt.
-    if (!empty($value) && !empty($value[0])) {
-      return FALSE;
+    $shouldProcess = FALSE;
+
+    // If the field is empty, always process.
+    if ($this->isValueEmptyAfterCheck($value)) {
+      $shouldProcess = TRUE;
     }
-    return TRUE;
+    // If edit mode is on, check for changes in the base field.
+    elseif (!empty($automatorConfig['edit_mode'])) {
+      // Token mode does not require a base field, but when one is configured
+      // use it for change detection.
+      if (empty($automatorConfig['base_field'])) {
+        $shouldProcess = TRUE;
+      }
+      else {
+        $originalEntity = $this->getOriginalEntity($entity);
+        if (!$entity->hasField($automatorConfig['base_field'])) {
+          $shouldProcess = FALSE;
+          $event = new ShouldProcessFieldEvent($entity, $fieldDefinition, $automatorConfig, $shouldProcess);
+          $this->eventDispatcher->dispatch($event, ShouldProcessFieldEvent::EVENT_NAME);
+          return $event->shouldProcess();
+        }
+        $original = $originalEntity && $originalEntity->hasField($automatorConfig['base_field']) ? Json::encode($originalEntity->get($automatorConfig['base_field'])->getValue()) : NULL;
+        $current = Json::encode($entity->get($automatorConfig['base_field'])->getValue());
+        $shouldProcess = $current !== $original;
+      }
+    }
+
+    // Dispatch event to allow modifying the decision after isEmpty check.
+    $event = new ShouldProcessFieldEvent($entity, $fieldDefinition, $automatorConfig, $shouldProcess);
+    $this->eventDispatcher->dispatch($event, ShouldProcessFieldEvent::EVENT_NAME);
+
+    return $event->shouldProcess();
   }
 
   /**
    * If base mode, check if it should run.
    */
-  private function baseShouldSave(ContentEntityInterface $entity, array $automatorConfig) {
+  private function baseShouldSave(ContentEntityInterface $entity, FieldDefinitionInterface $fieldDefinition, array $automatorConfig) {
+    if (empty($automatorConfig['base_field']) || !$entity->hasField($automatorConfig['base_field'])) {
+      return FALSE;
+    }
+
     // Check if a value exists.
     $value = $entity->get($automatorConfig['field_name'])->getValue();
 
-    $original = isset($entity->original) && json_encode($entity->original->get($automatorConfig['base_field'])->getValue()) ?? NULL;
-    $change = json_encode($entity->get($automatorConfig['base_field'])->getValue()) !== $original;
+    $originalEntity = $this->getOriginalEntity($entity);
+    $original = $originalEntity && $originalEntity->hasField($automatorConfig['base_field']) ? Json::encode($originalEntity->get($automatorConfig['base_field'])->getValue()) : NULL;
+    $change = Json::encode($entity->get($automatorConfig['base_field'])->getValue()) !== $original;
 
     // Get the rule to check the value.
     $rule = $this->fieldRules->findRule($automatorConfig['rule']);
     $value = $rule->checkIfEmpty($value, $automatorConfig);
+    $value = $this->applyPostCheckIfEmpty($rule, $entity, $value, $automatorConfig);
 
-    // If the base field is not filled out.
-    if (!empty($value) && !empty($value[0])) {
-      return FALSE;
+    $shouldProcess = FALSE;
+
+    // If edit mode is on and there is a change, return true
+    // independent of current value.
+    if (!empty($automatorConfig['edit_mode']) && $change) {
+      $shouldProcess = TRUE;
     }
-    // If the value exists and we don't have edit mode, we do nothing.
-    if (!empty($value) && !empty($value[0]) && !$automatorConfig['edit_mode']) {
-      return FALSE;
+    // If no value is set, return true.
+    elseif ($this->isValueEmptyAfterCheck($value)) {
+      $shouldProcess = TRUE;
     }
-    // Otherwise look for a change.
-    if ($automatorConfig['edit_mode'] && !$change && !empty($value) && !empty($value[0])) {
-      return FALSE;
+
+    // Dispatch event to allow modifying the decision after isEmpty check.
+    $event = new ShouldProcessFieldEvent($entity, $fieldDefinition, $automatorConfig, $shouldProcess);
+    $this->eventDispatcher->dispatch($event, ShouldProcessFieldEvent::EVENT_NAME);
+
+    return $event->shouldProcess();
+  }
+
+  /**
+   * Applies optional post-check hook from rules when available.
+   *
+   * @param \Drupal\ai_automators\PluginInterfaces\AiAutomatorTypeInterface $rule
+   *   The resolved rule plugin instance.
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
+   *   The entity being evaluated.
+   * @param mixed $value
+   *   The value returned from checkIfEmpty().
+   * @param array $automatorConfig
+   *   The automator configuration.
+   *
+   * @return mixed
+   *   The post-processed value.
+   */
+  private function applyPostCheckIfEmpty(AiAutomatorTypeInterface $rule, ContentEntityInterface $entity, mixed $value, array $automatorConfig): mixed {
+    if (!is_array($value)) {
+      return $value;
     }
-    return TRUE;
+
+    if ($rule instanceof AiAutomatorPostCheckIfEmptyInterface) {
+      $newValue = $rule->postCheckIfEmpty($entity, $value, $automatorConfig);
+
+      return is_array($newValue) ? $newValue : $value;
+    }
+
+    return $value;
+  }
+
+  /**
+   * Determines if a normalized checkIfEmpty() value should count as empty.
+   *
+   * @param mixed $value
+   *   The normalized value after checkIfEmpty() and optional post-check hook.
+   *
+   * @return bool
+   *   TRUE when the value should be considered empty, FALSE otherwise.
+   */
+  private function isValueEmptyAfterCheck(mixed $value): bool {
+    if (is_array($value)) {
+      return empty($value) || empty($value[0]);
+    }
+
+    return empty($value);
+  }
+
+  /**
+   * Returns the original entity during save operations (D10/D11 compatible).
+   *
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
+   *   The entity being saved.
+   *
+   * @return \Drupal\Core\Entity\ContentEntityInterface|null
+   *   The original entity when available.
+   */
+  private function getOriginalEntity(ContentEntityInterface $entity): ?ContentEntityInterface {
+    // Drupal 11.2+.
+    if (method_exists($entity, 'getOriginal')) {
+      $original = $entity->getOriginal();
+
+      return $original instanceof ContentEntityInterface ? $original : NULL;
+    }
+
+    // Drupal 10.x / Drupal 11.0-11.1.
+    if (isset($entity->original)) {
+      $original = $entity->original;
+
+      return $original instanceof ContentEntityInterface ? $original : NULL;
+    }
+
+    return NULL;
   }
 
 }

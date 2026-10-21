@@ -426,8 +426,20 @@ class Instances extends ControllerBase {
     // Add to the entity, and save.
     $entity->set($field_name, $values);
     $entity->save();
-    // Redirect to the entity view.
-    return new RedirectResponse($entity->toUrl()->toString());
+    // Redirect to the entity view. Some entity types (e.g. Paragraphs) have no
+    // canonical URL, which would trigger an UndefinedLinkTemplateException.
+    // Walk up to a parent/host entity that has a canonical link, and fall back
+    // to the instance management page when none is available.
+    $redirect_entity = $entity;
+    while ($redirect_entity
+      && !$redirect_entity->hasLinkTemplate('canonical')
+      && method_exists($redirect_entity, 'getParentEntity')) {
+      $redirect_entity = $redirect_entity->getParentEntity();
+    }
+    if ($redirect_entity && $redirect_entity->hasLinkTemplate('canonical')) {
+      return new RedirectResponse($redirect_entity->toUrl()->toString());
+    }
+    return new RedirectResponse(Url::fromRoute('smart_date_recur.instances', ['rrule' => $rid])->toString());
   }
 
   /**

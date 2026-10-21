@@ -7,6 +7,7 @@ services:
         "@plugin.manager.geocoder.provider",
         "@module_handler",
       ]
+  Drupal\geocoder\GeocoderInterface: '@geocoder'
 
   geocoder.http_adapter:
     class: Http\Adapter\Guzzle7\Client
@@ -23,15 +24,18 @@ services:
         "@entity_type.manager",
         "@messenger",
       ]
+  Drupal\geocoder\ProviderPluginManager: '@plugin.manager.geocoder.provider'
 
   plugin.manager.geocoder.dumper:
     class: Drupal\geocoder\DumperPluginManager
     parent: default_plugin_manager
     arguments: ["@country_manager", "@messenger"]
+  Drupal\geocoder\DumperPluginManager: '@plugin.manager.geocoder.dumper'
 
   plugin.manager.geocoder.formatter:
     class: Drupal\geocoder\FormatterPluginManager
     parent: default_plugin_manager
+  Drupal\geocoder\FormatterPluginManager: '@plugin.manager.geocoder.formatter'
 
   cache.geocoder:
     class: Drupal\Core\Cache\CacheBackendInterface
@@ -42,3 +46,4 @@ services:
 
   geocoder.throttle:
     class: Drupal\geocoder\GeocoderThrottle
+  Drupal\geocoder\GeocoderThrottleInterface: '@geocoder.throttle'

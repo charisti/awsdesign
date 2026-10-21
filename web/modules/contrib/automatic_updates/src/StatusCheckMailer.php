@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Drupal\automatic_updates;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Mail\MailManagerInterface;
 use Drupal\package_manager\ValidationResult;
-use Drupal\system\SystemManager;
 
 /**
  * Defines a service to send status check failure emails during cron.
@@ -72,7 +72,7 @@ final class StatusCheckMailer {
     // result sets.
     elseif ($level === static::ERRORS_ONLY) {
       $filter = function (ValidationResult $result): bool {
-        return $result->severity === SystemManager::REQUIREMENT_ERROR;
+        return $result->severity === RequirementSeverity::Error->value;
       };
       $current_results = array_filter($current_results, $filter);
       // If the current results don't have any errors, there's nothing else

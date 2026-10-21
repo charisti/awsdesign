@@ -163,7 +163,7 @@ class SmartDateTimezoneWidget extends SmartDateInlineWidget implements Container
   public function getTimezones($grouped = TRUE) {
     if (!class_exists(DeprecationHelper::class)) {
       // @phpstan-ignore-next-line
-      return system_time_zones(FALSE, $grouped);
+      return $grouped ? TimeZoneFormHelper::getOptionsListByRegion(FALSE) : TimeZoneFormHelper::getOptionsList(FALSE);
     }
     return DeprecationHelper::backwardsCompatibleCall(
       \Drupal::VERSION,

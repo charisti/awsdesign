@@ -35,7 +35,7 @@
 #}
 {% set modal_attributes = modal_attributes ?: create_attribute() %}
 {% set modal_dialog_attributes = modal_dialog_attributes ?: create_attribute() %}
-{% set body = body|default(true) %}
+{% set body = body ?? true %}
 {% set size =  size|default('') %}
 {% set id = id|default('modal-' ~ random(1000)) %}
 {% set title_id = title_id|default('title-' ~ id) %}

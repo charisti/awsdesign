@@ -10,6 +10,7 @@ use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\ai\AiProviderPluginManager;
+use Drupal\ai\Guardrail\AiGuardrailHelper;
 use Drupal\ai\OperationType\TextToImage\TextToImageInput;
 use Drupal\ai\Service\AiProviderFormHelper;
 use Drupal\ai\Service\PromptJsonDecoder\PromptJsonDecoderInterface;
@@ -65,6 +66,8 @@ class TextToMediaImage extends RuleBase implements ContainerFactoryPluginInterfa
    *   The form helper.
    * @param \Drupal\ai\Service\PromptJsonDecoder\PromptJsonDecoderInterface $promptJsonDecoder
    *   The prompt json decoder.
+   * @param \Drupal\ai\Guardrail\AiGuardrailHelper $aiGuardrailHelper
+   *   The AI guardrail helper.
    * @param \Drupal\Core\Entity\EntityTypeBundleInfo $entityTypeBundleInfo
    *   The entity type bundle info.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
@@ -76,11 +79,12 @@ class TextToMediaImage extends RuleBase implements ContainerFactoryPluginInterfa
     AiProviderPluginManager $pluginManager,
     AiProviderFormHelper $formHelper,
     PromptJsonDecoderInterface $promptJsonDecoder,
+    AiGuardrailHelper $aiGuardrailHelper,
     EntityTypeBundleInfo $entityTypeBundleInfo,
     EntityTypeManagerInterface $entityTypeManager,
     EntityFieldManagerInterface $fieldManager,
   ) {
-    parent::__construct($pluginManager, $formHelper, $promptJsonDecoder);
+    parent::__construct($pluginManager, $formHelper, $promptJsonDecoder, $aiGuardrailHelper);
     $this->entityTypeBundleInfo = $entityTypeBundleInfo;
     $this->entityTypeManager = $entityTypeManager;
     $this->fieldManager = $fieldManager;
@@ -94,6 +98,7 @@ class TextToMediaImage extends RuleBase implements ContainerFactoryPluginInterfa
       $container->get('ai.provider'),
       $container->get('ai.form_helper'),
       $container->get('ai.prompt_json_decode'),
+      $container->get('ai.guardrail_helper'),
       $container->get('entity_type.bundle.info'),
       $container->get('entity_type.manager'),
       $container->get('entity_field.manager')
@@ -117,8 +122,8 @@ class TextToMediaImage extends RuleBase implements ContainerFactoryPluginInterfa
   /**
    * {@inheritDoc}
    */
-  public function extraAdvancedFormFields(ContentEntityInterface $entity, FieldDefinitionInterface $fieldDefinition, FormStateInterface $formState, array $defaultValues = []) {
-    $form = parent::extraAdvancedFormFields($entity, $fieldDefinition, $formState, $defaultValues);
+  public function extraFormFields(ContentEntityInterface $entity, FieldDefinitionInterface $fieldDefinition, FormStateInterface $formState, array $defaultValues = []) {
+    $form = parent::extraFormFields($entity, $fieldDefinition, $formState, $defaultValues);
 
     $options = [];
     $types = $this->entityTypeBundleInfo->getBundleInfo('media');
@@ -129,10 +134,12 @@ class TextToMediaImage extends RuleBase implements ContainerFactoryPluginInterfa
     $form['automator_llm_media_type'] = [
       '#type' => 'select',
       '#title' => 'Media Type',
-      '#description' => $this->t('Media Type to create'),
+      '#description' => $this->t('The media type to use for the generated image. Avoid having required fields default to empty values, e.g. use automators to set them based upon the generated image.'),
       '#options' => $options,
       '#default_value' => $defaultValues['automator_llm_media_type'] ?? '',
       '#empty_option' => $this->t('- Please select -'),
+      '#required' => TRUE,
+      '#weight' => 4,
     ];
 
     return $form;
@@ -212,7 +219,7 @@ class TextToMediaImage extends RuleBase implements ContainerFactoryPluginInterfa
       $path = $fileHelper->createFilePathFromFieldConfig($value['filename'], $mediaFields[$fileField], $entity);
       $imageData = $fileHelper->generateImageMetaDataFromBinary($value['binary'], $path);
       $media = $mediaStorage->create([
-        'name' => substr($value['prompt'], 0, 250),
+        'name' => mb_substr($value['prompt'], 0, 250),
         'bundle' => $mediaType,
         $fileField => $imageData,
       ]);

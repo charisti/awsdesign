@@ -66,10 +66,21 @@ class TagifyWidgetTest extends WebDriverTestBase {
     $facet = Facet::load('tags');
     $facet->setWidget('tagify', [
       'show_numbers' => TRUE,
+      'match_operator' => 'CONTAINS',
+      'max_items' => 5,
+      'placeholder' => 'Select a tag',
     ]);
     $facet->save();
 
     $this->drupalGet('/test-entity-view');
+
+    // The widget settings must survive config save and reach the frontend.
+    // max_items is asserted as an integer: the schema added in #3590699 is
+    // what casts the string the "#type => number" element submits.
+    $settings = $this->getDrupalSettings()['tagify']['tagify_facets_widget'];
+    $this->assertSame('CONTAINS', $settings['match_operator']);
+    $this->assertSame(5, $settings['max_items']);
+    $this->assertSame('Select a tag', $settings['placeholder']);
 
     $page = $this->getSession()->getPage();
 
@@ -90,10 +101,19 @@ class TagifyWidgetTest extends WebDriverTestBase {
     // Test without show_numbers.
     $facet->setWidget('tagify', [
       'show_numbers' => FALSE,
+      'match_operator' => 'CONTAINS',
+      'max_items' => 5,
+      'placeholder' => 'Select a tag',
     ]);
     $facet->save();
     $this->drupalGet('/test-entity-view');
-    // @todo Improve assertions... refactor method??
+
+    // The other three settings are unaffected by toggling show_numbers.
+    $settings = $this->getDrupalSettings()['tagify']['tagify_facets_widget'];
+    $this->assertSame('CONTAINS', $settings['match_operator']);
+    $this->assertSame(5, $settings['max_items']);
+    $this->assertSame('Select a tag', $settings['placeholder']);
+    // @todo Assert the rendered counts are gone when show_numbers is FALSE.
   }
 
 }

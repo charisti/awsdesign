@@ -4,3 +4,4 @@ export const DARK_COLOR_SCHEME =
   matchMedia('(forced-colors: active)').matches &&
   matchMedia('(prefers-color-scheme: dark)').matches;
 export const PACKAGE_MANAGER = drupalSettings.project_browser.package_manager;
+export const ACTIVATE_URL = drupalSettings.project_browser.activateUrl;

@@ -1,6 +1,51 @@
-**V.3.x-dev**
 
--
+**V.3.1.2**
+- Added documentation to update services via drush in README.
+- Issue #3573987: Processhtml generates invalid [Bugfix]
+- Issue #3620738: Contextual consent placeholder shows the title of the wrong blocked element when a field contains more than one embed [Bugfix]
+
+**V.3.1.1**
+
+- Issue #3484827: Add on_init, on_accept, on_decline callbacks per service for Google Consent Mode v2 support
+- Issue #3484827: Add services gtm_consent_mode, ga_consent_mode, google_ads_consent_mode for
+  Google Tag Manager, Google Analytics and Google Ads with Google Consent Mode v2 (disabled by default)
+- Issue #3551342: PHP Warning: Undefined array key "#formatter" in klaro_preprocess_field() [Bugfix]
+- Issue #3578931: KlaroHelper executes an entity query multiple times per request
+
+**V.3.1.0**
+
+- Issue #3586970: Make URL scanning more resilient to invalid URLs [Bugfix]
+- Issue #3568940: Required apps still get blocked on first load when Process final HTML is active [Bugfix]
+
+**V.3.1.0-RC2**
+
+- Issue #3584237: Update-Hook breaks services and produces WPOD [Bugfix]
+
+**V.3.1.0-RC1**
+
+- Issue #3504281: Option optOut is broken - scripts will not be loaded [Bugfix]
+- Issue #3508237: Bugfix for #536: Check for optOut state while contextual rendering [Bugfix]
+
+**V.3.0.9**
+
+- Issue #3567998: Errors in callback code should not kill the Klaro consent banner
+- Issue #3568001: Posthog Service callback code doesn't work anymore [Bugfix]
+                  (please review javascript callback function after dbupdate!)
+- Issue #3568262: Add a Stripe (commerce_stripe) service
+- Issue #3568267: Scripts matching source + Opt-Out + Toggled by default (+required) should not get blocked server-side
+
+**V.3.0.8**
+
+- Issue #3491519: Add service to block Posthog
+- Issue #3496107: Add alternative link for opening Consent Manager
+- Issue #3516813: Uncaught PHP Exception TypeError [Bugfix]
+- Issue #3525975: Option "Process final HTML" remove <!doctype html> [Bugfix]
+- Issue #3532563: Autofocus Klaro! Dialog not consistent [Bugfix]
+- Issue #3532565: Purposes weight has no effect [Bugfix]
+
+**V.3.0.7**
+
+  - [SA-CONTRIB-2025-080](https://www.drupal.org/sa-contrib-2025-080)
 
 **V.3.0.6**
 
@@ -18,6 +63,7 @@
 - Issue #3522878: Missing ARIA label IDs / Add help text to hide notice dialog title.
 
 **V.3.0.5**
+
   - [SA-CONTRIB-2025-050](https://www.drupal.org/sa-contrib-2025-050)
 
 **V.3.0.4**

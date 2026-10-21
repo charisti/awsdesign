@@ -3,19 +3,22 @@
 namespace Drupal\modeler_api\Controller;
 
 use Drupal\Component\Plugin\Exception\PluginException;
+use Drupal\Core\Access\AccessResult;
+use Drupal\Core\Access\AccessResultInterface;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\MessageCommand;
 use Drupal\Core\Ajax\RedirectCommand;
 use Drupal\Core\Config\Entity\ConfigEntityInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Link;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
 use Drupal\modeler_api\Api;
-use Drupal\modeler_api\EntityOriginalTrait;
 use Drupal\modeler_api\Form\Settings;
 use Drupal\modeler_api\Plugin\ModelerPluginManager;
 use Drupal\modeler_api\Plugin\ModelOwnerPluginManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -26,8 +29,6 @@ use Symfony\Component\HttpFoundation\Response;
  * @package Drupal\modeler_api\Controller
  */
 final class ModelerApi extends ControllerBase {
-
-  use EntityOriginalTrait;
 
   /**
    * Modeler API controller constructor.
@@ -163,23 +164,6 @@ final class ModelerApi extends ControllerBase {
   }
 
   /**
-   * Clone the given entity and save it as a new one.
-   *
-   * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
-   *   The config entity.
-   *
-   * @return \Symfony\Component\HttpFoundation\RedirectResponse
-   *   Redirect response to go to the collection page.
-   */
-  public function clone(ConfigEntityInterface $model): RedirectResponse {
-    $owner = $this->api->findOwner($model);
-    if ($owner->isEditable($model)) {
-      $owner->clone($model);
-    }
-    return $this->redirect('entity.' . $owner->configEntityTypeId() . '.collection');
-  }
-
-  /**
    * Export the model from the given entity.
    *
    * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
@@ -244,7 +228,7 @@ final class ModelerApi extends ControllerBase {
       $model = $this->api->prepareModelFromData($data, $model_owner_id, $modeler_id, $isNew);
       if ($model !== NULL) {
         $isNew = $model->isNew();
-        $originalModel = $this->getOriginal($model);
+        $originalModel = $model->getOriginal();
         $model->save();
         if ($isNew) {
           /** @var \Drupal\modeler_api\Plugin\ModelerApiModelOwner\ModelOwnerInterface $owner */
@@ -309,22 +293,192 @@ final class ModelerApi extends ControllerBase {
   }
 
   /**
-   * Ajax callback to receive the config form for a component.
+   * Callback to receive the config form for a component.
    *
    * @param string $model_owner_id
    *   The plugin ID of the model owner.
    * @param string $modeler_id
    *   The plugin ID of the modeler that's being used for the posted model.
    *
-   * @return \Drupal\Core\Ajax\AjaxResponse
-   *   An Ajax response object containing the config form.
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   An response object containing the config form.
    */
-  public function configForm(string $model_owner_id, string $modeler_id): AjaxResponse {
+  public function configForm(string $model_owner_id, string $modeler_id): JsonResponse {
     /** @var \Drupal\modeler_api\Plugin\ModelerApiModelOwner\ModelOwnerInterface $owner */
     $owner = $this->modelOwnerPluginManager->createInstance($model_owner_id);
     /** @var \Drupal\modeler_api\Plugin\ModelerApiModeler\ModelerInterface $modeler */
     $modeler = $this->modelerPluginManager->createInstance($modeler_id);
     return $modeler->configForm($owner);
+  }
+
+  /**
+   * Callback to receive replay data for an event.
+   *
+   * @param string $model_owner_id
+   *   The plugin ID of the model owner.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   The json response with the replay data.
+   */
+  public function loadReplayData(string $model_owner_id): JsonResponse {
+    /** @var \Drupal\modeler_api\Plugin\ModelerApiModelOwner\ModelOwnerInterface $owner */
+    $owner = $this->modelOwnerPluginManager->createInstance($model_owner_id);
+    try {
+      $json_data = json_decode($this->request->getContent(), TRUE, 2, JSON_THROW_ON_ERROR);
+      if (!isset($json_data['modelId'])) {
+        $data = ['error' => 'Model ID not specified.'];
+      }
+      elseif (!isset($json_data['componentId'])) {
+        $data = ['error' => 'Component ID not specified.'];
+      }
+      else {
+        // The replay data is intentionally passed through to the response
+        // unmodified. It may contain deduplication/reference markers (e.g.
+        // "@ref"/"@prev") that the modeler frontend expands lazily at display
+        // time, so the Modeler API must not expand or transform it here.
+        $data = $owner->getReplayDataByComponent($json_data['modelId'], $json_data['componentId']);
+      }
+    }
+    catch (\JsonException) {
+      $data = ['error' => 'Invalid JSON data.'];
+    }
+    return new JsonResponse($data);
+  }
+
+  /**
+   * Callback to receive replay data for an event.
+   *
+   * @param string $model_owner_id
+   *   The plugin ID of the model owner.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   The json response with the replay data.
+   */
+  public function testModel(string $model_owner_id): JsonResponse {
+    /** @var \Drupal\modeler_api\Plugin\ModelerApiModelOwner\ModelOwnerInterface $owner */
+    $owner = $this->modelOwnerPluginManager->createInstance($model_owner_id);
+    try {
+      $json_data = json_decode($this->request->getContent(), TRUE, 2, JSON_THROW_ON_ERROR);
+      if (isset($json_data['jobId']) && !empty($json_data['cancelled'])) {
+        $result = $owner->cancelTestJob($json_data['jobId']);
+        if ($result instanceof TranslatableMarkup) {
+          $data = ['error' => (string) $result];
+        }
+        else {
+          $data = ['status' => 'cancelled'];
+        }
+      }
+      elseif (isset($json_data['jobId'])) {
+        $result = $owner->pollTestJob($json_data['jobId']);
+        if ($result === NULL) {
+          $data = ['status' => 'waiting'];
+        }
+        elseif ($result instanceof TranslatableMarkup) {
+          $data = ['error' => (string) $result];
+        }
+        else {
+          // The replay data is intentionally passed through to the response
+          // unmodified. It may contain deduplication/reference markers (e.g.
+          // "@ref"/"@prev") that the modeler frontend expands lazily at
+          // display time, so the Modeler API must not expand or transform it
+          // here.
+          $data = $result;
+        }
+      }
+      elseif (!isset($json_data['modelId'])) {
+        $data = ['error' => 'Model ID not specified.'];
+      }
+      elseif (!isset($json_data['componentId'])) {
+        $data = ['error' => 'Component ID not specified.'];
+      }
+      else {
+        $result = $owner->startTestJob($json_data['modelId'], $json_data['componentId']);
+        if (is_string($result)) {
+          $data = ['jobId' => $result];
+        }
+        else {
+          $data = ['error' => (string) $result];
+        }
+      }
+    }
+    catch (\JsonException) {
+      $data = ['error' => 'Invalid JSON data.'];
+    }
+    return new JsonResponse($data);
+  }
+
+  /**
+   * Checks access for the global tokens endpoint.
+   *
+   * Grants access if the current user has edit or view permission for at
+   * least one model owner.
+   *
+   * @return \Drupal\Core\Access\AccessResultInterface
+   *   The access result.
+   */
+  public function checkGlobalTokenAccess(): AccessResultInterface {
+    $result = AccessResult::forbidden();
+    foreach ($this->modelOwnerPluginManager->getAllInstances() as $ownerId => $owner) {
+      if ($this->currentUser()->hasPermission('modeler api edit ' . $ownerId)
+        || $this->currentUser()->hasPermission('modeler api view ' . $ownerId)) {
+        $result = AccessResult::allowed();
+        break;
+      }
+    }
+    return $result;
+  }
+
+  /**
+   * Returns global tokens as JSON for on-demand loading.
+   *
+   * This endpoint defers the expensive token tree building and value resolution
+   * until the modeler UI explicitly requests it, rather than blocking the
+   * initial page load.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   The global tokens.
+   */
+  public function globalTokens(): JsonResponse {
+    return new JsonResponse($this->api->prepareGlobalTokens());
+  }
+
+  /**
+   * Checks access for the template tokens endpoint.
+   *
+   * Grants access if the current user has edit or view permission for the
+   * given model owner.
+   *
+   * @param string $owner_id
+   *   The model owner plugin ID.
+   *
+   * @return \Drupal\Core\Access\AccessResultInterface
+   *   The access result.
+   */
+  public function checkTemplateTokenAccess(string $owner_id): AccessResultInterface {
+    if ($this->currentUser()->hasPermission('modeler api edit ' . $owner_id)
+      || $this->currentUser()->hasPermission('modeler api view ' . $owner_id)) {
+      return AccessResult::allowed();
+    }
+    return AccessResult::forbidden();
+  }
+
+  /**
+   * Returns template tokens as JSON for on-demand loading.
+   *
+   * @param string $owner_id
+   *   The model owner plugin ID.
+   *
+   * @return \Symfony\Component\HttpFoundation\JsonResponse
+   *   The template tokens for the given model owner.
+   */
+  public function templateTokens(string $owner_id): JsonResponse {
+    try {
+      $owner = $this->modelOwnerPluginManager->createInstance($owner_id);
+    }
+    catch (PluginException) {
+      return new JsonResponse([]);
+    }
+    return new JsonResponse($this->api->prepareTemplateTokens($owner));
   }
 
 }

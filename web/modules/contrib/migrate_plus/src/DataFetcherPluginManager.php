@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus;
 
-use Drupal\migrate_plus\Annotation\DataFetcher;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Plugin\DefaultPluginManager;
+use Drupal\migrate_plus\Attribute\DataFetcher;
 
 /**
  * Provides a plugin manager for data fetchers.
  *
- * @see \Drupal\migrate_plus\Annotation\DataFetcher
+ * @see \Drupal\migrate_plus\Attribute\DataFetcher
  * @see \Drupal\migrate_plus\DataFetcherPluginBase
  * @see \Drupal\migrate_plus\DataFetcherPluginInterface
  * @see plugin_api
@@ -31,7 +31,7 @@ class DataFetcherPluginManager extends DefaultPluginManager {
    *   The module handler to invoke the alter hook with.
    */
   public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler) {
-    parent::__construct('Plugin/migrate_plus/data_fetcher', $namespaces, $module_handler, DataFetcherPluginInterface::class, DataFetcher::class);
+    parent::__construct('Plugin/migrate_plus/data_fetcher', $namespaces, $module_handler, DataFetcherPluginInterface::class, DataFetcher::class, 'Drupal\migrate_plus\Annotation\DataFetcher');
 
     $this->alterInfo('data_fetcher_info');
     $this->setCacheBackend($cache_backend, 'migrate_plus_plugins_data_fetcher');

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\ProcessPluginBase;
 use Drupal\migrate\Row;
@@ -35,12 +36,11 @@ use Drupal\migrate\Row;
  * convert from a single value to multiple, use the "multiple_values" plugin. It
  * will make the next plugin treat the values individually instead of an array
  * of values.
- *
- * @MigrateProcessPlugin(
- *   id = "multiple_values",
- *   handle_multiples = TRUE
- * )
  */
+#[MigrateProcess(
+  id: 'multiple_values',
+  handle_multiples: TRUE,
+)]
 class MultipleValues extends ProcessPluginBase {
 
   /**

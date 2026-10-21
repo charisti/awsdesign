@@ -54,7 +54,7 @@ class FormAddSubmitButton extends FormActionBase {
       $button_type = $this->getTokenValue('button_type', '_none');
     }
     if (!empty($button_type) && ($button_type !== '_none')) {
-      $button_element['#button_type'] = $this->configuration['button_type'];
+      $button_element['#button_type'] = $button_type;
     }
 
     if (isset($form['actions'])) {

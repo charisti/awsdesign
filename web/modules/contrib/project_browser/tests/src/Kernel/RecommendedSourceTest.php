@@ -15,11 +15,13 @@ use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the `recommended` source plugin.
  */
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 #[CoversClass(Recommended::class)]
 final class RecommendedSourceTest extends KernelTestBase {
 
@@ -91,7 +93,7 @@ final class RecommendedSourceTest extends KernelTestBase {
     $client = new Client([
       'handler' => new MockHandler([$response]),
     ]);
-    $this->container->set('http_client', $client);
+    \Drupal::getContainer()->set('http_client', $client);
 
     $this->assertProjectsAreLoaded('http://www.example.com/recommended-projects.yml');
   }
@@ -108,7 +110,7 @@ final class RecommendedSourceTest extends KernelTestBase {
       ])
       ->save();
 
-    $this->assertCount(0, $this->container->get(QueryManager::class)->getProjects('recommended')->list);
+    $this->assertCount(0, \Drupal::service(QueryManager::class)->getProjects('recommended')->list);
   }
 
   /**
@@ -124,7 +126,7 @@ final class RecommendedSourceTest extends KernelTestBase {
       ])
       ->save();
 
-    $query_manager = $this->container->get(QueryManager::class);
+    $query_manager = \Drupal::service(QueryManager::class);
 
     $results = $query_manager->getProjects('recommended');
     $this->assertSame(2, $results->totalResults);

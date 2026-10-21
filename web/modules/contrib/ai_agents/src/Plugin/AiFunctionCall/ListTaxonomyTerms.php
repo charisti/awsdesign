@@ -84,7 +84,7 @@ class ListTaxonomyTerms extends FunctionCallBase implements ExecutableFunctionCa
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Check so the user has access to create/edit taxonomy terms.
     if (!$this->currentUser->hasPermission('administer taxonomy')) {
       throw new \Exception('The current user does not have the right permissions to list taxonomy terms.');

@@ -3,13 +3,13 @@
 namespace Drupal\ai_test\Plugin\AiProvider;
 
 use Drupal\Component\Serialization\Json;
+use Drupal\Component\Serialization\Yaml;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
-use Drupal\Tests\ai\Mock\MockIterator;
-use Drupal\Tests\ai\Mock\MockStreamedChatIterator;
 use Drupal\ai\Attribute\AiProvider;
 use Drupal\ai\Base\AiProviderClientBase;
+use Drupal\ai\Exception\AiResponseErrorException;
 use Drupal\ai\OperationType\Chat\ChatInput;
 use Drupal\ai\OperationType\Chat\ChatInterface;
 use Drupal\ai\OperationType\Chat\ChatMessage;
@@ -18,9 +18,16 @@ use Drupal\ai\OperationType\Chat\Tools\ToolsFunctionOutput;
 use Drupal\ai\OperationType\Chat\Tools\ToolsOutput;
 use Drupal\ai\OperationType\Chat\Tools\ToolsPropertyInput;
 use Drupal\ai\OperationType\Chat\Tools\ToolsPropertyResult;
+use Drupal\ai\OperationType\Embeddings\EmbeddingsCollectionInput;
+use Drupal\ai\OperationType\Embeddings\EmbeddingsCollectionInterface;
+use Drupal\ai\OperationType\Embeddings\EmbeddingsCollectionOutput;
 use Drupal\ai\OperationType\Embeddings\EmbeddingsInput;
 use Drupal\ai\OperationType\Embeddings\EmbeddingsInterface;
 use Drupal\ai\OperationType\Embeddings\EmbeddingsOutput;
+use Drupal\ai\OperationType\ExtractiveQuestionAnswering\ExtractiveQuestionAnsweringInput;
+use Drupal\ai\OperationType\ExtractiveQuestionAnswering\ExtractiveQuestionAnsweringInterface;
+use Drupal\ai\OperationType\ExtractiveQuestionAnswering\ExtractiveQuestionAnsweringItem;
+use Drupal\ai\OperationType\ExtractiveQuestionAnswering\ExtractiveQuestionAnsweringOutput;
 use Drupal\ai\OperationType\GenericType\AudioFile;
 use Drupal\ai\OperationType\GenericType\ImageFile;
 use Drupal\ai\OperationType\ImageClassification\ImageClassificationInput;
@@ -35,9 +42,19 @@ use Drupal\ai\OperationType\Moderation\ModerationInput;
 use Drupal\ai\OperationType\Moderation\ModerationInterface;
 use Drupal\ai\OperationType\Moderation\ModerationOutput;
 use Drupal\ai\OperationType\Moderation\ModerationResponse;
+use Drupal\ai\OperationType\Rerank\ReRankInput;
+use Drupal\ai\OperationType\Rerank\ReRankInterface;
+use Drupal\ai\OperationType\Rerank\ReRankOutput;
 use Drupal\ai\OperationType\SpeechToText\SpeechToTextInput;
 use Drupal\ai\OperationType\SpeechToText\SpeechToTextInterface;
 use Drupal\ai\OperationType\SpeechToText\SpeechToTextOutput;
+use Drupal\ai\OperationType\Summarization\SummarizationInput;
+use Drupal\ai\OperationType\Summarization\SummarizationInterface;
+use Drupal\ai\OperationType\Summarization\SummarizationOutput;
+use Drupal\ai\OperationType\TextClassification\TextClassificationInput;
+use Drupal\ai\OperationType\TextClassification\TextClassificationInterface;
+use Drupal\ai\OperationType\TextClassification\TextClassificationItem;
+use Drupal\ai\OperationType\TextClassification\TextClassificationOutput;
 use Drupal\ai\OperationType\TextToImage\TextToImageInput;
 use Drupal\ai\OperationType\TextToImage\TextToImageInterface;
 use Drupal\ai\OperationType\TextToImage\TextToImageOutput;
@@ -45,11 +62,12 @@ use Drupal\ai\OperationType\TextToSpeech\TextToSpeechInput;
 use Drupal\ai\OperationType\TextToSpeech\TextToSpeechInterface;
 use Drupal\ai\OperationType\TextToSpeech\TextToSpeechOutput;
 use Drupal\ai\Traits\OperationType\ImageToImageTrait;
+use Drupal\ai_test\Mock\MockIterator;
+use Drupal\ai_test\Mock\MockStreamedChatIterator;
 use Drupal\ai_test\OperationType\Echo\EchoInput;
 use Drupal\ai_test\OperationType\Echo\EchoInterface;
 use Drupal\ai_test\OperationType\Echo\EchoOutput;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\Yaml\Yaml;
 
 /**
  * Plugin implementation of the 'mock' provider.
@@ -61,13 +79,18 @@ use Symfony\Component\Yaml\Yaml;
 class EchoProvider extends AiProviderClientBase implements
   ChatInterface,
   EmbeddingsInterface,
+  EmbeddingsCollectionInterface,
   ModerationInterface,
+  ReRankInterface,
   SpeechToTextInterface,
+  SummarizationInterface,
   TextToSpeechInterface,
   ImageClassificationInterface,
   TextToImageInterface,
   EchoInterface,
-  ImageToImageInterface {
+  ImageToImageInterface,
+  TextClassificationInterface,
+  ExtractiveQuestionAnsweringInterface {
 
   use ImageToImageTrait;
 
@@ -114,7 +137,7 @@ class EchoProvider extends AiProviderClientBase implements
    */
   public function getApiDefinition(): array {
     // Load the configuration.
-    return Yaml::parseFile($this->moduleHandler->getModule('ai_test')->getPath() . '/definitions/api_defaults.yml');
+    return Yaml::decode(file_get_contents($this->moduleHandler->getModule('ai_test')->getPath() . '/definitions/api_defaults.yml'));
   }
 
   /**
@@ -148,10 +171,14 @@ class EchoProvider extends AiProviderClientBase implements
     return [
       'chat',
       'embeddings',
+      'rerank',
       'speech_to_text',
       'text_to_speech',
+      'summarize',
       'moderation',
       'image_classification',
+      'text_classification',
+      'extractive_question_answering',
       'echo',
     ];
   }
@@ -166,6 +193,12 @@ class EchoProvider extends AiProviderClientBase implements
    * {@inheritdoc}
    */
   public function chat(array|string|ChatInput $input, string $model_id, array $tags = []): ChatOutput {
+    // Allow tests to deterministically trigger a provider failure, so the
+    // exception handling in ProviderProxy (AiExceptionEvent dispatching,
+    // metadata propagation) can be covered.
+    if ($model_id === 'test_exception') {
+      throw new AiResponseErrorException('Simulated provider failure for testing.');
+    }
     // First try to match the request with the requests to test.
     $matched_request = $this->getMatchingRequest('chat', $input);
     if ($matched_request) {
@@ -183,7 +216,9 @@ class EchoProvider extends AiProviderClientBase implements
     }
 
     if ($this->streamed) {
-      $output[] = sprintf('Hello world! Input: %s. Config: %s.', $normalized_input ?? $input, json_encode($this->configuration));
+      $string = sprintf('Hello world! Input: %s. Config: %s.', $normalized_input ?? $input, json_encode($this->configuration));
+      // Split the string every 10 characters to simulate streaming.
+      $output = str_split($string, 10);
       $iterator = new MockIterator($output);
       $message = new MockStreamedChatIterator($iterator);
     }
@@ -230,10 +265,12 @@ class EchoProvider extends AiProviderClientBase implements
           }
         }
 
+        // Resolve the function against its input, then give back the function
+        // itself, since ChatMessage stores ToolsFunctionOutputInterface.
         $output_tools = new ToolsOutput($input_tools);
         $output_tools->setFunction($output_function);
         if ($message instanceof ChatMessage) {
-          $message->setTools([$output_tools]);
+          $message->setTools($output_tools->getFunctions());
         }
       }
     }
@@ -274,6 +311,17 @@ class EchoProvider extends AiProviderClientBase implements
   /**
    * {@inheritdoc}
    */
+  public function embeddingsCollection(EmbeddingsCollectionInput $input, string $model_id, array $tags = []): EmbeddingsCollectionOutput {
+    $vectors = [];
+    foreach ($input->getPrompts() as $prompt) {
+      $vectors[] = [strlen($prompt)];
+    }
+    return new EmbeddingsCollectionOutput($vectors, $vectors, []);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function embeddingsVectorSize(string $model_id): int {
     return 1;
   }
@@ -289,6 +337,22 @@ class EchoProvider extends AiProviderClientBase implements
    * {@inheritdoc}
    */
   public function moderation(ModerationInput|string $input, ?string $model_id = NULL, array $tags = []): ModerationOutput {
+    // Normalize to a ModerationInput so registered mock results can be matched
+    // the same way chat() matches them. A mock response may set 'flagged' and
+    // optional 'information' to drive the moderation outcome from a test.
+    $moderation_input = $input instanceof ModerationInput ? $input : new ModerationInput((string) $input);
+    $matched_request = $this->getMatchingRequest('moderation', $moderation_input);
+    if ($matched_request) {
+      if (!empty($matched_request['wait'])) {
+        usleep($matched_request['wait'] * 1000);
+      }
+      $mock = $matched_request['response'];
+      $mod = new ModerationResponse((bool) ($mock['flagged'] ?? FALSE), $mock['information'] ?? []);
+      return new ModerationOutput($mod, $mock, []);
+    }
+
+    // Default behavior: flag everything so the "flagged" path is deterministic
+    // without having to register a mock.
     $response = [
       'input' => sprintf('Hello world! %s', (string) $input),
     ];
@@ -306,6 +370,16 @@ class EchoProvider extends AiProviderClientBase implements
     ];
 
     return new SpeechToTextOutput($response['input'], $response, []);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function summarize(string|array|SummarizationInput $input, string $model_id, array $tags = []): SummarizationOutput {
+    $text = $input instanceof SummarizationInput ? $input->getText() : (string) (is_array($input) ? reset($input) : $input);
+    $summary = sprintf('Summary of: %s', $text);
+
+    return new SummarizationOutput($summary, ['summary' => $summary], []);
   }
 
   /**
@@ -372,6 +446,81 @@ class EchoProvider extends AiProviderClientBase implements
   /**
    * {@inheritdoc}
    */
+  public function textClassification(string|TextClassificationInput $input, string $model_id, array $tags = []): TextClassificationOutput {
+    $output = [];
+    $response = [];
+    if ($input instanceof TextClassificationInput) {
+      $labels = $input->getLabels();
+      foreach ($labels as $label) {
+        $output[] = new TextClassificationItem($label, 0.5);
+        $response[] = [
+          'label' => $label,
+          'confidence' => 0.5,
+        ];
+      }
+    }
+
+    return new TextClassificationOutput($output, $response, []);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function extractiveQuestionAnswering(string|ExtractiveQuestionAnsweringInput $input, string $model_id, array $tags = []): ExtractiveQuestionAnsweringOutput {
+    $output = [];
+    $response = [];
+    if ($input instanceof ExtractiveQuestionAnsweringInput) {
+      $context = $input->getContext();
+      // Find the position of the first word of the question in the context.
+      $start = strpos($context, ' ');
+      $start = $start !== FALSE ? $start + 1 : 0;
+      $answer = substr($context, $start, 10);
+      $end = $start + strlen($answer);
+      $output[] = new ExtractiveQuestionAnsweringItem($answer, 0.85, $start, $end);
+      $response[] = [
+        'answer' => $answer,
+        'score' => 0.85,
+        'start' => $start,
+        'end' => $end,
+      ];
+    }
+
+    return new ExtractiveQuestionAnsweringOutput($output, $response, []);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function rerank(ReRankInput $input, string $model_id, array $tags = []): ReRankOutput {
+    // Test sentinel: return a response with no usable "index" values so the
+    // processor's fallback path can be exercised.
+    if ($model_id === 'unusable-rerank') {
+      return new ReRankOutput([
+        ['relevance_score' => 0.9],
+        ['relevance_score' => 0.1],
+      ], 'echo-rerank-unusable', []);
+    }
+
+    $documents = $input->getInputs();
+    $results = [];
+    $count = count($documents);
+    foreach ($documents as $index => $document) {
+      // Assign ascending scores so the LAST document scores highest.
+      $score = ($index + 1) / $count;
+      $results[] = [
+        'index' => $index,
+        'relevance_score' => round($score, 2),
+        'document' => ['text' => $document],
+      ];
+    }
+    // Return sorted descending by score so last-input item comes first.
+    usort($results, fn($a, $b) => $b['relevance_score'] <=> $a['relevance_score']);
+    return new ReRankOutput($results, 'echo-rerank-' . $model_id, []);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function echo(string|EchoInput $input, string $model_id, array $options = []): EchoOutput {
     if (!$input instanceof EchoInput) {
       $input = new EchoInput($input);
@@ -401,6 +550,25 @@ class EchoProvider extends AiProviderClientBase implements
     $requests = array_merge($requests, $this->testRequestsToTest($operation_type));
     foreach ($requests as $request) {
       $array = $input->toArray();
+      // Look in the request message for added keys and add them to the request
+      // to match against. This is important for new keys that are added to the
+      // input, to not break older tests.
+      if (isset($request['request']) && is_array($request['request'])
+        && !empty($array['messages'])
+        && isset($request['request']['messages']) && is_array($request['request']['messages'])) {
+        foreach ($array['messages'][0] as $key => $value) {
+          foreach ($request['request']['messages'] as $message_key => $message_value) {
+            if (!array_key_exists($key, $message_value)) {
+              $request['request']['messages'][$message_key][$key] = $value;
+            }
+            // Fix the order of the key in the messages.
+            $request['request']['messages'][$message_key] = array_merge(
+              array_intersect_key($array['messages'][0], $request['request']['messages'][$message_key]),
+              $request['request']['messages'][$message_key]
+            );
+          }
+        }
+      }
       if (isset($request['request']) && is_array($request['request']) && Json::encode($request['request']) === Json::encode($array)) {
         // If the request matches, return the response.
         if (isset($request['response']) && is_array($request['response'])) {
@@ -448,8 +616,8 @@ class EchoProvider extends AiProviderClientBase implements
     $responses = [];
     foreach ($entities as $entity) {
       $responses[] = [
-        'request' => Yaml::parse($entity->get('request')->value),
-        'response' => Yaml::parse($entity->get('response')->value),
+        'request' => Yaml::decode($entity->get('request')->value),
+        'response' => Yaml::decode($entity->get('response')->value),
         'wait' => $entity->get('sleep_time')->value,
       ];
     }
@@ -495,7 +663,7 @@ class EchoProvider extends AiProviderClientBase implements
             if (is_file($file_path)) {
               $file_contents = file_get_contents($file_path);
               if ($file_contents !== FALSE) {
-                $data = Yaml::parse($file_contents);
+                $data = Yaml::decode($file_contents);
                 if (!empty($data)) {
                   $requests[] = $data;
                 }

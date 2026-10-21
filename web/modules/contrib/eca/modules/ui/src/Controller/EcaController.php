@@ -6,7 +6,6 @@ use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\MessageCommand;
 use Drupal\Core\Ajax\RedirectCommand;
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
@@ -38,13 +37,6 @@ final class EcaController extends ControllerBase {
   protected Modellers $modellerServices;
 
   /**
-   * Entity storage manager.
-   *
-   * @var \Drupal\Core\Entity\EntityStorageInterface
-   */
-  protected EntityStorageInterface $storage;
-
-  /**
    * ECA controller constructor.
    *
    * @param \Symfony\Component\HttpFoundation\Request $request
@@ -57,7 +49,7 @@ final class EcaController extends ControllerBase {
   public function __construct(Request $request, Modellers $modeller_services, EntityTypeManagerInterface $entity_type_manager) {
     $this->request = $request;
     $this->modellerServices = $modeller_services;
-    $this->storage = $entity_type_manager->getStorage('eca');
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -128,7 +120,7 @@ final class EcaController extends ControllerBase {
    */
   public function enable(string $eca): RedirectResponse {
     /** @var \Drupal\eca\Entity\Eca|null $config */
-    $config = $this->storage->load($eca);
+    $config = $this->entityTypeManager->getStorage('eca')->load($eca);
     if ($config && !$config->status() && $modeller = $config->getModeller()) {
       $modeller->enable();
     }
@@ -146,7 +138,7 @@ final class EcaController extends ControllerBase {
    */
   public function disable(string $eca): RedirectResponse {
     /** @var \Drupal\eca\Entity\Eca|null $config */
-    $config = $this->storage->load($eca);
+    $config = $this->entityTypeManager->getStorage('eca')->load($eca);
     if ($config && $config->status() && $modeller = $config->getModeller()) {
       $modeller->disable();
     }
@@ -164,7 +156,7 @@ final class EcaController extends ControllerBase {
    */
   public function clone(string $eca): RedirectResponse {
     /** @var \Drupal\eca\Entity\Eca|null $config */
-    $config = $this->storage->load($eca);
+    $config = $this->entityTypeManager->getStorage('eca')->load($eca);
     if ($config && $config->isEditable() && $modeller = $config->getModeller()) {
       $modeller->clone();
     }
@@ -182,7 +174,7 @@ final class EcaController extends ControllerBase {
    */
   public function export(string $eca): Response {
     /** @var \Drupal\eca\Entity\Eca|null $config */
-    $config = $this->storage->load($eca);
+    $config = $this->entityTypeManager->getStorage('eca')->load($eca);
     if ($config && $modeller = $config->getModeller()) {
       $response = $modeller->export();
       if ($response) {
@@ -203,7 +195,7 @@ final class EcaController extends ControllerBase {
    */
   public function edit(string $eca): array {
     /** @var \Drupal\eca\Entity\Eca|null $config */
-    $config = $this->storage->load($eca);
+    $config = $this->entityTypeManager->getStorage('eca')->load($eca);
     if ($config && $config->isEditable() && $modeller = $config->getModeller(FALSE)) {
       $build = $modeller->edit();
       $build['#title'] = $this->t('%label ECA Model', ['%label' => $config->label()]);

@@ -18,7 +18,7 @@
   set form_classes = [
     'form',
     form_attributes.id ? 'form--' ~ form_attributes.id|clean_class,
-    is_inline ? 'd-flex',
+    is_inline ? 'form-inline d-flex',
   ]
   |merge(form_utility_classes ?: [])
 %}

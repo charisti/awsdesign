@@ -12,6 +12,7 @@ use Drupal\project_browser\Plugin\ProjectBrowserSourceInterface;
 use Drupal\project_browser\ProjectBrowser\ProjectsResultsPage;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the LocalModules source plugin.
@@ -20,6 +21,7 @@ use PHPUnit\Framework\Attributes\Group;
  */
 #[CoversClass(LocalModules::class)]
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class LocalModulesTest extends KernelTestBase {
 
   /**
@@ -88,7 +90,7 @@ final class LocalModulesTest extends KernelTestBase {
    * Tests that the decorator properly populates non-volatile project storage.
    */
   public function testProjectStoreIsPopulated(): void {
-    $this->container->get(ModuleInstallerInterface::class)->install([
+    \Drupal::service(ModuleInstallerInterface::class)->install([
       'project_browser_test',
     ]);
     $this->config('project_browser.admin_settings')
@@ -98,7 +100,7 @@ final class LocalModulesTest extends KernelTestBase {
       ])
       ->save();
 
-    $result = $this->container->get(ProjectBrowserSourceManager::class)
+    $result = \Drupal::service(ProjectBrowserSourceManager::class)
       ->createInstance('local_modules')
       ->getProjects();
     // Ensure that the decorator "took ownership" of the projects returned by

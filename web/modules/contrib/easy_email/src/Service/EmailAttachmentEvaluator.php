@@ -5,7 +5,7 @@ namespace Drupal\easy_email\Service;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\File\FileSystemInterface;
-use Drupal\Core\ProxyClass\File\MimeType\MimeTypeGuesser;
+use Symfony\Component\Mime\MimeTypeGuesserInterface;
 use Drupal\easy_email\Entity\EasyEmailInterface;
 use Drupal\easy_email\Event\EasyEmailEvent;
 use Drupal\easy_email\Event\EasyEmailEvents;
@@ -23,7 +23,7 @@ class EmailAttachmentEvaluator implements EmailAttachmentEvaluatorInterface {
   protected $fileSystem;
 
   /**
-   * @var \Drupal\Core\ProxyClass\File\MimeType\MimeTypeGuesser
+   * @var \Symfony\Component\Mime\MimeTypeGuesserInterface
    */
   protected $mimeTypeGuesser;
 
@@ -52,12 +52,12 @@ class EmailAttachmentEvaluator implements EmailAttachmentEvaluatorInterface {
    *
    * @param \Symfony\Component\EventDispatcher\EventDispatcherInterface $eventDispatcher
    * @param \Drupal\Core\File\FileSystemInterface $fileSystem
-   * @param \Drupal\Core\ProxyClass\File\MimeType\MimeTypeGuesser $mimeTypeGuesser
+   * @param \Symfony\Component\Mime\MimeTypeGuesserInterface $mimeTypeGuesser
    * @param \Psr\Log\LoggerInterface $logger
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
    * @param \Drupal\file\FileRepositoryInterface $fileRepository
    */
-  public function __construct(EventDispatcherInterface $eventDispatcher, FileSystemInterface $fileSystem, MimeTypeGuesser $mimeTypeGuesser, LoggerInterface $logger, ConfigFactoryInterface $configFactory, FileRepositoryInterface $fileRepository) {
+  public function __construct(EventDispatcherInterface $eventDispatcher, FileSystemInterface $fileSystem, MimeTypeGuesserInterface $mimeTypeGuesser, LoggerInterface $logger, ConfigFactoryInterface $configFactory, FileRepositoryInterface $fileRepository) {
     $this->fileSystem = $fileSystem;
     $this->mimeTypeGuesser = $mimeTypeGuesser;
     $this->eventDispatcher = $eventDispatcher;
@@ -76,7 +76,17 @@ class EmailAttachmentEvaluator implements EmailAttachmentEvaluatorInterface {
     // If save attachments has been enabled, check for any programmatically added files and save them.
     if (!empty($save_attachments_to) && !empty($files)) {
       foreach ($files as $i => $file) {
-        $this->saveAttachment($email, $file->uri, $save_attachments_to);
+        $source = NULL;
+        if (is_object($file) && isset($file->uri)) {
+          $source = $file->uri;
+        }
+        elseif (is_array($file) && !empty($file['filepath'])) {
+          $source = $file['filepath'];
+        }
+        if ($source === NULL) {
+          continue;
+        }
+        $this->saveAttachment($email, $source, $save_attachments_to);
         unset($files[$i]); // This will get re-added in the direct files below.
       }
     }
@@ -124,12 +134,21 @@ class EmailAttachmentEvaluator implements EmailAttachmentEvaluatorInterface {
       $attachment_paths = $email->getAttachmentPaths();
       if (!empty($attachment_paths)) {
         foreach ($attachment_paths as $path) {
-          // Relative paths that start with '/' get messed up by the realpath call below.
-          if (strpos($path, '/') === 0) {
-            $path = substr($path, 1);
-          }
           $realpath = $this->fileSystem->realpath($path);
-          if (!file_exists($realpath)) {
+          if ($realpath === FALSE || !file_exists($realpath)) {
+            // See if the path works relative to the project root.
+            // This was originally how this always worked before
+            // https://www.drupal.org/project/easy_email/issues/3591728
+            if (strpos($path, '/') === 0) {
+              $candidate = substr($path, 1);
+              $candidate_realpath = $this->fileSystem->realpath($candidate);
+              if ($candidate_realpath !== FALSE && file_exists($candidate_realpath)) {
+                $path = $candidate;
+                $realpath = $candidate_realpath;
+              }
+            }
+          }
+          if ($realpath === FALSE || !file_exists($realpath)) {
             $this->logger->warning('Attachment not found: @attachment', ['@attachment' => $path]);
             continue;
           }

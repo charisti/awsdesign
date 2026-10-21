@@ -73,7 +73,7 @@ class SmartDateDefaultFormatter extends SmartDateFormatterBase {
     // Change the description of the timezone_override element.
     if (isset($form['timezone_override'])) {
       $form['timezone_override']['#states'] = [
-        // Show this option only if the units will be hours.
+        // Show this option only if the start or end will be visible.
         'invisible' => [
           ':input[name$="[settings_edit_form][settings][parts][start]"]' => ['checked' => FALSE],
           ':input[name$="[settings_edit_form][settings][parts][end]"]' => ['checked' => FALSE],
@@ -83,7 +83,7 @@ class SmartDateDefaultFormatter extends SmartDateFormatterBase {
     }
 
     $form['format']['#states'] = [
-      // Show this option only if the units will be hours.
+      // Show this option only if the start or end will be visible.
       'invisible' => [
         ':input[name$="[settings_edit_form][settings][parts][start]"]' => ['checked' => FALSE],
         ':input[name$="[settings_edit_form][settings][parts][end]"]' => ['checked' => FALSE],
@@ -92,13 +92,11 @@ class SmartDateDefaultFormatter extends SmartDateFormatterBase {
     $form['format']['#weight'] = -8;
 
     $form['duration'] = [
-      '#type' => 'details',
+      '#type' => 'fieldset',
       '#title' => $this->t('Duration'),
       '#description' => $this->t('How the duration should be formatted.'),
-      // Controls the HTML5 'open' attribute. Defaults to FALSE.
-      '#open' => TRUE,
       '#states' => [
-        // Show this option only if the units will be hours.
+        // Show this option only if the duration will be visible.
         'visible' => [
           ':input[name$="[settings_edit_form][settings][parts][duration]"]' => ['checked' => TRUE],
         ],

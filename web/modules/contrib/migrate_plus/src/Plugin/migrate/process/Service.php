@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\Plugin\migrate\process\Callback;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -50,11 +51,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * @endcode
  *
  * @see \Drupal\migrate\Plugin\migrate\process\Callback
- *
- * @MigrateProcessPlugin(
- *   id = "service"
- * )
  */
+#[MigrateProcess(id: 'service')]
 class Service extends Callback implements ContainerFactoryPluginInterface {
 
   /**

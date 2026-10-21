@@ -4,16 +4,21 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\automatic_updates\Functional;
 
+use Drupal\automatic_updates\Form\UpdaterForm;
 use Drupal\automatic_updates_test\Datetime\TestTime;
 use Drupal\automatic_updates_test\EventSubscriber\TestSubscriber1;
 use Drupal\package_manager\Event\PreApplyEvent;
-use Drupal\system\SystemManager;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @covers \Drupal\automatic_updates\Form\UpdaterForm
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(UpdaterForm::class)]
+#[RunTestsInSeparateProcesses]
 class DeleteExistingUpdateTest extends UpdaterFormTestBase {
 
   /**
@@ -115,7 +120,7 @@ class DeleteExistingUpdateTest extends UpdaterFormTestBase {
 
     // If a legitimate error is raised during pre-apply, we should be able to
     // delete the staged update right away.
-    $results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($results, PreApplyEvent::class);
     // Before pressing the button, create a new stage fixture manipulator.
     $this->getStageFixtureManipulator()->setCorePackageVersion('9.8.1');

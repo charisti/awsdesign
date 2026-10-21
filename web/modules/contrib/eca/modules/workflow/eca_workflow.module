@@ -36,3 +36,10 @@ function eca_workflow_entity_update(EntityInterface $entity): void {
     _eca_workflow_hook_handler()->transition($entity);
   }
 }
+
+/**
+ * Implements hook_ENTITY_TYPE_insert().
+ */
+function eca_workflow_workflow_insert(): void {
+  \Drupal::service('plugin.manager.action')->clearCachedDefinitions();
+}

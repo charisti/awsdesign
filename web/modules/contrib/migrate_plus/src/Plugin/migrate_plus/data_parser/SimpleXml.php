@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Plugin\migrate_plus\data_parser;
 
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\migrate\MigrateException;
+use Drupal\migrate_plus\Attribute\DataParser;
 use Drupal\migrate_plus\DataParserPluginBase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -15,12 +17,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * expression in the item selector. For large XML sources it results in
  * consuming lots of memory, which can be undesirable. If you run into memory
  * issues, then consider using the 'xml' data parser.
- *
- * @DataParser(
- *   id = "simple_xml",
- *   title = @Translation("Simple XML")
- * )
  */
+#[DataParser(
+  id: 'simple_xml',
+  title: new TranslatableMarkup('Simple XML')
+)]
 class SimpleXml extends DataParserPluginBase {
 
   use XmlTrait;

@@ -4,20 +4,19 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_example_advanced_setup\Plugin\rest\resource;
 
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\rest\Attribute\RestResource;
 use Drupal\rest\Plugin\ResourceBase;
 use Drupal\rest\ResourceResponse;
 
 /**
  * Provides varieties as two endpoints, one for reds and one for whites.
- *
- * @RestResource(
- *   id = "migrate_example_advanced_variety_items",
- *   label = @Translation("Advanced migration example - Variety data"),
- *   uri_paths = {
- *     "canonical" = "/migrate_example_advanced_variety_list/{variety}"
- *   }
- * )
  */
+#[RestResource(
+  id: 'migrate_example_advanced_variety_items',
+  label: new TranslatableMarkup('Advanced migration example - Variety data'),
+  uri_paths: ['canonical' => '/migrate_example_advanced_variety_list/{variety}'],
+)]
 final class VarietyItems extends ResourceBase {
 
   /**

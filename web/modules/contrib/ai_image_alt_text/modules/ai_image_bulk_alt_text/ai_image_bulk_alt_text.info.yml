@@ -6,7 +6,7 @@ core_version_requirement: ^10.2 || ^11
 dependencies:
   - ai_image_alt_text:ai_image_alt_text
 
-# Information added by Drupal.org packaging script on 2025-02-05
-version: '1.0.1'
+# Information added by Drupal.org packaging script on 2026-10-01
+version: '1.0.3'
 project: 'ai_image_alt_text'
-datestamp: 1738761809
+datestamp: 1790851128

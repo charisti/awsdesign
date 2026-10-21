@@ -1,5 +1,5 @@
 editoria11y-library:
-  version: 2.4.5-dev
+  version: 2.4.7
   js:
     library/dist/editoria11y.min.js: { preprocess: false }
   css:
@@ -10,7 +10,7 @@ editoria11y-library:
     - core/drupalSettings
 
 editoria11y-localization:
-  version: 2.4.5-dev
+  version: 2.4.7
   js:
     js/editoria11y-localization.js: {}
   dependencies:
@@ -18,7 +18,7 @@ editoria11y-localization:
     - core/drupalSettings
 
 editoria11y-library-localized:
-  version: 2.4.5-dev
+  version: 2.4.7
   js:
     library/dist/editoria11y.min.js: { preprocess: false }
   css:
@@ -29,22 +29,33 @@ editoria11y-library-localized:
     - core/drupalSettings
     - editoria11y/editoria11y-localization
 
+editoria11y-demo:
+  version: 2.4.7
+  js:
+    js/editoria11y-demo.js: {}
+  css:
+    theme:
+      css/editoria11y-demo.css: { preprocess: false }
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
+
 editoria11y:
-  version: 2.4.5-dev
+  version: 2.4.7
   js:
     js/editoria11y-drupal.js: {}
   dependencies:
     - editoria11y/editoria11y-library
 
 editoria11y-localized:
-  version: 2.4.5-dev
+  version: 2.4.7
   js:
     js/editoria11y-drupal.js: {}
   dependencies:
     - editoria11y/editoria11y-library-localized
 
 editoria11y-admin:
-  version: 2.4.5-dev
+  version: 2.4.7
   js:
     js/editoria11y-admin.js: {}
   css:
@@ -56,7 +67,7 @@ editoria11y-admin:
     - core/drupal.message
 
 editoria11y-unminified:
-  version: 2.4.5-dev
+  version: 2.4.7
   js:
     library/js/ed11y-element-alt.js: {preprocess: false}
     library/js/ed11y-element-panel.js: {preprocess: false}

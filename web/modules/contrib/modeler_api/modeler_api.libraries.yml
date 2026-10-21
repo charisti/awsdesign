@@ -9,3 +9,13 @@ listing:
     - core/jquery
     - core/drupal
     - core/once
+
+template_token_selector:
+  version: VERSION
+  css:
+    component:
+      css/template-token-selector.css: {}
+  js:
+    js/template-token-selector.js: { minified: true, preprocess: false }
+  dependencies:
+    - core/drupalSettings

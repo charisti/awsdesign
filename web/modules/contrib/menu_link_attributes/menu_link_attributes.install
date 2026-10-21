@@ -119,3 +119,62 @@ function menu_link_attributes_update_8002(): void {
     ->getEditable('menu_link_attributes.config')
     ->set('attributes', $attributes)->save();
 }
+
+/**
+ * Add missing langcode to menu_link_attributes.config.
+ */
+function menu_link_attributes_update_8003(): void {
+  $config = \Drupal::configFactory()->getEditable('menu_link_attributes.config');
+  if (!$config->get('langcode')) {
+    $config->set('langcode', 'en')->save();
+  }
+}
+
+/**
+ * Remove unsafe attribute definitions and clear the render cache.
+ *
+ * Attribute names that are only invalid because of underscores are renamed
+ * to use hyphens instead, see https://git.drupalcode.org/project/menu_link_attributes/-/issues/3590636.
+ */
+function menu_link_attributes_update_8004() {
+  $config = \Drupal::configFactory()->getEditable('menu_link_attributes.config');
+  $attributes = $config->get('attributes') ?: [];
+  $kept_attributes = [];
+  $removed = [];
+  $renamed = [];
+
+  foreach ($attributes as $attribute => $info) {
+    $attribute = (string) $attribute;
+    if (menu_link_attributes_is_allowed_attribute_name(preg_replace('/^container_/', '', $attribute))) {
+      $kept_attributes[$attribute] = $info;
+      continue;
+    }
+
+    $sanitized_attribute = menu_link_attributes_sanitize_attribute_name($attribute);
+    if (!menu_link_attributes_is_allowed_attribute_name(preg_replace('/^container_/', '', $sanitized_attribute)) || isset($attributes[$sanitized_attribute])) {
+      $removed[] = $attribute;
+      continue;
+    }
+
+    $kept_attributes[$sanitized_attribute] = $info;
+    $renamed[$attribute] = $sanitized_attribute;
+  }
+
+  if ($removed || $renamed) {
+    $config->set('attributes', $kept_attributes)->save();
+  }
+
+  // Rendered menus may still contain unsafe attributes.
+  \Drupal::service('cache_tags.invalidator')->invalidateTags(['rendered']);
+
+  $messages = [];
+  if ($removed) {
+    $messages[] = t('Removed unsafe menu link attributes from configuration: @attributes', ['@attributes' => implode(', ', $removed)]);
+  }
+  if ($renamed) {
+    $messages[] = menu_link_attributes_log_renamed_attributes($renamed, 'configuration');
+  }
+  if ($messages) {
+    return implode(' ', $messages);
+  }
+}

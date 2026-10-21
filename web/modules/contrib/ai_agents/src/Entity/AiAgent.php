@@ -47,14 +47,31 @@ use Drupal\ai_agents\AiAgentInterface;
  *     "orchestration_agent",
  *     "triage_agent",
  *     "max_loops",
+ *     "max_loops_message",
  *     "masquerade_roles",
  *     "exclude_users_role",
  *     "structured_output_enabled",
  *     "structured_output_schema",
+ *     "guardrail_set",
+ *     "hostname_filter_disabled",
  *   },
  * )
  */
 final class AiAgent extends ConfigEntityBase implements AiAgentInterface {
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __construct(array $values, $entity_type) {
+    // Normalize NULL to empty arrays for sequence-typed properties to prevent
+    // TypeErrors when loading config that was saved without these values set.
+    foreach (['tools', 'tool_settings', 'tool_usage_limits', 'masquerade_roles'] as $property) {
+      if (!isset($values[$property]) || $values[$property] === NULL) {
+        $values[$property] = [];
+      }
+    }
+    parent::__construct($values, $entity_type);
+  }
 
   /**
    * The example ID.
@@ -89,32 +106,37 @@ final class AiAgent extends ConfigEntityBase implements AiAgentInterface {
   /**
    * The tools that can be used.
    */
-  protected array $tools;
+  protected array $tools = [];
 
   /**
    * The tool usage limits.
    */
-  protected ?array $tool_usage_limits = NULL;
+  protected array $tool_usage_limits = [];
 
   /**
    * The tool settings.
    */
-  protected ?array $tool_settings = NULL;
+  protected array $tool_settings = [];
 
   /**
    * Is this an orchestration agent.
    */
-  protected bool $orchestration_agent;
+  protected ?bool $orchestration_agent = NULL;
 
   /**
    * Is this a triage agent.
    */
-  protected bool $triage_agent;
+  protected ?bool $triage_agent = NULL;
 
   /**
    * The max amount of loops.
    */
   protected int $max_loops = 3;
+
+  /**
+   * The message to display when max loops is reached.
+   */
+  protected ?string $max_loops_message = NULL;
 
   /**
    * The agent masquerade roles.
@@ -135,5 +157,38 @@ final class AiAgent extends ConfigEntityBase implements AiAgentInterface {
    * The structured output schema in JSON format.
    */
   protected ?string $structured_output_schema = NULL;
+
+  /**
+   * The guardrail set.
+   */
+  protected ?string $guardrail_set = NULL;
+
+  /**
+   * The possibility to turn off hostname whitelisting.
+   */
+  protected ?bool $hostname_filter_disabled = NULL;
+
+  /**
+   * {@inheritdoc}
+   */
+  public function calculateDependencies() {
+    parent::calculateDependencies();
+
+    $tool_definitions = \Drupal::service('plugin.manager.ai.function_calls')->getDefinitions();
+    foreach (array_keys($this->tools) as $tool_id) {
+      if (!isset($tool_definitions[$tool_id])) {
+        continue;
+      }
+
+      if (isset($tool_definitions[$tool_id]['provider'])) {
+        $this->addDependency('module', $tool_definitions[$tool_id]['provider']);
+      }
+      foreach ($tool_definitions[$tool_id]['module_dependencies'] ?? [] as $module) {
+        $this->addDependency('module', $module);
+      }
+    }
+
+    return $this;
+  }
 
 }

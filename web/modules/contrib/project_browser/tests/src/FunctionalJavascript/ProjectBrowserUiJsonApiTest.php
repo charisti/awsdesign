@@ -7,6 +7,7 @@ namespace Drupal\Tests\project_browser\FunctionalJavascript;
 use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use Drupal\project_browser\ProjectBrowser\Filter\BooleanFilter;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 // cspell:ignore cashpresso Adnuntius Paypage Redsys ZURB Superfish TMGMT Toki
 // cspell:ignore Webtheme Pitchburgh Gotem Webform Bsecurity Bstatus Cardless
@@ -17,6 +18,7 @@ use PHPUnit\Framework\Attributes\Group;
  * @group project_browser
  */
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class ProjectBrowserUiJsonApiTest extends WebDriverTestBase {
 
   use ProjectBrowserUiTestTrait;
@@ -55,7 +57,7 @@ final class ProjectBrowserUiJsonApiTest extends WebDriverTestBase {
    */
   public function testErrorMessageWhenWrongDrupalVersion(): void {
     // Fake the Drupal version.
-    $this->container->get('state')->set('project_browser:test_deprecated_api', TRUE);
+    \Drupal::service('state')->set('project_browser:test_deprecated_api', TRUE);
 
     $this->drupalGet('admin/modules/browse/drupalorg_jsonapi');
     $this->svelteInitHelper('text', 'Unsupported version');

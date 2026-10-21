@@ -7,12 +7,15 @@ namespace Drupal\Tests\automatic_updates\Unit\VersionPolicy;
 use Drupal\automatic_updates\Validator\VersionPolicy\TargetVersionStable;
 use Drupal\Tests\automatic_updates\Traits\VersionPolicyTestTrait;
 use Drupal\Tests\UnitTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
- * @covers \Drupal\automatic_updates\Validator\VersionPolicy\TargetVersionStable
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(TargetVersionStable::class)]
 class TargetVersionStableTest extends UnitTestCase {
 
   use VersionPolicyTestTrait;
@@ -55,9 +58,8 @@ class TargetVersionStableTest extends UnitTestCase {
    *   The target version of Drupal core.
    * @param string[] $expected_errors
    *   The expected error messages, if any.
-   *
-   * @dataProvider providerTargetVersionStable
    */
+  #[DataProvider('providerTargetVersionStable')]
   public function testTargetVersionStable(string $target_version, array $expected_errors): void {
     $rule = new TargetVersionStable();
     $this->assertPolicyErrors($rule, '9.8.0', $target_version, $expected_errors);

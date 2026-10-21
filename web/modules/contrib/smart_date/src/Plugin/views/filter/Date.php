@@ -320,11 +320,11 @@ class Date extends CoreDate implements ContainerFactoryPluginInterface {
     ];
     switch ($granularity) {
       case 'year':
-        $min['month'] = '01';
+        $min['month'] = '1';
         $max['month'] = '12';
         $max['day'] = '31';
       case 'month':
-        $min['day'] = '01';
+        $min['day'] = '1';
         if ($granularity !== 'year') {
           $max['day'] = $b->format('t');
         }

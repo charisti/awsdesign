@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
 use Drupal\Component\Utility\NestedArray;
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\Plugin\migrate\process\Get;
 use Drupal\migrate\Plugin\MigratePluginManagerInterface;
@@ -24,8 +25,9 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * - default_values: (optional) A keyed array of default static values to be
  *   used for the generated entity.
  * - values: (optional) A keyed array of values to be used for the generated
- *   entity. It supports source and destination fields as you would normally use
- *   in a process pipeline.
+ *   entity. Keys are the field names and values are the field values.
+ *   If the value is an array, it is treated as a process pipeline. This allows
+ *   you to use process plugins to transform data before saving the entity.
  *
  * Example:
  * @code
@@ -39,16 +41,19 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *     default_values:
  *       description: Default description
  *     values:
+ *       # Simple source field lookup.
  *       field_long_description: some_source_field
  *       field_foo: '@foo'
+ *       # Process pipeline example (running a plugin on the value).
+ *       field_clean_text:
+ *         plugin: callback
+ *         callable: trim
+ *         source: some_dirty_text_field
  * @endcode
  *
  * @see \Drupal\migrate_plus\Plugin\migrate\process\EntityLookup
- *
- * @MigrateProcessPlugin(
- *   id = "entity_generate"
- * )
  */
+#[MigrateProcess(id: 'entity_generate')]
 class EntityGenerate extends EntityLookup {
 
   /**
@@ -86,6 +91,7 @@ class EntityGenerate extends EntityLookup {
   public function transform($value, MigrateExecutableInterface $migrate_executable, Row $row, $destination_property) {
     $this->row = $row;
     $this->migrateExecutable = $migrate_executable;
+
     // Creates an entity if the lookup determines it doesn't exist.
     if (!($result = parent::transform($value, $migrate_executable, $row, $destination_property))) {
       $result = $this->generateEntity($value);
@@ -143,7 +149,14 @@ class EntityGenerate extends EntityLookup {
     // Gather any additional properties/fields.
     if (isset($this->configuration['values']) && is_array($this->configuration['values'])) {
       foreach ($this->configuration['values'] as $key => $property) {
-        $source_value = $this->row->get($property);
+        if (is_array($property)) {
+          $row = clone $this->row;
+          $this->migrateExecutable->processRow($row, ['value' => $property]);
+          $source_value = $row->getDestinationProperty('value');
+        }
+        else {
+          $source_value = $this->row->get($property);
+        }
         NestedArray::setValue($entity_values, explode(Row::PROPERTY_SEPARATOR, $key), $source_value, TRUE);
       }
     }

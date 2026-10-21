@@ -103,6 +103,19 @@ The module ships some services, e.g. for Matomo open analytics platform.
 
 You have to review and enable the services you need for your site.
 
+**Update of Services**
+
+The services are created as config entities. If new services are added
+or changes are made to the config files, they will not be imported
+automatically! Only in a few cases update hooks are provided for changes
+to services.
+
+However, you can easily import a config file to create or update a service.
+
+Example command for posthog service:
+
+`cat modules/contrib/klaro/config/install/klaro.klaro_app.posthog.yml | drush config:set --input-format=yaml klaro.klaro_app.posthog ? -`
+
 #### Services for YouTube and Vimeo
 
 Klaro offers two services for embedded external content: YouTube and Vimeo.
@@ -152,7 +165,35 @@ Both services can be activated and control the integration of Google code.
 
 It is also possible to integrate the Google Tag Manager (GTM) with
 **Google Consent Mode v2**, see [documentation](https://klaro.org/docs/tutorials/google_tag_manager).
-See also [Issue #3484827](https://www.drupal.org/project/klaro/issues/3484827).
+
+For this, the module ships three additional, disabled by default services
+that use the `onInit`, `onAccept` and `onDecline` callbacks (Klaro > Service >
+Advanced) instead of blocking scripts directly, since the actual tags are
+managed inside GTM:
+
+* `gtm_consent_mode` (Google Tag Manager). Required, so it always runs and
+  sets the default consent state (all denied) before GTM loads. On accept it
+  pushes a `klaro-{service}-accepted` event to the `dataLayer` for every
+  accepted service, so you can add matching custom event triggers in GTM
+  (e.g. `klaro-ga_consent_mode-accepted`) to fire tags only once the visitor
+  has consented.
+* `ga_consent_mode` (Google Analytics). Updates the `analytics_storage`
+  consent signal on accept/decline.
+* `google_ads_consent_mode` (Google Ads). Updates the `ad_storage`,
+  `ad_user_data` and `ad_personalization` consent signals on accept/decline.
+
+These are recommended over the legacy `gtm` and `ga` services since Google
+Consent Mode v2 is required to respect GDPR rules.
+
+##### Recipe google_consent_mode
+
+These services are installed only during the initial installation. Updates
+typically do not make any changes to the services or install new ones. If
+you installed the module prior to version 3.1.1, you can install the new
+services using the recipe `modules/contrib/klaro/recipes/google_consent_mode`;
+this will also rename the existing apps for Google Tag Manager and
+Google Analytics. Please note that any translations you may have made
+will not be updated.
 
 #### Further Services
 
@@ -208,6 +249,9 @@ this css selector: `klaro_toggle_dialog.klaro_toggle_dialog_override`
   `rel="open-consent-manager"`. You can use the module [link_attributes](https://www.drupal.org/project/link_attributes) for this.
 * If there is / are already any `rel`-value(s) just extend the value e.g.
   `rel="nofollow open-consent-manager noindex"`.
+* You can also use a link with `href=“#klaro”` or any element with the class
+  `open-consent-manager` to mark an element for opening  the Klaro! consent
+  manager interface.
 
 ## AUTOMATIC ATTRIBUTION OF RESOURCES
 

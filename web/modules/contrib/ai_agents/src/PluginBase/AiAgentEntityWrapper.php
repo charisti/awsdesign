@@ -2,24 +2,36 @@
 
 namespace Drupal\ai_agents\PluginBase;
 
+use Drupal\ai\Guardrail\AiGuardrailHelper;
 use Drupal\Component\Plugin\Exception\ContextException;
 use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Component\Serialization\Json;
 use Drupal\Component\Uuid\UuidInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Utility\Token;
 use Drupal\ai\AiProviderPluginManager;
+use Drupal\ai\Base\FunctionCallBase;
+use Drupal\ai\Dto\HostnameFilterDto;
 use Drupal\ai\Exception\AiFunctionCallingExecutionError;
 use Drupal\ai\OperationType\Chat\ChatInput;
 use Drupal\ai\OperationType\Chat\ChatMessage;
+use Drupal\ai\OperationType\Chat\ChatOutput;
+use Drupal\ai\OperationType\Chat\ReplayedChatMessageIterator;
+use Drupal\ai\OperationType\Chat\StreamedChatMessageIteratorInterface;
 use Drupal\ai\OperationType\Chat\Tools\ToolsFunctionOutput;
 use Drupal\ai\OperationType\Chat\Tools\ToolsInput;
+use Drupal\ai\OperationType\GenericType\AbstractFileBase;
+use Drupal\ai\OperationType\GenericType\FileBaseInterface;
 use Drupal\ai\OperationType\GenericType\ImageFile;
 use Drupal\ai\Service\FunctionCalling\ExecutableFunctionCallInterface;
 use Drupal\ai\Service\FunctionCalling\FunctionCallInterface;
 use Drupal\ai\Service\FunctionCalling\FunctionCallPluginManager;
+use Drupal\ai\Service\FunctionCalling\OverridableFunctionCallInterface;
+use Drupal\ai\Service\HostnameFilter;
+use Drupal\ai\Traits\PluginManager\AiDataTypeConverterPluginManagerTrait;
 use Drupal\ai_agents\AiAgentInterface;
 use Drupal\ai_agents\Event\AgentFinishedExecutionEvent;
 use Drupal\ai_agents\Event\AgentRequestEvent;
@@ -38,12 +50,19 @@ use Drupal\ai_agents\Service\AgentHelper;
 use Drupal\ai_agents\Service\ArtifactHelper;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Validator\ConstraintViolationInterface;
-use Symfony\Component\Yaml\Yaml;
+use Drupal\Component\Serialization\Yaml;
 
 /**
  * AI Agent Entity Wrapper.
  */
 class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAiAgentInterface {
+
+  use AiDataTypeConverterPluginManagerTrait;
+
+  /**
+   * Default error message when a single-call tool is called multiple times.
+   */
+  const MULTIPLE_CALL_DEFAULT_ERROR_MESSAGE = 'Error: The tool "[tool_name]" may only be called once per response, but it was called multiple times. None of the tool calls in this response were executed. Please respond again, calling "[tool_name]" at most once and waiting for its result before deciding on further calls.';
 
   /**
    * The AI Provider.
@@ -64,7 +83,7 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
    *
    * @var array
    */
-  protected $aiConfiguration;
+  protected $aiConfiguration = [];
 
   /**
    * The Task.
@@ -89,6 +108,13 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
   protected $createDirectly;
 
   /**
+   * The last exception message when agent execution fails.
+   *
+   * @var string|null
+   */
+  protected $lastError = NULL;
+
+  /**
    * The runner ID.
    *
    * @var string
@@ -110,9 +136,9 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
   protected $contextTools = [];
 
   /**
-   * The question answered.
+   * The question answered or the output streamed.
    *
-   * @var string
+   * @var string|StreamedChatMessageIteratorInterface
    */
   protected $question;
 
@@ -159,6 +185,13 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
   protected $finished = FALSE;
 
   /**
+   * Set if the agent is being streamed.
+   *
+   * @var bool
+   */
+  protected $streaming = FALSE;
+
+  /**
    * An overridden set of function definitions.
    *
    * @var array|null
@@ -194,6 +227,20 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
   protected $callerAgentRunnerId = NULL;
 
   /**
+   * Images collected from tool results, to be sent on the next LLM turn.
+   *
+   * @var \Drupal\ai\OperationType\GenericType\ImageFile[]
+   */
+  protected array $pendingToolImages = [];
+
+  /**
+   * Extra tags to add to AI provider calls.
+   *
+   * @var array
+   */
+  protected array $providerTags = [];
+
+  /**
    * The constructor.
    *
    * @param \Drupal\ai_agents\AiAgentInterface $aiAgent
@@ -216,6 +263,12 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
    *   The artifact helper service.
    * @param \Drupal\Component\Uuid\UuidInterface $uuid
    *   The UUID service.
+   * @param \Drupal\ai\Guardrail\AiGuardrailHelper $aiGuardrailHelper
+   *   The AI guardrail helper.
+   * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
+   *   The logger channel interface.
+   * @param \Drupal\ai\Service\HostnameFilter $hostnameFilter
+   *   The hostname filter service.
    */
   public function __construct(
     protected AiAgentInterface $aiAgent,
@@ -228,6 +281,9 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
     protected AiProviderPluginManager $aiProviderPluginManager,
     protected ArtifactHelper $artifactHelper,
     protected UuidInterface $uuid,
+    protected AiGuardrailHelper $aiGuardrailHelper,
+    protected LoggerChannelInterface $logger,
+    protected HostnameFilter $hostnameFilter,
   ) {
   }
 
@@ -316,6 +372,9 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
    */
   public function setChatInput(ChatInput $chatInput) {
     $this->chatInput = $chatInput;
+    if ($chatInput->isStreamedOutput()) {
+      $this->streaming = TRUE;
+    }
   }
 
   /**
@@ -422,6 +481,8 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
    * {@inheritDoc}
    */
   public function determineSolvability() {
+    // Reset error state for this new execution attempt.
+    $this->lastError = NULL;
     // We check if a thread id exists or if we should generate one.
     if ($this->progressTracking && !$this->threadId) {
       $this->threadId = $this->uuid->generate();
@@ -436,21 +497,36 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
       $this->aiProvider = $this->aiProviderPluginManager->createInstance($defaults['provider_id']);
       $this->modelName = $defaults['model_id'];
     }
+    // Check max loops before dispatching the started event. Otherwise the
+    // started event creates tracking state that never gets a corresponding
+    // finished event.
+    // @see https://www.drupal.org/i/3553458
+    $this->looped++;
+    if ($this->looped > $this->aiAgent->get('max_loops')) {
+      $this->finished = TRUE;
+      $message = new ChatMessage('assistant', $this->getMaxLoopsMessage());
+      $this->chatHistory[] = $message;
+      // Update $this->question so a streaming re-entry via
+      // postStreamingCallback() returns this message's text instead of
+      // falling through to whatever streaming iterator $this->question was
+      // last set to (which, mid-chain, is this very round's own iterator —
+      // returning it back into its own callback loop causes infinite
+      // self-recursion and a stack overflow).
+      // @see https://www.drupal.org/i/3538174
+      $this->question = $message->getText();
+      return PluginInterfacesAiAgentInterface::JOB_NOT_SOLVABLE;
+    }
     // Trigger the agent runner event.
     $event = new AgentStartedExecutionEvent(
       $this,
       $this->aiAgent->id(),
       $this->chatHistory,
       $this->runnerId,
-      $this->looped,
+      $this->looped - 1,
       $this->threadId,
       $this->callerAgentRunnerId,
     );
     $this->eventDispatcher->dispatch($event, AgentStartedExecutionEvent::EVENT_NAME);
-    $this->looped++;
-    if ($this->looped > $this->aiAgent->get('max_loops')) {
-      return PluginInterfacesAiAgentInterface::JOB_NOT_SOLVABLE;
-    }
     // Get the system prompt.
     $system_prompt = $this->getSystemPrompt();
     // Check if someone wants to change something.
@@ -465,8 +541,6 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
     if ($this->task) {
       $user_prompt = $this->agentHelper->getFullContextOfTask($this->task);
     }
-
-    $this->aiProvider->setChatSystemRole($system_prompt);
 
     $functions = $this->getFunctions();
 
@@ -504,6 +578,27 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
         $message->setToolsId($tool->getToolsId());
         $this->chatHistory[] = $message;
       }
+
+      // Collect images from tool results to send on the next LLM turn.
+      // Images cannot be part of tool-role messages (OpenAI requires tool
+      // content to be a plain string) and must not be injected between
+      // tool responses (breaks parallel tool_calls). Instead, store them
+      // and prepend a user message with the images on the next iteration.
+      foreach ($this->contextTools as $tool) {
+        if (method_exists($tool, 'getPluginInstance')) {
+          $pluginInstance = $tool->getPluginInstance();
+          if ($pluginInstance && method_exists($pluginInstance, 'getResult')) {
+            $result = $pluginInstance->getResult();
+            if ($result && !empty($result->getContextValues()['_images'])) {
+              foreach ($result->getContextValues()['_images'] as $image) {
+                if ($image instanceof ImageFile) {
+                  $this->pendingToolImages[] = $image;
+                }
+              }
+            }
+          }
+        }
+      }
     }
 
     // Reset all tools between runs.
@@ -518,11 +613,49 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
     if ($this->runnerId) {
       $tags[] = 'ai_agents_runner_' . $this->runnerId;
     }
+    // When this agent was invoked by a parent agent, add the parent's runner
+    // ID and the shared thread ID as tags so that all LLM calls within one
+    // conversation can be correlated in logs regardless of nesting depth.
+    if ($this->callerAgentRunnerId) {
+      $tags[] = 'ai_agents_caller_runner_' . $this->callerAgentRunnerId;
+    }
+    if ($this->threadId) {
+      $tags[] = 'ai_agents_thread_' . $this->threadId;
+    }
+
+    // Append any pending images from the previous tool execution as a user
+    // message. This ensures the LLM sees screenshots on this turn without
+    // breaking the tool_calls message sequence.
+    if (!empty($this->pendingToolImages)) {
+      $imageMessage = new ChatMessage('user', 'Screenshot(s) from the tool results above:');
+      foreach ($this->pendingToolImages as $image) {
+        $imageMessage->setImage($image);
+      }
+      $this->chatHistory[] = $imageMessage;
+      $this->pendingToolImages = [];
+    }
+
+    // Empty the system prompt, until this is fixed
+    // https://www.drupal.org/project/ai/issues/3573100
+    $this->aiProvider->setChatSystemRole('');
+
+    // Merge in any custom provider tags.
+    if (!empty($this->providerTags)) {
+      $tags = array_merge($tags, $this->providerTags);
+    }
 
     $input = new ChatInput($this->chatHistory);
+    $input->setSystemPrompt($system_prompt);
+    // Only set if it exists a guardrail set.
+    if ($this->aiAgent->get('guardrail_set')) {
+      $guardrail_set_id = $this->aiAgent->get('guardrail_set');
+      $input = $this->aiGuardrailHelper->applyGuardrailSetToChatInput($guardrail_set_id, $input);
+    }
+
     if (count($functions) && count($functions['normalized'])) {
       $input->setChatTools(new ToolsInput($functions['normalized']));
     }
+    $input->setStreamedOutput($this->streaming);
     // Check if we want structured output.
     if ($this->aiAgent->get('structured_output_enabled') && $this->aiAgent->get('structured_output_schema')) {
       $input->setChatStructuredJsonSchema(Json::decode($this->aiAgent->get('structured_output_schema')));
@@ -543,53 +676,47 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
     );
     $this->eventDispatcher->dispatch($request_event, AgentRequestEvent::EVENT_NAME);
 
-    $return = $this->aiProvider->chat($input, $this->modelName, $tags);
-    $response = $return->getNormalized();
-    // Trigger the response event.
-    $response_event = new AgentResponseEvent(
-      $this,
-      $system_prompt,
-      $this->aiAgent->id(),
-      $user_prompt,
-      $this->chatHistory,
-      $return,
-      $this->looped,
-      $this->runnerId,
-      $this->threadId,
-      $this->callerAgentRunnerId,
-    );
-    $this->eventDispatcher->dispatch($response_event, AgentResponseEvent::EVENT_NAME);
-
-    $this->chatHistory[] = $response;
-
-    $tools = $response->getTools();
-
-    if (!empty($tools)) {
-      foreach ($tools as $tool) {
-
-        // Replace any artifact placeholders actual values.
-        $this->artifactHelper->replaceArtifactArguments($tool);
-
-        $function = $this->functionCallPluginManager->convertToolResponseToObject($tool);
-        $this->contextTools[] = $function;
-      }
-      // If tools are available, we should run this again filled out.
-      if ($this->loopedEnabled) {
-        return $this->determineSolvability();
-      }
+    // Attach this agent's hostname filter override to the chat input.
+    // @see \Drupal\ai\Plugin\ProviderProxy::__call()
+    if ($hostname_filter_dto = $this->getHostnameFilterDto()) {
+      $input->setHostnameFilter($hostname_filter_dto);
     }
-    elseif (!empty($this->allRequiredToolsRan())) {
-      // Add to the chat history that we did not use the required tools.
-      $required_tools = $this->allRequiredToolsRan();
-      $tool_list = implode(', ', $required_tools);
-      $this->chatHistory[] = new ChatMessage('system', "Reminder: The following tools should be used based on the instructions, but were not used: $tool_list. Please make sure to use them in your next response.");
-      if ($this->loopedEnabled) {
-        return $this->determineSolvability();
-      }
+
+    try {
+      $return = $this->aiProvider->chat($input, $this->modelName, $tags);
     }
-    else {
+    catch (\Exception $e) {
+      // Store the exception message for later retrieval.
+      $this->lastError = $e->getMessage();
+      // If the chat call fails (e.g. no budget/quota left), dispatch a
+      // finished event so tracking does not get stuck in "started" state.
+      // @see https://www.drupal.org/i/3553458
       $this->finished = TRUE;
-      $event = new AgentFinishedExecutionEvent(
+      $dummy_output = new ChatOutput(
+        new ChatMessage('assistant', ''),
+        NULL,
+        NULL,
+      );
+      $finished_event = new AgentFinishedExecutionEvent(
+        $this,
+        $system_prompt,
+        $this->aiAgent->id(),
+        $user_prompt,
+        $this->chatHistory,
+        $dummy_output,
+        $this->looped,
+        $this->runnerId,
+        $this->threadId,
+        $this->callerAgentRunnerId,
+      );
+      $this->eventDispatcher->dispatch($finished_event, AgentFinishedExecutionEvent::EVENT_NAME);
+      return PluginInterfacesAiAgentInterface::JOB_NOT_SOLVABLE;
+    }
+    $response = $return->getNormalized();
+    // Only continue if we have a none-streaming response.
+    if ($response instanceof ChatMessage) {
+      // Trigger the response event.
+      $response_event = new AgentResponseEvent(
         $this,
         $system_prompt,
         $this->aiAgent->id(),
@@ -601,11 +728,113 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
         $this->threadId,
         $this->callerAgentRunnerId,
       );
+      $this->eventDispatcher->dispatch($response_event, AgentResponseEvent::EVENT_NAME);
 
-      $this->eventDispatcher->dispatch($event, AgentFinishedExecutionEvent::EVENT_NAME);
+      $this->chatHistory[] = $response;
+
+      $tools = $response->getTools();
+
+      if (!empty($tools)) {
+        // Convert all tool responses to function call objects first, so that
+        // multiple-call restrictions can be checked per plugin id before
+        // anything is queued for execution.
+        $functions = [];
+        foreach ($tools as $tool) {
+
+          // Replace any artifact placeholders actual values.
+          $this->artifactHelper->replaceArtifactArguments($tool);
+
+          $functions[] = $this->functionCallPluginManager->convertToolResponseToObject($tool);
+        }
+
+        // Reject the whole response when a single-call tool was called more
+        // than once; otherwise queue every call for execution.
+        $rejections = $this->getSingleCallViolationMessages($functions);
+        if ($rejections !== NULL) {
+          array_push($this->chatHistory, ...$rejections);
+        }
+        else {
+          $this->contextTools = array_merge($this->contextTools, $functions);
+        }
+
+        // Run again either way, so the agent acts on the updated history.
+        if ($this->loopedEnabled) {
+          return $this->determineSolvability();
+        }
+      }
+      elseif (!empty($this->allRequiredToolsRan())) {
+        // Add to the chat history that we did not use the required tools.
+        $required_tools = $this->allRequiredToolsRan();
+        $tool_list = implode(', ', $required_tools);
+        $this->chatHistory[] = new ChatMessage('system', "Reminder: The following tools should be used based on the instructions, but were not used: $tool_list. Please make sure to use them in your next response.");
+        if ($this->loopedEnabled) {
+          return $this->determineSolvability();
+        }
+      }
+      else {
+        $this->finished = TRUE;
+        $event = new AgentFinishedExecutionEvent(
+          $this,
+          $system_prompt,
+          $this->aiAgent->id(),
+          $user_prompt,
+          $this->chatHistory,
+          $return,
+          $this->looped,
+          $this->runnerId,
+          $this->threadId,
+          $this->callerAgentRunnerId,
+        );
+        $this->eventDispatcher->dispatch($event, AgentFinishedExecutionEvent::EVENT_NAME);
+      }
+      $this->question = $response->getText();
+      return PluginInterfacesAiAgentInterface::JOB_SOLVABLE;
     }
-    $this->question = $response->getText();
-    return PluginInterfacesAiAgentInterface::JOB_SOLVABLE;
+    else {
+      $response->addCallback([$this, 'postStreamingCallback']);
+      // We just return the streaming iterator.
+      $this->question = $response;
+      return PluginInterfacesAiAgentInterface::JOB_SOLVABLE;
+    }
+  }
+
+  /**
+   * The function to run when the streaming is finished.
+   *
+   * Unlike the non-streamed completion path in determineSolvability(), this
+   * method does not dispatch AgentResponseEvent or AgentFinishedExecutionEvent.
+   */
+  public function postStreamingCallback(ChatMessage $message) {
+    $this->chatHistory[] = $message;
+
+    $tools = $message->getTools();
+
+    if (!empty($tools)) {
+      foreach ($tools as $tool) {
+        $function = $this->functionCallPluginManager->convertToolResponseToObject($tool);
+        $this->contextTools[] = $function;
+      }
+      // If tools are available, we should run this again filled out.
+      if ($this->loopedEnabled) {
+        $this->determineSolvability();
+        // determineSolvability() may resolve to a plain string instead of
+        // another stream (e.g. max_loops was hit and it fell back to a
+        // final message). ai core's callback loop only re-yields a
+        // StreamedChatMessageIteratorInterface, so anything else here would
+        // be silently dropped. Wrap it so the fallback message still
+        // reaches the client.
+        if (!$this->question instanceof StreamedChatMessageIteratorInterface) {
+          $iterator = new ReplayedChatMessageIterator(new \ArrayObject());
+          $iterator->setFirstMessage((string) $this->question);
+          return $iterator;
+        }
+        return $this->question;
+      }
+    }
+    else {
+      $this->finished = TRUE;
+    }
+    $this->question = $message->getText();
   }
 
   /**
@@ -657,6 +886,20 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
    */
   public function setCallerAgentRunnerId(?string $runner_id): void {
     $this->callerAgentRunnerId = $runner_id;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  public function setProviderTags(array $tags): void {
+    $this->providerTags = $tags;
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  public function getProviderTags(): array {
+    return $this->providerTags;
   }
 
   /**
@@ -790,6 +1033,13 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
   }
 
   /**
+   * {@inheritDoc}
+   */
+  public function setStreaming(bool $streaming) {
+    $this->streaming = $streaming;
+  }
+
+  /**
    * Set the input chat history.
    */
   public function setChatMessages() {
@@ -885,8 +1135,17 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
    *   The default information.
    */
   public function getDefaultInformationTools() {
-    $tools_yaml = $this->applyTokens($this->aiAgent->get('default_information_tools') ?? '[]');
-    $data = Yaml::parse($tools_yaml);
+    // Parse YAML before token replacement so that token values containing
+    // special characters (e.g. single quotes) do not corrupt YAML syntax.
+    $data = Yaml::decode($this->aiAgent->get('default_information_tools') ?? '[]');
+    // Apply tokens to each string value in the parsed array.
+    if (is_array($data)) {
+      array_walk_recursive($data, function (mixed &$value): void {
+        if (is_string($value)) {
+          $value = $this->applyTokens($value);
+        }
+      });
+    }
     $dynamic = "This is the ";
     if ($this->looped == 1) {
       $dynamic .= "first ";
@@ -913,7 +1172,8 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
         $tool = $this->functionCallPluginManager->createInstance($values['tool']);
         foreach ($values['parameters'] as $parameter_key => $parameter_value) {
           if (!empty($parameter_value) || $parameter_value === 0) {
-            $tool->setContextValue($parameter_key, $parameter_value);
+            $parameter_key_normalized = str_replace('__colon__', ':', $parameter_key);
+            $tool->setContextValue($parameter_key_normalized, $parameter_value);
           }
         }
         $this->executeTool($tool);
@@ -984,7 +1244,7 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
   /**
    * Set function overrides.
    *
-   * @param array{tools: array<string, bool>, tool_usage_limits: array<string, array<string, array{action: string, hide_property: bool, values: scalar[]}>>, tool_settings: array<string, array{return_directly: bool}>} $functions
+   * @param array{tools: array<string, bool>, tool_usage_limits: array<string, array<string, array{action: string, hide_property: bool, values: scalar[]}>>, tool_settings: array<string, array{return_directly: bool, restrict_multiple_calls: bool, multiple_call_error_message: string}>} $functions
    *   An array of function overrides.
    */
   public function overrideFunctions(array $functions): void {
@@ -1020,6 +1280,9 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
     // Use overridden functions, if set.
     $required_not_ran = [];
     $settings = $this->functionsOverride['tool_settings'] ?? $this->aiAgent->get('tool_settings');
+    if (empty($settings)) {
+      return $required_not_ran;
+    }
     foreach ($settings as $plugin_id => $tool_settings) {
       if (!empty($tool_settings['require_usage'])) {
         $function_name = $this->functionCallPluginManager->getDefinition($plugin_id)['function_name'];
@@ -1056,6 +1319,90 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
   }
 
   /**
+   * Helper function for checking if a tool is limited to one call per response.
+   *
+   * @param \Drupal\ai\Service\FunctionCalling\FunctionCallInterface $tool
+   *   The function call plugin.
+   *
+   * @return bool
+   *   True if the tool may only be called once per LLM response.
+   */
+  public function toolRestrictsMultipleCalls(FunctionCallInterface $tool): bool {
+    // Use overridden functions, if set.
+    $settings = $this->functionsOverride['tool_settings'] ?? $this->aiAgent->get('tool_settings');
+    return (bool) ($settings[$tool->getPluginId()]['restrict_multiple_calls'] ?? FALSE);
+  }
+
+  /**
+   * Gets the error message for a violated single-call restriction.
+   *
+   * @param \Drupal\ai\Service\FunctionCalling\FunctionCallInterface $tool
+   *   The function call plugin.
+   *
+   * @return string
+   *   The configured or default error message, with [tool_name] replaced.
+   */
+  public function getMultipleCallErrorMessage(FunctionCallInterface $tool): string {
+    // Use overridden functions, if set.
+    $settings = $this->functionsOverride['tool_settings'] ?? $this->aiAgent->get('tool_settings');
+    $message = $settings[$tool->getPluginId()]['multiple_call_error_message'] ?? '';
+    if (!is_string($message) || trim($message) === '') {
+      $message = self::MULTIPLE_CALL_DEFAULT_ERROR_MESSAGE;
+    }
+    return str_replace('[tool_name]', $tool->getFunctionName(), $message);
+  }
+
+  /**
+   * Rejects a response when a single-call tool was called more than once.
+   *
+   * The assistant message containing the tool calls is already part of the
+   * chat history, so every tool call id must receive a tool-role result
+   * message — violators get their configured error, all other calls in the
+   * same response get a generic rejection asking the LLM to retry.
+   *
+   * @param \Drupal\ai\Service\FunctionCalling\FunctionCallInterface[] $functions
+   *   All function calls from one LLM response.
+   *
+   * @return \Drupal\ai\OperationType\Chat\ChatMessage[]|null
+   *   One tool-role message per call when a restriction is violated (every
+   *   call is rejected); NULL when the response is valid and may run.
+   */
+  protected function getSingleCallViolationMessages(array $functions): ?array {
+    $counts = array_count_values(array_map(
+      static fn (FunctionCallInterface $function): string => $function->getPluginId(),
+      $functions,
+    ));
+    // Restricted tools that were called more than once, keyed by name.
+    $violated = [];
+    foreach ($functions as $function) {
+      if ($counts[$function->getPluginId()] > 1 && $this->toolRestrictsMultipleCalls($function)) {
+        $violated[$function->getFunctionName()] = TRUE;
+      }
+    }
+    if (!$violated) {
+      return NULL;
+    }
+
+    $this->logger->warning('The agent "@agent" called the single-call tool(s) "@tools" multiple times in one response. All @count tool calls were rejected.', [
+      '@agent' => $this->aiAgent->id(),
+      '@tools' => implode('", "', array_keys($violated)),
+      '@count' => count($functions),
+    ]);
+
+    $generic = 'Error: This tool call was not executed, because the tool(s) "' . implode('", "', array_keys($violated)) . '" may only be called once per response, so all calls were rejected. Please issue your tool calls again.';
+    $messages = [];
+    foreach ($functions as $function) {
+      $text = isset($violated[$function->getFunctionName()])
+        ? $this->getMultipleCallErrorMessage($function)
+        : $generic;
+      $message = new ChatMessage('tool', $text);
+      $message->setToolsId($function->getToolsId());
+      $messages[] = $message;
+    }
+    return $messages;
+  }
+
+  /**
    * Applies tool usage limits to the function schema.
    *
    * @param \Drupal\ai\Service\FunctionCalling\FunctionCallInterface $function_call
@@ -1064,10 +1411,32 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
   protected function applyToolUsageLimitsToContext(FunctionCallInterface $function_call) {
     // Use overridden functions, if set.
     $tool_limits = $this->functionsOverride['tool_usage_limits'] ?? $this->aiAgent->get('tool_usage_limits');
+    if (!($function_call instanceof OverridableFunctionCallInterface)) {
+      if (!empty($tool_limits[$function_call->getPluginId()])) {
+        $this->logger->error(
+          'Function call plugin "@plugin" does not extend @base and cannot have tool usage limits applied. Limits will be ignored.',
+          [
+            '@plugin' => $function_call->getPluginId(),
+            '@base' => FunctionCallBase::class,
+          ]
+        );
+      }
+      return;
+    }
+    $context_definitions = $function_call->getContextDefinitions();
 
     // Process each property with limits.
     foreach ($tool_limits[$function_call->getPluginId()] ?? [] as $property_name => $limit) {
-      $context_definition = $function_call->getContextDefinition($property_name);
+      $property_name = str_replace('__colon__', ':', $property_name);
+      // Skip properties that are not valid context definitions.
+      if (!array_key_exists($property_name, $context_definitions)) {
+        continue;
+      }
+
+      // Clone the shared ContextDefinition so we never mutate the plugin
+      // manager's cached definition, which is shared across all agent
+      // instances using the same function call plugin.
+      $context_definition = clone $function_call->getContextDefinition($property_name);
 
       // Apply token in values if an action is set.
       if ($limit['action']) {
@@ -1084,7 +1453,7 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
           // Set constant value (forced value).
           case 'force_value':
             if (isset($values[0])) {
-              $context_value = $context_definition->getDataType() === 'list' ? $values : $values[0];
+              $context_value = $this->getForcedValue($context_definition, $values, !empty($limit['hide_property']));
               $context_definition->addConstraint('FixedValue', $context_value);
               $context_definition->setDefaultValue($context_value);
             }
@@ -1096,7 +1465,46 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
             break;
         }
       }
+      // Store the cloned, constrained definition on the function call instance
+      // so that both normalize() and validateContexts() use it automatically.
+      $function_call->setContextDefinitionOverride($property_name, $context_definition);
     }
+  }
+
+  /**
+   * Resolves the forced value for a force_value restriction.
+   *
+   * When the property is hidden from the LLM, the value is converted to its
+   * proper PHP type before being returned.
+   *
+   * @param \Drupal\Core\Plugin\Context\ContextDefinitionInterface $context_definition
+   *   The context definition the value will be assigned to.
+   * @param array $values
+   *   Token-resolved forced values from the agent config.
+   * @param bool $hide_property
+   *   Whether the property is hidden from the LLM.
+   *
+   * @return mixed
+   *   The value to assign to the context definition.
+   */
+  protected function getForcedValue($context_definition, array $values, bool $hide_property): mixed {
+    $value = $context_definition->getDataType() === 'list' ? $values : $values[0];
+    if (!$hide_property) {
+      return $value;
+    }
+    // Hidden properties are never supplied by the LLM, so
+    // FunctionCallBase::setContextValue() (and its data-type conversion) is
+    // never invoked. Convert here so non-scalar types (entity:*, list, JSON,
+    // YAML, ...) reach the tool as proper PHP values rather than raw scalars.
+    $converter = $this->getAiDataTypeConverterPluginManager();
+    if ($context_definition->isMultiple()) {
+      $value = $converter->convert('list', $value);
+      foreach ($value as $delta => $item) {
+        $value[$delta] = $converter->convert($context_definition->getDataType(), $item);
+      }
+      return $value;
+    }
+    return $converter->convert($context_definition->getDataType(), $value);
   }
 
   /**
@@ -1140,7 +1548,7 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
     ];
     // Add dynamical tokens.
     $tokens = array_merge($tokens, $this->tokens);
-    return $this->token->replace($prompt, $tokens);
+    return $this->token->replacePlain($prompt, $tokens);
   }
 
   /**
@@ -1172,21 +1580,33 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
           $tool->getAgent()->setModelName($this->modelName);
           $tool->getAgent()->setAiConfiguration($this->aiConfiguration);
         }
+        // Propagate provider tags to subagents.
+        if (!empty($this->providerTags)) {
+          $tool->getAgent()->setProviderTags($this->providerTags);
+        }
       }
     }
+    // Apply the configured tool usage limits, including any forced values, to
+    // the tool before it is validated and run.
+    $this->applyToolUsageLimitsToContext($tool);
     $this->validateTool($tool);
+    // Default information tools are system-triggered and may not include a
+    // tool ID. Generate a deterministic ID from runner, plugin, and context
+    // values so execution can be tracked consistently. Context values are part
+    // of the key to distinguish calls to the same tool with different inputs.
+    if (!$agent_decision && empty($tool->getToolsId())) {
+      $args_hash = md5(serialize($tool->getContextValues()));
+      $tool->setToolsId(md5($this->runnerId . '_' . $tool->getPluginId() . '_' . $args_hash));
+    }
     $progress_message = $this->aiAgent->get('tool_settings')[$tool->getPluginId()]['progress_message'] ?? '';
-    if ($agent_decision) {
-      // Trigger pre execution event.
-      $tool_pre_execution = new AgentToolPreExecuteEvent($this, $this->runnerId, $tool, $tool->getToolsId(), $this->threadId, $this->callerAgentRunnerId, $progress_message);
-      $this->eventDispatcher->dispatch($tool_pre_execution, AgentToolPreExecuteEvent::EVENT_NAME);
-    }
+    // Trigger pre execution event for all tools, passing whether this was an
+    // agent decision or an automatic default information tool.
+    $tool_pre_execution = new AgentToolPreExecuteEvent($this, $this->runnerId, $tool, $tool->getToolsId(), $this->threadId, $this->callerAgentRunnerId, $progress_message, $agent_decision);
+    $this->eventDispatcher->dispatch($tool_pre_execution, AgentToolPreExecuteEvent::EVENT_NAME);
     $tool->execute();
-    if ($agent_decision) {
-      // Trigger post execution event.
-      $tool_executed = new AgentToolFinishedExecutionEvent($this, $this->runnerId, $tool, $tool->getToolsId(), $this->threadId, $this->callerAgentRunnerId, $progress_message);
-      $this->eventDispatcher->dispatch($tool_executed, AgentToolFinishedExecutionEvent::EVENT_NAME);
-    }
+    // Trigger post execution event for all tools.
+    $tool_executed = new AgentToolFinishedExecutionEvent($this, $this->runnerId, $tool, $tool->getToolsId(), $this->threadId, $this->callerAgentRunnerId, $progress_message, $agent_decision);
+    $this->eventDispatcher->dispatch($tool_executed, AgentToolFinishedExecutionEvent::EVENT_NAME);
   }
 
   /**
@@ -1285,6 +1705,30 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
   }
 
   /**
+   * Gets the last error message if agent execution failed.
+   *
+   * @return string|null
+   *   The exception message from the last failed LLM call, or NULL if no error.
+   */
+  public function getLastError(): ?string {
+    return $this->lastError;
+  }
+
+  /**
+   * Gets the message to display when max loops is exceeded.
+   *
+   * @return string
+   *   The max loops message from agent config, or a default.
+   */
+  protected function getMaxLoopsMessage(): string {
+    $message = $this->aiAgent->get('max_loops_message');
+    if (!empty($message)) {
+      return $message;
+    }
+    return 'I was unable to fully answer your question within the allowed number of processing steps. Please try rephrasing or narrowing your question.';
+  }
+
+  /**
    * {@inheritDoc}
    */
   public function toArray(): array {
@@ -1344,6 +1788,7 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
       'progress_thread_id' => $this->threadId,
       'progress_tracking' => $this->progressTracking,
       'progress_tracking_items' => $this->progressTrackingItems,
+      'provider_tags' => $this->providerTags,
     ];
   }
 
@@ -1353,28 +1798,7 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
   public function fromArray(array $data): void {
     $tools = [];
     $tool_results = [];
-    $chat_history = [];
-    foreach ($data['chat_history'] ?? [] as $message) {
-      if (is_array($message)) {
-        $new_message = new ChatMessage($message['role'], $message['text'], $message['images'] ?? []);
-        if ($message['tool_id'] ?? NULL) {
-          $new_message->setToolsId($message['tool_id']);
-        }
-        if (!empty($message['tools'])) {
-          $message_tools = [];
-          foreach ($message['tools'] as $tool) {
-            $function = $this->functionCallPluginManager->getFunctionCallFromFunctionName($tool['function']['name']);
-            $function->setToolsId($tool['id'] ?? NULL);
-            $normalized_tool = $function->normalize();
-            $arguments = json_decode($tool['function']['arguments'] ?? '{}', TRUE);
-            $message_tools[] = new ToolsFunctionOutput($normalized_tool, $tool['id'] ?? NULL, $arguments);
-          }
-          $new_message->setTools($message_tools);
-        }
-        $chat_history[] = $new_message;
-      }
-    }
-    $data['chat_history'] = $chat_history;
+    $data['chat_history'] = $this->rebuildChatHistory($data['chat_history'] ?? []);
     if (!empty($data['chat_history'])) {
       $tmp_tools = $this->getContextTools($data['chat_history'], $data['tool_results'] ?? []);
       foreach ($tmp_tools as $tool) {
@@ -1426,6 +1850,92 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
     $this->threadId = $data['progress_thread_id'] ?? NULL;
     $this->progressTracking = $data['progress_tracking'] ?? FALSE;
     $this->progressTrackingItems = $data['progress_tracking_items'] ?? [];
+    $this->providerTags = $data['provider_tags'] ?? [];
+  }
+
+  /**
+   * Rebuilds serialized chat history into chat message objects.
+   *
+   * @param array $messages
+   *   The serialized chat history, as written by ::toArray().
+   *
+   * @return \Drupal\ai\OperationType\Chat\ChatMessage[]
+   *   The rebuilt chat history.
+   *
+   * @see \Drupal\ai\OperationType\Chat\Tools\ToolsPropertyResult::setValue()
+   */
+  protected function rebuildChatHistory(array $messages): array {
+    // Snapshot the filter service, then put this agent's hostname filter
+    // override on it for the duration of the rebuild below, which filters the
+    // string arguments of every stored tool call it reconstructs.
+    // @see \Drupal\ai\OperationType\Chat\Tools\ToolsFunctionOutput::addArguments()
+    $hostname_filter_dto = $this->getHostnameFilterDto();
+    $hostname_filter_snapshot = NULL;
+    if ($hostname_filter_dto) {
+      $hostname_filter_snapshot = $this->hostnameFilter->snapshotSettings();
+      $this->hostnameFilter->applySettings($hostname_filter_dto);
+    }
+
+    try {
+      $chat_history = [];
+      foreach ($messages as $message) {
+        if (is_array($message)) {
+          // ::toArray() serialized each file down to an array, so rebuild them
+          // into the file objects ChatMessage expects, restoring each one to
+          // the class it recorded under 'type'.
+          // @see \Drupal\ai\OperationType\GenericType\AbstractFileBase::toArray()
+          $files = array_map(
+            static function (array $file): FileBaseInterface {
+              $class = $file['type'] ?? NULL;
+              if (!is_string($class) || !is_a($class, AbstractFileBase::class, TRUE)) {
+                throw new \UnexpectedValueException(sprintf('Serialized chat history holds a file of unknown type "%s".', is_string($class) ? $class : gettype($class)));
+              }
+              return $class::fromArray($file);
+            },
+            $message['images'] ?? [],
+          );
+          $new_message = new ChatMessage($message['role'], $message['text'], $files);
+          if ($message['tool_id'] ?? NULL) {
+            $new_message->setToolsId($message['tool_id']);
+          }
+          if (!empty($message['tools'])) {
+            $message_tools = [];
+            foreach ($message['tools'] as $tool) {
+              $function = $this->functionCallPluginManager->getFunctionCallFromFunctionName($tool['function']['name']);
+              $function->setToolsId($tool['id'] ?? NULL);
+              $normalized_tool = $function->normalize();
+              $arguments = json_decode($tool['function']['arguments'] ?? '{}', TRUE);
+              $message_tools[] = new ToolsFunctionOutput($normalized_tool, $tool['id'] ?? NULL, $arguments);
+            }
+            $new_message->setTools($message_tools);
+          }
+          $chat_history[] = $new_message;
+        }
+      }
+      return $chat_history;
+    }
+    finally {
+      // Restore the filter service on both the success and the throw path.
+      if ($hostname_filter_snapshot !== NULL) {
+        $this->hostnameFilter->restoreSettings($hostname_filter_snapshot);
+      }
+    }
+  }
+
+  /**
+   * Gets the hostname filter override this agent is configured with.
+   *
+   * @return \Drupal\ai\Dto\HostnameFilterDto|null
+   *   The override to apply, or NULL to leave the filter service on the site
+   *   defaults.
+   */
+  protected function getHostnameFilterDto(): ?HostnameFilterDto {
+    if (!$this->aiAgent->get('hostname_filter_disabled')) {
+      return NULL;
+    }
+    return new HostnameFilterDto(
+      fullTrust: TRUE,
+    );
   }
 
   /**
@@ -1463,7 +1973,8 @@ class AiAgentEntityWrapper implements PluginInterfacesAiAgentInterface, ConfigAi
           if (isset($tool['function']['arguments'])) {
             $arguments = Json::decode($tool['function']['arguments']);
             foreach ($arguments as $key => $value) {
-              $function->setContextValue($key, $value);
+              $key_normalized = str_replace('__colon__', ':', $key);
+              $function->setContextValue($key_normalized, $value);
             }
           }
           $result = FALSE;

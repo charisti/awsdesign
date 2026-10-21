@@ -18,6 +18,9 @@ widget:
   type: tagify
   config:
     show_numbers: true
+    match_operator: CONTAINS
+    max_items: 5
+    placeholder: 'Select a tag'
 query_operator: or
 use_hierarchy: false
 expand_hierarchy: false

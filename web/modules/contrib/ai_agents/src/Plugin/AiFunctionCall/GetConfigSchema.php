@@ -72,7 +72,7 @@ class GetConfigSchema extends FunctionCallBase implements ExecutableFunctionCall
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Collect the context values.
     $schema_id = $this->getContextValue('schema_id');
     // We need to ensure the highest level of permissions here.

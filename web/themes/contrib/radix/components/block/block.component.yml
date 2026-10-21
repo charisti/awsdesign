@@ -25,10 +25,10 @@ props:
       title: Label
       description: The configured label of the block if visible.
     title_prefix:
-      type: array
+      type: ['array', 'null', 'string', 'object']
       title: title prefix
     title_suffix:
-      type: array
+      type: ['array', 'null', 'string', 'object']
       title: title suffix
     configuration:
       type: object

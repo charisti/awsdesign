@@ -10,12 +10,14 @@ use Drupal\migrate\MigrateExecutable;
 use Drupal\migrate\Row;
 use Drupal\Tests\user\Traits\UserCreationTrait;
 use Drupal\user\Entity\User;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests entity lookup access check.
- *
- * @group migrate_plus
  */
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 final class EntityLookupAccessTest extends KernelTestBase {
   use UserCreationTrait;
 
@@ -40,7 +42,7 @@ final class EntityLookupAccessTest extends KernelTestBase {
   /**
    * A test entity.
    */
-  protected ?EntityTest $entity;
+  protected ?EntityTest $entity = NULL;
 
   /**
    * {@inheritdoc}

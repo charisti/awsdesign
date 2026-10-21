@@ -22,7 +22,13 @@ variables:
   OPT_IN_TEST_NEXT_MINOR: 1
   OPT_IN_TEST_NEXT_MAJOR: 1
   OPT_IN_TEST_DRUPAL9: 1
-  OPT_IN_TEST_DRUPAL8: 1
+
+  _AUTORUN_CURRENT: 'all'
+  _AUTORUN_MAX_PHP: 'push'
+  _AUTORUN_PREVIOUS_MINOR: 'push'
+  _AUTORUN_PREVIOUS_MAJOR: 'push'
+  _AUTORUN_NEXT_MINOR: 'all'
+  _AUTORUN_NEXT_MAJOR: 'push'
 
   _SHOW_ENVIRONMENT_VARIABLES: 1
   _PHPUNIT_CONCURRENT: 1
@@ -30,6 +36,7 @@ variables:
   _CSPELL_EXTRA: '--dot'
   _ALL_VALIDATE_ALLOW_FAILURE: 0
   PHPUNIT_FAIL_ON_PHPUNIT_DEPRECATION: 0
+  FF_TIMESTAMPS: 0
 
 ################
 # Job overrides
@@ -38,8 +45,8 @@ variables:
 workflow:
   rules:
     - !reference [ .default-workflow ]
-    # Also run if the branch starts with 'mr' followed by digits or is the specific issue branch 3356800.
-    - if: $CI_COMMIT_BRANCH =~ /^mr[0-9]+/i || ($CI_COMMIT_BRANCH =~ /^3356800/ && $CI_PIPELINE_SOURCE != "merge_request_event")
+    # Also run if the branch starts with 'mr' followed by digits or is the specific issue branch 3356800 and there is no associated MR on that branch.
+    - if: $CI_COMMIT_BRANCH =~ /^(mr[0-9]+|3356800)/i && $CI_OPEN_MERGE_REQUESTS == ""
 
 .show-variables: &show-variables
   - |
@@ -76,12 +83,12 @@ workflow:
     printf "OPT_IN_TEST_PREVIOUS_MINOR  = %s\n" "$OPT_IN_TEST_PREVIOUS_MINOR $([[ $OPT_IN_TEST_PREVIOUS_MINOR != 0 ]] && echo '(not default)')"
     printf "OPT_IN_TEST_PREVIOUS_MAJOR  = %s\n" "$OPT_IN_TEST_PREVIOUS_MAJOR $([[ $OPT_IN_TEST_PREVIOUS_MAJOR != 0 ]] && echo '(not default)')"
     printf "OPT_IN_TEST_DRUPAL9         = %s\n" "$OPT_IN_TEST_DRUPAL9 (custom variable)"
-    printf "OPT_IN_TEST_DRUPAL8         = %s\n" "$OPT_IN_TEST_DRUPAL8 (custom variable)"
     printf " \nTemplates\n---------\n"
     printf "_GITLAB_TEMPLATES_REPO      = %s\n" $_GITLAB_TEMPLATES_REPO
     printf "_GITLAB_TEMPLATES_REF       = %s\n" $_GITLAB_TEMPLATES_REF
     printf "_CURL_TEMPLATES_REPO        = %s\n" $_CURL_TEMPLATES_REPO
     printf "_CURL_TEMPLATES_REF         = %s\n" $_CURL_TEMPLATES_REF
+    printf "GITLAB_TEMPLATES_VERSION    = %s\n" "$GITLAB_TEMPLATES_VERSION"
     printf " \nOther\n-----\n"
     printf "CI_JOB_NAME                 = %s\n" "$CI_JOB_NAME" &&
     printf "CI_JOB_NAME trimmed from :  = %s\n" "${CI_JOB_NAME%:*}" &&
@@ -95,30 +102,10 @@ workflow:
   if: '$OPT_IN_TEST_DRUPAL9 != "1"'
   when: never
 
-.opt-in-drupal8-rule: &opt-in-drupal8-rule
-  if: '$OPT_IN_TEST_DRUPAL8 != "1"'
-  when: never
-
-# Re-usable rule for running the job automatically on Merge Requests. Also run
-# if the branch matches two specific criteria, even if not in a Merge Request.
-.run-in-mr-rule: &run-in-mr-rule
-  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    when: on_success
-  - if: $CI_COMMIT_BRANCH =~ /^mr[0-9]+/i || $CI_COMMIT_BRANCH =~ /^3356800/
-    when: on_success
-
-# Run the job when committing to the real repo, otherwise manual. This is used in every variant except 'current'
-# and should be the last rule in the set because it ends without a condition.
-.run-on-commit-otherwise-manual-rule: &run-on-commit-otherwise-manual-rule
-  - if: $CI_PIPELINE_SOURCE == "push"
-    when: on_success
-  - when: manual
-    allow_failure: true
-
 .composer-base:
   after_script:
-    - pwd && echo "Top-level directories" && ls -tldr */
-    - printf "Top 10 folders by size:\n" && du -m web/* | sort -n -r | head -n 10 || true
+    # Read the build.env file, because variables created in a script section are not passed to after_script.
+    - IFS=$'\n' && export $(<build.env) && unset IFS
     # Show summary of the last two commits.
     - git show -2 --stat --oneline
     - |
@@ -129,68 +116,50 @@ workflow:
         git diff --stat $BASELINE
         git diff $BASELINE -- .gitlab-ci.yml | head -n 30
       fi
-    # Read the build.env file, because variables created in a script section are not passed to after_script.
-    - IFS=$'\n' && export $(<build.env) && unset IFS
+    - pwd && echo "Top-level directories" && ls -ldS */
+    - printf "Ten largest directories in web/\n" && du -m -d 1 web/* | grep -E '.*/.*/.*' | sort -n -r | head -n 10 || true
+    - printf "Third-party modules installed in " && cd $CI_PROJECT_DIR/$_WEB_ROOT/modules/contrib && pwd
+    - ls -ld */
     - !reference [ .show-ci-variables ]
     - *show-variables
-    - $CI_PROJECT_DIR/vendor/bin/drush status | grep version | tr -s ' '
+    - echo "Gitlab Templates version $GITLAB_TEMPLATES_VERSION"
+    - test -f $COMPOSER_BIN_DIR/drush && $COMPOSER_BIN_DIR/drush status | grep version | tr -s ' '
     - $CI_PROJECT_DIR/vendor/bin/phpunit --version | head -1 | awk '{ print $1 " " $2 }'
     - echo "Nightwatch$($CI_PROJECT_DIR/$_WEB_ROOT/core/node_modules/.bin/nightwatch --version | grep 'version' | tr -s ' ')"
-    - COLUMNS=130 composer show | grep -E '\/(core |rules|commerce|entity|inline_entity_form|workbench|drush|devel_generate|address|coder)'
-
-composer (max PHP version):
-  # Using when: manual needs 'allow failure: true' otherwise the overall pipeline status shows 'blocked'
-  rules:
-    - !reference [ .opt-in-max-php-rule ]
-    - !reference [ .check-max-php-version-rule ]
-    - *run-on-commit-otherwise-manual-rule
+    - cd $CI_PROJECT_DIR
+    - COLUMNS=100 composer show | grep -E '\/(core |rules|typed_data|commerce|entity|inline_entity_form|workbench|drush|devel|devel_generate|address|coder)'
 
 composer (previous minor):
-  rules:
-    - !reference [ .opt-in-previous-minor-rule ]
-    - *run-on-commit-otherwise-manual-rule
-
-composer (previous major):
-  rules:
-    - !reference [ .opt-in-previous-major-rule ]
-    - *run-on-commit-otherwise-manual-rule
-
-composer (next minor):
-  rules:
-    - !reference [ .opt-in-next-minor-rule ]
-    - *run-in-mr-rule
-    - *run-on-commit-otherwise-manual-rule
+  before_script:
+    # Limit Devel to version 5.4
+    # @see https://www.drupal.org/project/scheduler/issues/3563658
+    - |
+      echo "DRUPAL_CORE=$DRUPAL_CORE"
+      sed -i 's#drupal/devel\".*#drupal/devel\": "<=5.4",#g' composer.json
+      cat composer.json | grep devel
 
 composer (next major):
-  rules:
-    - !reference [ .opt-in-next-major-rule ]
-    - *run-on-commit-otherwise-manual-rule
+  before_script:
+    # Remove Devel, Drush and Rules from the require-dev. They are not yet compatible with Drupal 12 and break the phpunit tests.
+    # @see https://www.drupal.org/project/scheduler/issues/3580343
+    - echo "DRUPAL_CORE=$DRUPAL_CORE, so remove Devel, Drush and Rules from composer require-dev"
+    - sed -i -E '\#(drupal/devel|drush/drush|drupal/rules)#d' composer.json
+    - head -n 16 composer.json
+  variables:
+    _LENIENT_ALLOW_LIST: 'rules,typed_data,workbench_moderation,workbench_moderation_actions,commerce,address,entity,inline_entity_form,token,entity_reference_revisions,profile,state_machine,drush,devel'
 
 composer (drupal 9):
   extends: .composer-base
   rules:
     - *opt-in-drupal9-rule
-    - *run-on-commit-otherwise-manual-rule
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_ROOT_NAMESPACE == "project"
+      when: on_success
+    - when: manual
+      allow_failure: true
   variables:
     PHP_VERSION: 8.1
     DRUPAL_CORE: ^9.5
     PHP_IMAGE_VARIANT: 'apache'
-
-composer (drupal 8):
-  extends: .composer-base
-  rules:
-    - *opt-in-drupal8-rule
-    - *run-on-commit-otherwise-manual-rule
-  variables:
-    PHP_VERSION: 7.4
-    DRUPAL_CORE: ^8.9
-    PHP_IMAGE_VARIANT: 'apache'
-  before_script:
-    # Uncomment this reference if a before_script is used in .composer-base
-    # - !reference [.composer-base, before_script]
-    # Some tests need to be modified to allow running on Drupal 8
-    # See https://www.drupal.org/project/scheduler/issues/3356800
-    - patch -p1 < tests/3356800-d8.patch
 
 # Custom job to check MkDocs files for incorrectly formatted links before they are published.
 mkdocs:
@@ -202,7 +171,9 @@ mkdocs:
     - changes:
         - docs/**/*
         - mkdocs.yml
-      when: on_success
+        - README.md
+      when: manual
+      allow_failure: true
   script:
     - !reference [ .create-environment-variables ]
     - !reference ['.calculate-gitlab-ref']
@@ -212,9 +183,22 @@ mkdocs:
     - EXIT_CODE=0;
     - echo -e "Get the script from gitlab_templates\nExecuting curl -L --output scripts/unformatted-links.php https://git.drupalcode.org/$_CURL_TEMPLATES_REPO/-/raw/$_CURL_TEMPLATES_REF/scripts/unformatted-links.php"
     - curl -L --output scripts/unformatted-links.php https://git.drupalcode.org/$_CURL_TEMPLATES_REPO/-/raw/$_CURL_TEMPLATES_REF/scripts/unformatted-links.php
-    - pwd && ls -la scripts/*
-    - php scripts/unformatted-links.php || EXIT_CODE=1
+    - php scripts/unformatted-links.php --path '{README,./docs}' || EXIT_CODE=1
     - exit $EXIT_CODE
+
+pages:
+  rules:
+    - !reference [ .skip-pages-rule ]
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_ROOT_NAMESPACE == "project"
+      changes:
+        - docs/**/*
+        - mkdocs.yml
+        - README.md
+      when: on_success
+  needs: [mkdocs]
+  before_script:
+    # Create symlink so that README.md can be used within the documentation site.
+    - ln -sv $(pwd)/README.md docs/readme.md
 
 # -------------------------------- VALIDATE ------------------------------------
 
@@ -234,13 +218,21 @@ phpstan:
   after_script:
     - echo -e "\e[0Ksection_start:`date +%s`:phpstan_summary[collapsed=true]\r\e[0K---PHPSTAN summary"
     - pwd && ls -l phpstan* && test -f phpstan.neon && echo "=== This is phpstan.neon ===" && cat phpstan.neon && echo "==="
-    - php $CI_PROJECT_DIR/scripts/phpstan-baseline-summary.php phpstan-baseline-to-fix.neon || true
+    - php $CI_PROJECT_DIR/scripts/baseline-phpstan-summary.php phpstan-baseline-to-fix.neon || true
     - echo -e "\e[0Ksection_end:`date +%s`:phpstan_summary\r\e[0K"
 
 phpstan (previous major):
   # Temporarily skip this job.
   rules:
     - when: never
+
+phpstan (next minor):
+  variables:
+    _PHPSTAN_ALLOW_FAILURE: 1
+
+phpstan (next major):
+  variables:
+    _PHPSTAN_ALLOW_FAILURE: 1
 
 # -------------------------------- TEST ----------------------------------------
 
@@ -259,6 +251,10 @@ phpstan (previous major):
   # Run some test groups manually not automatically.
   # @todo restore "drush" to automatic when https://www.drupal.org/project/scheduler/issues/3359998 is solved.
   - if: $_MATRIX_VALUE =~ /(drush)/
+    when: manual
+    allow_failure: true
+  # Rules and Kernel tests break on Drupal 12, so make these manual.
+  - if: $_MATRIX_VALUE =~ /(rules|kernel)/ && $CI_JOB_NAME =~ /next major/i
     when: manual
     allow_failure: true
   - when: on_success
@@ -300,6 +296,17 @@ phpunit:
         rm -v tests/src/Functional/SchedulerDrushTest.php
       fi
     - |
+      if [[ $INSTALLED_DRUPAL_VERSION =~ ^(12) ]]; then
+        # The migration tests break Drupal 12 (missing class) so remove them, until a new Scheduler branch is created.
+        pwd
+        rm -v tests/src/Kernel/MigrateScheduler*.php
+
+        # Delete ALL tests from any 3rd-party contrib module, to avoid their test discovery errors halting the job.
+        shopt -s globstar
+        rm -v $CI_PROJECT_DIR/$_WEB_ROOT/modules/contrib/*/tests/**/*Test.php || true
+        rm -v $CI_PROJECT_DIR/$_WEB_ROOT/modules/contrib/*/modules/*/tests/**/*Test.php || true
+      fi
+    - |
       if [[ "$_MATRIX_VALUE" != "" && $_PHPUNIT_TESTGROUPS == "" ]]; then
         if [[ "$_PHPUNIT_CONCURRENT" == "0" ]]; then
           # Specify parameters that will be passed to PHPUNIT (needs --group)
@@ -314,7 +321,7 @@ phpunit:
     - *merge-core-deprecation-file
     # Patch to disable strict config schema validation on older versions of core.
     # See https://www.drupal.org/project/scheduler/issues/3451750
-    - vendor/bin/drush status | awk "NR==1{print \$4}" | grep -E '^(8.|9.|10.2)' && echo 'Core version is before 10.3, patching to remove strict config validation' && patch -p1 < tests/3451750-strict-config-schema.patch
+    - echo "$INSTALLED_DRUPAL_VERSION" | grep -E '^(8.|9.|10.2)' && echo "Core version is before 10.3, patching to remove strict config validation" && patch -p1 < tests/3451750-strict-config-schema.patch
     - echo "End of before_script _PHPUNIT_EXTRA=$_PHPUNIT_EXTRA"
 
 phpunit (max PHP version):
@@ -365,14 +372,6 @@ phpunit (drupal 9):
     - *scheduler-testgroup-rule
   needs: [composer (drupal 9)]
   allow_failure: true
-
-phpunit (drupal 8):
-  extends: phpunit (drupal 9)
-  rules:
-    - *opt-in-drupal8-rule
-    - !reference [ .skip-phpunit-rule ]
-    - *scheduler-testgroup-rule
-  needs: [composer (drupal 8)]
 
 test-only changes:
   # Remove the parallel definition that is defined in the customized phpunit job.

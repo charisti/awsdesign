@@ -5,43 +5,36 @@
  * Theme and preprocess functions for menus.
  */
 
+use Drupal\Core\Hook\Attribute\LegacyHook;
+use Drupal\radix\Hook\MenuHooks;
 use Drupal\Core\Template\Attribute;
+use Drupal\Component\Utility\Xss;
 
 /**
  * Implements hook_preprocess_menu().
+ *
+ * @phpstan-param array<string, mixed> $variables
  */
-function radix_preprocess_menu(&$variables, $hook) {
-  // No changes for menu toolbar.
-  if ($hook == 'menu__toolbar') {
-    return;
-  }
-
-  // Get the current path.
-  $current_path = \Drupal::request()->getRequestUri();
-
-  $items = $variables['items'];
-  foreach ($items as $key => $item) {
-    if (isset($item['url']) && is_object($item['url']) && $item['url']->toString() == $current_path) {
-      $variables['items'][$key]['in_active_trail'] = TRUE;
-    }
-
-    if (isset($item['url']) && is_object($item['url']) && $item['url']->isRouted() && $item['url']->getRouteName() === '<nolink>') {
-      $variables['items'][$key]['attributes']->addClass('navbar-text');
-    }
-  }
+#[LegacyHook]
+function radix_preprocess_menu(array &$variables, string $hook): void {
+  MenuHooks::preprocessMenu($variables, $hook);
 }
 
 /**
  * Implements template_preprocess_menu_local_task.
+ *
+ * @phpstan-param array<string, mixed> $variables
  */
-function radix_preprocess_menu_local_task(&$variables) {
+function radix_preprocess_menu_local_task(array &$variables): void {
   radix_link_fixer($variables);
 }
 
 /**
  * Implements template_preprocess_menu_local_action().
+ *
+ * @phpstan-param array<string, mixed> $variables
  */
-function radix_preprocess_menu_local_action(&$variables) {
+function radix_preprocess_menu_local_action(array &$variables): void {
   // Add button classes.
   $variables['link']['#options']['attributes']['class'][] = 'btn';
   $variables['link']['#options']['attributes']['class'][] = 'btn-primary';
@@ -49,23 +42,51 @@ function radix_preprocess_menu_local_action(&$variables) {
 
 /**
  * Implements template_preprocess_links__dropbutton().
+ *
+ * @phpstan-param array<string, mixed> $variables
  */
-function radix_preprocess_links__dropbutton(&$variables) {
+function radix_preprocess_links__dropbutton(array &$variables): void {
   $links = &$variables['links'];
 
-  // Do nothing if we have no links.
+  // Ensure the dropdown SDC always receives valid (non-NULL) props, even when
+  // there are no links (e.g. an operations element with no accessible
+  // operations). Without these defaults the radix:dropdown component receives
+  // NULL for dropdown_button_content, dropdown_button_url and split_button,
+  // which the schema rejects with an InvalidComponentException.
+  $variables['split'] = FALSE;
+  $variables['button'] = [
+    'text' => '',
+    'url' => '',
+    'attributes' => new Attribute(),
+  ];
+
+  // Do nothing further if we have no links.
   if (!count($links)) {
     return;
   }
 
   // Get the first link and use it for the dropbutton.
   $link = reset($links);
-  /** @var \Drupal\Core\Url $link_url */
+  /** @var \Drupal\Core\Url|null $link_url */
   $link_url = $link['link']['#url'] ?? NULL;
+
+  // Apply the link's options (e.g. the "destination" query parameter added by
+  // the Views "Include destination" setting) before stringifying the URL.
+  // template_preprocess_links() stores these in '#options', so calling
+  // Url::toString() on the bare Url object would otherwise drop them, which
+  // dropped the destination parameter from the first link only.
+  // @see https://www.drupal.org/project/radix/issues/3486275
+  if ($link_url && !empty($link['link']['#options'])) {
+    $link_url->mergeOptions($link['link']['#options']);
+  }
 
   $variables['split'] = $link_url && $link_url->getRouteName() !== '<nolink>';
   $variables['button'] = [
-    'text' => $link['text'] ?? '',
+    'text' => isset($link['text']) ? htmlspecialchars_decode(Xss::filter(
+      is_array($link['text'])
+        ? \Drupal::service('renderer')->renderInIsolation($link['text'])
+        : $link['text']
+    )) : '',
     'url' => $link_url ? $link_url->toString() : '',
     'attributes' => $link['text_attributes'] ?? $link['attributes'] ?? new Attribute(),
   ];
@@ -79,10 +100,10 @@ function radix_preprocess_links__dropbutton(&$variables) {
 /**
  * Fixes link render arrays to avoid a loss of classes due to care bug #3494015.
  *
- * @param &array $link_variable
+ * @param array<string, mixed> $link_variable
  *   Render array containing a 'link' element.
  */
-function radix_link_fixer(&$link_variable) {
+function radix_link_fixer(array &$link_variable): void {
   // Link element is optional.
   if (empty($link_variable['link'])) {
     return;

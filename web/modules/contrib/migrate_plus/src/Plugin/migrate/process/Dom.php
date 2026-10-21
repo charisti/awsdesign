@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
 use Drupal\Component\Utility\Html;
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateException;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\Plugin\MigrationInterface;
@@ -73,11 +74,8 @@ use Masterminds\HTML5;
  * it specifies the default values for all the optional parameters.
  *
  * @codingStandardsIgnoreEnd
- *
- * @MigrateProcessPlugin(
- *   id = "dom"
- * )
  */
+#[MigrateProcess(id: 'dom')]
 class Dom extends ProcessPluginBase {
 
   /**
@@ -100,7 +98,7 @@ class Dom extends ProcessPluginBase {
     if (!in_array($configuration['method'], ['import', 'export'])) {
       throw new \InvalidArgumentException('The "method" must be "import" or "export".');
     }
-    $configuration['import_method'] = $configuration['import_method'] ?? 'html';
+    $configuration['import_method'] ??= 'html';
     if (!in_array($configuration['import_method'], ['html', 'html5', 'xml'])) {
       throw new \InvalidArgumentException('The "import_method" must be "html", "html5", or "xml".');
     }
@@ -216,7 +214,7 @@ class Dom extends ProcessPluginBase {
    */
   public function export($value, MigrateExecutableInterface $migrate_executable, Row $row, string $destination_property) {
     if (!$value instanceof \DOMDocument) {
-      $value_description = (gettype($value) == 'object') ? get_class($value) : gettype($value);
+      $value_description = (gettype($value) == 'object') ? $value::class : gettype($value);
       throw new MigrateException(sprintf('Cannot export a "%s".', $value_description));
     }
 
@@ -236,7 +234,7 @@ class Dom extends ProcessPluginBase {
   protected function getNonRootHtml(string $partial): string {
     $replacements = [
       "\n" => '',
-      '!encoding' => strtolower($this->configuration['encoding']),
+      '!encoding' => strtolower((string) $this->configuration['encoding']),
       '!value' => $partial,
     ];
     // Prepend the html with a header using the configured source encoding.

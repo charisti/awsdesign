@@ -6,11 +6,14 @@ namespace Drupal\Tests\migrate_plus\Unit\process;
 
 use Drupal\migrate_plus\Plugin\migrate\process\MultipleValues;
 use Drupal\Tests\migrate\Unit\process\MigrateProcessTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\MultipleValues
- * @group migrate
+ * Tests multiple_values process plugin.
  */
+#[CoversClass(MultipleValues::class)]
+#[Group('migrate_plus')]
 final class MultipleValuesTest extends MigrateProcessTestCase {
 
   /**

@@ -31,10 +31,10 @@ props:
       type: string
       title: Comment Title
     title_prefix:
-      type: array
+      type: ['array', 'null', 'string', 'object']
       title: Title Prefix
     title_suffix:
-      type: array
+      type: ['array', 'null', 'string', 'object']
       title: Title Suffix
     title_attributes:
       type: Drupal\Core\Template\Attribute

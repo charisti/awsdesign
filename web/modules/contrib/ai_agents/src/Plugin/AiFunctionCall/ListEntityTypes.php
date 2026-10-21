@@ -80,7 +80,7 @@ class ListEntityTypes extends FunctionCallBase implements ExecutableFunctionCall
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Set the highest level of access check.
     if (!$this->currentUser->hasPermission('administer permissions')) {
       throw new \Exception('You do not have permission to list entity types.');

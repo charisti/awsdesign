@@ -8,14 +8,14 @@
         "source": "https://git.drupalcode.org/project/easy_email"
     },
     "require": {
-        "drupal/core": "^10.1 || ^11",
-        "drupal/jquery_ui_resizable": "^2.0",
+        "drupal/core": "^10.3 || ^11",
+        "drupal/jquery_ui_resizable": "^2",
         "drupal/token": "^1.0"
     },
     "require-dev": {
-        "drupal/commerce": "^2.0",
-        "drupal/symfony_mailer_lite": "^1.0",
-        "drupal/mailsystem": "^4.0"
+        "drupal/commerce": "^2 || ^3",
+        "drupal/symfony_mailer_lite": "^1 || ^2",
+        "drupal/mailsystem": "^4"
     },
     "extra": {
         "drush": {

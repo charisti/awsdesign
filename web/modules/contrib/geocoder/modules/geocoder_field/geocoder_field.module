@@ -94,7 +94,7 @@ function geocoder_field_form_field_config_edit_form_alter(array &$form, FormStat
       '#type' => 'value',
       '#value' => $field_plugin,
     ];
-    $form['actions']['submit']['#validate'][] = 'geocoder_field_field_config_edit_form_validate';
+    $form['#validate'][] = 'geocoder_field_field_config_edit_form_validate';
   }
 }
 
@@ -176,7 +176,8 @@ function geocoder_field_entity_presave(EntityInterface $entity) {
   // Check if geocoder presave is disabled at runtime by a request attribute.
   // i.e. via WorkspacePublishingSubscriber
   // (@see https://www.drupal.org/i/3301512)
-  $runtime_disabled = \Drupal::request()->attributes->get('geocoder_presave_disabled', FALSE);
+  $request = \Drupal::requestStack()->getCurrentRequest();
+  $runtime_disabled = $request?->attributes->get('geocoder_presave_disabled', FALSE) ?? FALSE;
   if ($config_disabled || $runtime_disabled) {
     return;
   }
@@ -234,7 +235,7 @@ function _geocoder_field_process(EntityInterface $entity, array $fields): bool {
       continue;
     }
 
-    $remote_field = isset($geocoder['field']) ?
+    $remote_field = !empty($geocoder['field']) ?
       $entity->get($geocoder['field']) :
       NULL;
 
@@ -292,8 +293,10 @@ function _geocoder_field_process(EntityInterface $entity, array $fields): bool {
           Drupal::service('module_handler')->alter('geocode_entity_field_address_string', $value['value'], $field);
 
           // Perform a Geocode operation (and define an error message) only in
-          // case of value to geocode.
-          if (isset($value['value'])) {
+          // case of a non-empty value to geocode. An empty address string
+          // (e.g. a preprocessor that intentionally skips a value) must not
+          // trigger a geocode request.
+          if (isset($value['value']) && trim((string) $value['value']) !== '') {
             $geo_collection = \Drupal::service('geocoder')->geocode($value['value'], $providers);
             $failure_status_message = t("Unable to geocode '@text'.", ['@text' => $value['value'] ?? '']);
           }

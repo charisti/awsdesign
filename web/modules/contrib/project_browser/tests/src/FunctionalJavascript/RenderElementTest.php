@@ -9,6 +9,7 @@ use Behat\Mink\Element\NodeElement;
 use Drupal\block\BlockInterface;
 use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the render element for the project browser block.
@@ -16,6 +17,7 @@ use PHPUnit\Framework\Attributes\Group;
  * @group project_browser
  */
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class RenderElementTest extends WebDriverTestBase {
 
   use ProjectBrowserUiTestTrait;
@@ -189,10 +191,12 @@ final class RenderElementTest extends WebDriverTestBase {
     ])->save();
 
     $this->drupalGet('<front>');
-    $this->assertPageHasText('5 Results');
     $assert_session = $this->assertSession();
+    $assert_session->waitForElementVisible('css', '.pb-project');
     // We should see 5 projects -- the custom page size.
     $assert_session->elementsCount('css', '.pb-project', 5);
+    // We should not see the result count, however.
+    $assert_session->pageTextNotContains('5 Results');
     // The paginator should never show up.
     $this->assertEmpty($assert_session->waitForField('Items per page', 4000));
     $this->assertEmpty($assert_session->waitForElementVisible('css', '.pager__items', 4000));

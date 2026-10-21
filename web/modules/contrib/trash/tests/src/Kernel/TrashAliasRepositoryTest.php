@@ -8,12 +8,17 @@ use Drupal\path_alias\AliasManagerInterface;
 use Drupal\path_alias\AliasRepositoryInterface;
 use Drupal\path_alias\Entity\PathAlias;
 use Drupal\trash\Exception\UnrestorableEntityException;
+use Drupal\trash\PathAlias\TrashAliasRepository;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the AliasRepository service class overrides.
- *
- * @group trash
  */
+#[CoversClass(TrashAliasRepository::class)]
+#[Group('trash')]
+#[RunTestsInSeparateProcesses]
 class TrashAliasRepositoryTest extends TrashKernelTestBase {
 
   /**
@@ -23,6 +28,11 @@ class TrashAliasRepositoryTest extends TrashKernelTestBase {
     'path',
     'path_alias',
   ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected array $additionalTrashEntityTypes = ['path_alias' => []];
 
   /**
    * The alias repository service.
@@ -40,14 +50,15 @@ class TrashAliasRepositoryTest extends TrashKernelTestBase {
   protected function setUp(): void {
     parent::setUp();
 
-    $this->installEntitySchema('path_alias');
-
-    // Enable trash for path_alias entity type.
-    $this->enableEntityTypesForTrash(['path_alias']);
-
-    // Get services after container rebuild.
     $this->aliasRepository = $this->container->get('path_alias.repository');
     $this->aliasManager = $this->container->get('path_alias.manager');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function installAdditionalEntitySchemas(): void {
+    $this->installEntitySchema('path_alias');
   }
 
   /**
@@ -89,8 +100,8 @@ class TrashAliasRepositoryTest extends TrashKernelTestBase {
     $result = $this->aliasRepository->lookupBySystemPath('/node/1', 'en');
     $this->assertNull($result, 'Deleted alias is not found by system path.');
 
-    // Restore the alias (use the same object we deleted).
-    $storage->restoreFromTrash([$alias]);
+    // Restore the alias.
+    $this->restoreEntity('path_alias', $alias_id);
 
     // Verify the alias is restored.
     $alias = $storage->load($alias_id);
@@ -181,8 +192,7 @@ class TrashAliasRepositoryTest extends TrashKernelTestBase {
     $alias->delete();
 
     // Try to reload - should be null since it was hard deleted.
-    $alias = PathAlias::load($alias->id());
-    $this->assertNull($alias, 'Alias was hard deleted when trash is disabled.');
+    $this->assertEmpty(PathAlias::load($alias->id()), 'Alias was hard deleted when trash is disabled.');
   }
 
   /**
@@ -209,8 +219,7 @@ class TrashAliasRepositoryTest extends TrashKernelTestBase {
     $this->assertEquals('/test-cache', $path, 'Deleted alias not found after cache clear.');
 
     // Restore the alias.
-    $storage = $this->container->get('entity_type.manager')->getStorage('path_alias');
-    $storage->restoreFromTrash([$alias]);
+    $this->restoreEntity('path_alias', $alias->id());
 
     // The cache should be cleared again, so lookup should find it.
     $path = $this->aliasManager->getPathByAlias('/test-cache', 'en');
@@ -221,8 +230,6 @@ class TrashAliasRepositoryTest extends TrashKernelTestBase {
    * Tests that deleted aliases don't conflict with new ones.
    */
   public function testDeletedAliasesAllowReuse(): void {
-    $storage = $this->container->get('entity_type.manager')->getStorage('path_alias');
-
     // Create a path alias.
     $alias = PathAlias::create([
       'path' => '/node/40',
@@ -259,7 +266,7 @@ class TrashAliasRepositoryTest extends TrashKernelTestBase {
     // Try to restore the original alias - should fail due to conflict.
     $this->expectException(UnrestorableEntityException::class);
     $this->expectExceptionMessage('Cannot restore path alias: An alias with the path "/test-uuid" already exists.');
-    $storage->restoreFromTrash([$alias]);
+    $this->restoreEntity('path_alias', $alias->id());
   }
 
 }

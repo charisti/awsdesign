@@ -81,7 +81,7 @@ class GetEntityTypeFieldStorage extends FunctionCallBase implements ExecutableFu
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Get the entity type if wanted.
     $entity_type = $this->getContextValue('entity_type');
 

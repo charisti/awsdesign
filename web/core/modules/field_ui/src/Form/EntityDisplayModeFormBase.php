@@ -117,8 +117,9 @@ abstract class EntityDisplayModeFormBase extends EntityForm {
 
     $bundles_by_entity = [];
     $defaults = [];
-    foreach (array_keys($bundles[$definition->id()]) as $bundle) {
-      $bundles_by_entity[$bundle] = $bundles[$definition->id()][$bundle]['label'];
+    $entity_bundles = $bundles[$definition->id()] ?? [];
+    foreach (array_keys($entity_bundles) as $bundle) {
+      $bundles_by_entity[$bundle] = $entity_bundles[$bundle]['label'];
       // Determine default display modes.
       if (!$this->entity->isNew()) {
         [, $display_mode_name] = explode('.', $this->entity->id());
@@ -130,8 +131,14 @@ abstract class EntityDisplayModeFormBase extends EntityForm {
 
     $form['bundles_by_entity'] = [
       '#type' => 'checkboxes',
-      '#title' => $this->t('Enable this @display-mode for the following @bundle-label types:', ['@display-mode' => $this->entityType->getSingularLabel(), '@bundle-label' => $definition->getLabel()]),
-      '#description' => $this->t('This @display-mode will still be available for the rest of the @bundle-label types if not checked here, but it will not be enabled by default.', ['@bundle-label' => $definition->getLabel(), '@display-mode' => $this->entityType->getSingularLabel()]),
+      '#title' => $this->t('Enable this @display-mode for the following @bundle-label types:', [
+        '@display-mode' => $this->entityType->getSingularLabel(),
+        '@bundle-label' => $definition->getLabel(),
+      ]),
+      '#description' => $this->t('This @display-mode will still be available for the rest of the @bundle-label types if not checked here, but it will not be enabled by default.', [
+        '@bundle-label' => $definition->getLabel(),
+        '@display-mode' => $this->entityType->getSingularLabel(),
+      ]),
       '#options' => $bundles_by_entity,
       '#default_value' => $defaults,
     ];
@@ -167,7 +174,11 @@ abstract class EntityDisplayModeFormBase extends EntityForm {
    * {@inheritdoc}
    */
   public function save(array $form, FormStateInterface $form_state) {
-    $this->messenger()->addStatus($this->t('Saved the %label @entity-type.', ['%label' => $this->entity->label(), '@entity-type' => $this->entityType->getSingularLabel()]));
+    $this->messenger()
+      ->addStatus($this->t('Saved the %label @entity-type.', [
+        '%label' => $this->entity->label(),
+        '@entity-type' => $this->entityType->getSingularLabel(),
+      ]));
     $this->entity->save();
     \Drupal::service('entity_field.manager')->clearCachedFieldDefinitions();
     $form_state->setRedirectUrl($this->entity->toUrl('collection'));
@@ -192,7 +203,13 @@ abstract class EntityDisplayModeFormBase extends EntityForm {
         $bundle_label = $bundles[$target_entity_id][$bundle]['label'];
         $display_mode_label = $form_state->getValue('label');
 
-        $this->messenger()->addStatus($this->t('<a href=":url">Configure the %display_mode_label %mode mode for %bundle_label</a>.', ['%mode' => $this->displayContext, '%display_mode_label' => $display_mode_label, '%bundle_label' => $bundle_label, ':url' => $url->toString()]));
+        $this->messenger()
+          ->addStatus($this->t('<a href=":url">Configure the %display_mode_label %mode mode for %bundle_label</a>.', [
+            '%mode' => $this->displayContext,
+            '%display_mode_label' => $display_mode_label,
+            '%bundle_label' => $bundle_label,
+            ':url' => $url->toString(),
+          ]));
       }
       else {
         // The view/form display has been unchecked, so we need to delete this.

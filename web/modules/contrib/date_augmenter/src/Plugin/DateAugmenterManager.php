@@ -2,11 +2,14 @@
 
 namespace Drupal\date_augmenter\Plugin;
 
-use Drupal\Core\Plugin\DefaultPluginManager;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Plugin\DefaultPluginManager;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
+use Drupal\date_augmenter\Annotation\DateAugmenter as AnnotationDateAugmenter;
+use Drupal\date_augmenter\Attribute\DateAugmenter as AttributeDateAugmenter;
+use Drupal\date_augmenter\DateAugmenter\DateAugmenterInterface;
 
 /**
  * Provides the Date augmenter plugin manager.
@@ -29,7 +32,14 @@ class DateAugmenterManager extends DefaultPluginManager {
    *   The string translation service.
    */
   public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler, TranslationInterface $stringTranslation) {
-    parent::__construct('Plugin/DateAugmenter', $namespaces, $module_handler, 'Drupal\date_augmenter\DateAugmenter\DateAugmenterInterface', 'Drupal\date_augmenter\Annotation\DateAugmenter');
+    parent::__construct(
+      'Plugin/DateAugmenter',
+      $namespaces,
+      $module_handler,
+      DateAugmenterInterface::class,
+      AttributeDateAugmenter::class,
+      AnnotationDateAugmenter::class,
+    );
 
     $this->alterInfo('date_augmenter_plugin_info');
     $this->setCacheBackend($cache_backend, 'date_augmenter_plugins');

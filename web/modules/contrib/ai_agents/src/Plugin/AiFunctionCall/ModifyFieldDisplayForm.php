@@ -149,7 +149,7 @@ class ModifyFieldDisplayForm extends FunctionCallBase implements ExecutableFunct
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Get the context.
     $type_of_display = $this->getContextValue('type_of_display');
     $entity_type = $this->getContextValue('entity_type');

@@ -2,6 +2,10 @@
 
 namespace Drupal\smart_date_recur\Plugin\Field\FieldFormatter;
 
+use Drupal\Component\Datetime\TimeInterface;
+use Drupal\Core\Datetime\DateFormatterInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
+use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Messenger\MessengerTrait;
@@ -9,6 +13,8 @@ use Drupal\smart_date\Entity\SmartDateFormat;
 use Drupal\smart_date\Plugin\Field\FieldFormatter\SmartDateDefaultFormatter;
 use Drupal\smart_date_recur\Entity\SmartDateRule;
 use Drupal\smart_date_recur\SmartDateRecurPluginTrait;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Plugin for a recurrence-optimized formatter for 'smartdate' fields.
@@ -37,6 +43,49 @@ class SmartDateRecurrenceFormatter extends SmartDateDefaultFormatter {
   protected $settings = [];
 
   /**
+   * The request stack.
+   *
+   * @var \Symfony\Component\HttpFoundation\RequestStack
+   */
+  protected $requestStack;
+
+  /**
+   * The time service.
+   *
+   * @var \Drupal\Component\Datetime\TimeInterface
+   */
+  protected $time;
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __construct($plugin_id, $plugin_definition, FieldDefinitionInterface $field_definition, array $settings, $label, $view_mode, array $third_party_settings, DateFormatterInterface $date_formatter, EntityStorageInterface $date_format_storage, RequestStack $request_stack, TimeInterface $time) {
+    parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $label, $view_mode, $third_party_settings, $date_formatter, $date_format_storage);
+
+    $this->requestStack = $request_stack;
+    $this->time = $time;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new static(
+      $plugin_id,
+      $plugin_definition,
+      $configuration['field_definition'],
+      $configuration['settings'],
+      $configuration['label'],
+      $configuration['view_mode'],
+      $configuration['third_party_settings'],
+      $container->get('date.formatter'),
+      $container->get('entity_type.manager')->getStorage('date_format'),
+      $container->get('request_stack'),
+      $container->get('datetime.time')
+    );
+  }
+
+  /**
    * {@inheritdoc}
    */
   public static function defaultSettings() {
@@ -45,6 +94,7 @@ class SmartDateRecurrenceFormatter extends SmartDateDefaultFormatter {
       'upcoming_display' => '2',
       'show_next' => FALSE,
       'current_upcoming' => FALSE,
+      'filter_parameter_key' => 'date',
     ] + parent::defaultSettings();
   }
 
@@ -90,6 +140,13 @@ class SmartDateRecurrenceFormatter extends SmartDateDefaultFormatter {
       '#title' => $this->t('Treat current events as upcoming'),
       '#description' => $this->t('Otherwise, they will be treated as being in the past.'),
       '#default_value' => $this->getSetting('current_upcoming'),
+    ];
+
+    $form['filter_parameter_key'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Filter parameter key'),
+      '#description' => $this->t("The URL path parameter key to use to allow filtering by this field. For example, '?date=2030-01-01', where the parameter key is 'date'. Leaving this empty will disable this custom filtering."),
+      '#default_value' => $this->getSetting('filter_parameter_key'),
     ];
 
     $form['force_chronological']['#description'] = $this->t('Merge together all recurring rule instances and single events, and sort chronologically before subsetting as a single group.');
@@ -160,10 +217,23 @@ class SmartDateRecurrenceFormatter extends SmartDateDefaultFormatter {
     $settings['upcoming_display'] = $this->getSetting('upcoming_display');
     $settings['show_next'] = $this->getSetting('show_next');
     $settings['current_upcoming'] = $this->getSetting('current_upcoming');
+    $settings['filter_parameter_key'] = $this->getSetting('filter_parameter_key');
 
     // If an exposed filter is set for the field, use that as the minimum date.
-    // @phpstan-ignore-next-line
-    $filter = \Drupal::request()->query->get($items->getName());
+    $request = $this->requestStack->getCurrentRequest();
+    $filter = NULL;
+    if ($settings['filter_parameter_key']) {
+      $filter = $request->query->get($settings['filter_parameter_key']);
+    }
+    if (!$filter) {
+      if (substr($items->getName(), 0, 6) == "field_") {
+        $filter = $request->query->get(substr($items->getName(), 6));
+      }
+    }
+    if (!$filter) {
+      $filter = $request->query->get($items->getName());
+    }
+
     if (is_array($filter) && isset($filter['min']) && strtotime($filter['min']) > 0) {
       $settings['min_date'] = strtotime($filter['min']);
     }
@@ -179,7 +249,6 @@ class SmartDateRecurrenceFormatter extends SmartDateDefaultFormatter {
       $this->entity = $items->getEntity();
     }
     $settings['augmenters'] = $augmenters;
-    $this->settings = $settings;
 
     $rrules = [];
     foreach ($items as $delta => $item) {
@@ -292,8 +361,7 @@ class SmartDateRecurrenceFormatter extends SmartDateDefaultFormatter {
       else {
         $next_instance = $instances[$next_index]->getValue();
       }
-      // @phpstan-ignore-next-line
-      $rrule_output['#cache']['max-age'] = $next_instance['value'] - \Drupal::time()->getRequestTime();
+      $rrule_output['#cache']['max-age'] = $next_instance['value'] - $this->time->getRequestTime();
 
       $elements[$delta] = $rrule_output;
     }

@@ -182,6 +182,22 @@ trait FormFieldPluginTrait {
   }
 
   /**
+   * Normalizes a field name that uses "." or ":" as nested separators.
+   *
+   * This matches the separator support of getTargetElement() and
+   * getSubmittedValue(), which both replace "." and ":" with "][".
+   *
+   * @param string $field_name
+   *   The field name to normalize.
+   *
+   * @return string
+   *   The normalized field name.
+   */
+  protected function normalizeFieldName(string $field_name): string {
+    return str_replace([':', '.'], '][', $field_name);
+  }
+
+  /**
    * Get the targeted form element specified by the configured form field name.
    *
    * @return array|null
@@ -201,6 +217,12 @@ trait FormFieldPluginTrait {
           // Some field widgets are additionally nested. And since we need
           // a form field element here, catch the first defined child element.
           $element = &$this->jumpToFirstFieldChild($element);
+        }
+        elseif (isset($element[$key])) {
+          // If the element contains a children element with the same key, then
+          // the found element is a container, and the children element should
+          // be returned.
+          $element = $element[$key];
         }
 
         return $element;
@@ -254,11 +276,15 @@ trait FormFieldPluginTrait {
     $field_name = $this->configuration['field_name'];
     if (mb_strpos($field_name, '.')) {
       $this->configuration['field_name'] = str_replace('.', '][', $field_name);
-      return $this->getTargetElement();
+      $result = &$this->getTargetElement();
+      $this->configuration['field_name'] = $field_name;
+      return $result;
     }
     if (mb_strpos($field_name, ':')) {
       $this->configuration['field_name'] = str_replace(':', '][', $field_name);
-      return $this->getTargetElement();
+      $result = &$this->getTargetElement();
+      $this->configuration['field_name'] = $field_name;
+      return $result;
     }
 
     return $nothing;
@@ -418,11 +444,15 @@ trait FormFieldPluginTrait {
       $field_name = $this->configuration['field_name'];
       if (mb_strpos($field_name, '.')) {
         $this->configuration['field_name'] = str_replace('.', '][', $field_name);
-        return $this->getSubmittedValue($found);
+        $value = &$this->getSubmittedValue($found);
+        $this->configuration['field_name'] = $field_name;
+        return $value;
       }
       if (mb_strpos($field_name, ':')) {
         $this->configuration['field_name'] = str_replace(':', '][', $field_name);
-        return $this->getSubmittedValue($found);
+        $value = &$this->getSubmittedValue($found);
+        $this->configuration['field_name'] = $field_name;
+        return $value;
       }
     }
 

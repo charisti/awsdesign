@@ -10,6 +10,23 @@
   padding: 0 !important;
 }
 
+/**
+ * Strip the input's own margin/padding so the theme's .form-element
+ * min-height sets the height (else it overhangs ~8px next to a textfield
+ * in a Views exposed filter row). Scoped to .views-exposed-form so it
+ * doesn't touch the widget elsewhere (entity forms, etc). align-content
+ * centers the wrapped chip line, since align-items alone leaves it pinned
+ * to the top.
+ */
+.views-exposed-form .tagify.form-element > .tagify__input {
+  margin-block: 0;
+  padding-block: 0;
+}
+
+.views-exposed-form .tagify.form-element {
+  align-content: center;
+}
+
 .tagify.form-element--api-entity-autocomplete-tagify,
 .tagify.form-element--type-select,
 .tagify.form-element--type-select-multiple {
@@ -111,6 +128,7 @@
 
 .tagify__tag {
   margin-inline: 8px 0;
+  margin-block: 0;
   height: 32px;
   transition: none !important;
 }
@@ -283,6 +301,10 @@
   position: relative;
 }
 
+.views-exposed-form__item:has(select.tagify-select-widget) {
+  position: relative;
+}
+
 /* Required validation in hidden input */
 .tagify + input.tagify-widget,
 .tagify + textarea.tagify-widget {
@@ -367,4 +389,63 @@ select.tagify-select-widget {
 
 .experience-builder-container .tagify__tag {
   height: 30px;
+}
+
+.tagify__tag-text .tagify__tag-text-parent {
+  font-weight: normal;
+}
+
+.tagify__tag-text .tagify__tag-text-child {
+  font-size: 0.9rem;
+}
+
+/* Group suggestions */
+
+.tagify__dropdown__itemsGroup {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+}
+
+.tagify__dropdown__itemsGroup .dropdown_group {
+  padding: 0.2rem 0.4rem;
+  color: #032788;
+  font-size: 0.9rem;
+}
+
+.tagify__dropdown__itemsGroup .tagify__dropdown__item {
+  padding: 0.5rem 1rem;
+}
+
+.tagify__dropdown__item--parent {
+  padding: 0.2rem 0.4rem !important;
+  cursor: pointer;
+}
+
+.tagify__dropdown__item--parent .dropdown_group {
+  padding: 0;
+}
+
+.tagify__dropdown__item--parent:hover,
+.tagify__dropdown__item--parent.tagify__dropdown__item--active {
+  background: #032788;
+}
+
+.tagify__dropdown__item--parent:hover .dropdown_group,
+.tagify__dropdown__item--parent.tagify__dropdown__item--active .dropdown_group {
+  color: #fff;
+  font-weight: 600;
+}
+
+.tagify.form-element--api-entity-autocomplete-tagify-hierarchical-term-list:focus-within {
+  box-shadow:
+    0 0 0 2px var(--color-white),
+    0 0 0 5px var(--color-focus),
+    inset 0 0 0 var(--input-border-size) var(--input--hover-border-color) !important;
+}
+
+.tagify.form-element--api-entity-autocomplete-tagify-hierarchical-term-list {
+  background-image: url("data:image/svg+xml,%3csvg width='40' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M8 1C3.46.827-.188 5.787 1.313 10.068c1.176 4.384 6.993 6.417 10.637 3.7.326-.39.565.276.846.442l3.74 3.739 1.413-1.414-4.35-4.35c2.811-3.468 1.15-9.247-3.062-10.71A7.003 7.003 0 008 1zm0 2c3.242-.123 5.849 3.42 4.777 6.477-.842 3.132-4.994 4.58-7.6 2.65-2.745-1.73-2.9-6.125-.285-8.044A5.006 5.006 0 018 3z' fill='%23868686'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: 100% 50%;
 }

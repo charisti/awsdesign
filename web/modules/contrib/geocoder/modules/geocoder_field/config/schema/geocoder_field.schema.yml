@@ -10,6 +10,16 @@ field.field.*.*.*.third_party.geocoder_field:
     weight:
       type: integer
       label: "Weight"
+    geocode:
+      type: mapping
+      label: "Geocode settings"
+      mapping:
+        field:
+          type: string
+          label: "Source field"
+        delta_handling:
+          type: string
+          label: "Multi-value input handling"
     field:
       type: string
       label: 'Field to geocode to or from depending on the "method" in use.'

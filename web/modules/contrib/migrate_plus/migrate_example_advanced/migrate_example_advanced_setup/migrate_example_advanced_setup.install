@@ -9,6 +9,8 @@
  * a pure migration module.
  */
 
+declare(strict_types=1);
+
 /**
  * Implements hook_schema().
  */

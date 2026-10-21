@@ -80,7 +80,7 @@ class ListBundles extends FunctionCallBase implements ExecutableFunctionCallInte
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Check against the highest permission level.
     if (!$this->currentUser->hasPermission('administer permissions')) {
       throw new \Exception('You do not have permission to access this tool.');

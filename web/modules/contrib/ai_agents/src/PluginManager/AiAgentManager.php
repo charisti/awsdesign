@@ -2,18 +2,22 @@
 
 namespace Drupal\ai_agents\PluginManager;
 
+use Drupal\ai\Guardrail\AiGuardrailHelper;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
+use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Plugin\DefaultPluginManager;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Utility\Token;
 use Drupal\ai\AiProviderPluginManager;
 use Drupal\ai\Service\FunctionCalling\FunctionCallPluginManager;
+use Drupal\ai\Service\HostnameFilter;
 use Drupal\ai_agents\Attribute\AiAgent;
 use Drupal\ai_agents\PluginBase\AiAgentEntityWrapper;
 use Drupal\ai_agents\PluginInterfaces\AiAgentInterface;
 use Drupal\ai_agents\Service\AgentHelper;
+use Drupal\ai_agents\Service\AiAgentOverrideApplierInterface;
 use Drupal\ai_agents\Service\ArtifactHelper;
 use Drupal\Component\Uuid\UuidInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -55,6 +59,14 @@ class AiAgentManager extends DefaultPluginManager {
    *   The artifact helper service.
    * @param \Drupal\Component\Uuid\UuidInterface $uuid
    *   The UUID service.
+   * @param \Drupal\ai_agents\Service\AiAgentOverrideApplierInterface $overrideApplier
+   *   The override applier service.
+   * @param \Drupal\ai\Guardrail\AiGuardrailHelper $aiGuardrailHelper
+   *   The AI guardrail helper.
+   * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
+   *   The logger channel.
+   * @param \Drupal\ai\Service\HostnameFilter $hostnameFilter
+   *   The hostname filter service.
    */
   public function __construct(
     \Traversable $namespaces,
@@ -69,6 +81,10 @@ class AiAgentManager extends DefaultPluginManager {
     protected AiProviderPluginManager $aiProviderPluginManager,
     protected ArtifactHelper $artifactHelper,
     protected UuidInterface $uuid,
+    protected AiAgentOverrideApplierInterface $overrideApplier,
+    protected AiGuardrailHelper $aiGuardrailHelper,
+    protected LoggerChannelInterface $logger,
+    protected HostnameFilter $hostnameFilter,
   ) {
     parent::__construct(
       'Plugin/AiAgent',
@@ -77,9 +93,8 @@ class AiAgentManager extends DefaultPluginManager {
       AiAgentInterface::class,
       AiAgent::class,
     );
-    $this->mergeAgentConfigurations();
     $this->alterInfo('ai_agents_info');
-    $this->setCacheBackend($cache_backend, 'ai_agents_plugins');
+    $this->setCacheBackend($cache_backend, 'ai_agents_plugins', ['config:ai_agent_list']);
   }
 
   /**
@@ -97,10 +112,21 @@ class AiAgentManager extends DefaultPluginManager {
    *   If the instance cannot be created, such as if the ID is invalid.
    */
   public function createInstance($plugin_id, array $configuration = []): AiAgentInterface {
-    // Check if the plugin is an action plugin.
-    if (isset($this->definitions[$plugin_id]['custom_type']) && $this->definitions[$plugin_id]['custom_type'] === 'config') {
+    // Check if the plugin is an action plugin. Use getDefinition() so the
+    // definitions array is resolved on demand, rather than reading the
+    // internal $this->definitions property which may be NULL after a cache
+    // clear and only populated by a subsequent getDefinitions() call.
+    $definition = $this->getDefinition($plugin_id, FALSE);
+    $isConfigType = isset($definition['custom_type'])
+      && $definition['custom_type'] === 'config';
+    if ($isConfigType) {
+      $entity = $this->entityTypeManager->getStorage('ai_agent')->load($plugin_id);
+      if ($entity === NULL) {
+        return parent::createInstance($plugin_id, $configuration);
+      }
+
       $instance = new AiAgentEntityWrapper(
-        $this->entityTypeManager->getStorage('ai_agent')->load($plugin_id),
+        $this->overrideApplier->applyOverrides($entity),
         $this->currentUser,
         $this->entityTypeManager,
         $this->functionCallPluginManager,
@@ -110,6 +136,9 @@ class AiAgentManager extends DefaultPluginManager {
         $this->aiProviderPluginManager,
         $this->artifactHelper,
         $this->uuid,
+        $this->aiGuardrailHelper,
+        $this->logger,
+        $this->hostnameFilter
       );
       return $instance;
     }
@@ -134,39 +163,13 @@ class AiAgentManager extends DefaultPluginManager {
         $plugin = $this->createInstance($id);
         // Get the actual configuration entity.
         $entity = $plugin->getAiAgentEntity();
-        if (in_array($tool, array_keys($entity->get('tools')))) {
+        $tools = $entity->get('tools') ?? [];
+        if (is_array($tools) && array_key_exists($tool, $tools)) {
           $agents[$id] = $definition;
         }
       }
     }
     return $agents;
-  }
-
-  /**
-   * Merge Agent Configurations into this custom plugin system.
-   */
-  protected function mergeAgentConfigurations(): void {
-    $plugins = $this->getDefinitions();
-    foreach ($plugins as $plugin_id => $plugin) {
-      $this->definitions[$plugin_id] = $plugin;
-    }
-
-    // If this module is installing, the entity type will not yet exist, so we
-    // don't want to trigger an error.
-    if ($this->entityTypeManager->hasDefinition('ai_agent')) {
-      $agent_configurations = $this->entityTypeManager->getStorage('ai_agent')
-        ->loadMultiple();
-      foreach ($agent_configurations as $id => $entity) {
-        // Modify the plugin definition structure to fit your system.
-        if (!isset($this->definitions[$id])) {
-          $definition['id'] = $id;
-          $definition['label'] = $entity->label();
-          $definition['custom_type'] = 'config';
-          // Add the Config Plugin into our system.
-          $this->definitions[$id] = $definition;
-        }
-      }
-    }
   }
 
   /**
@@ -187,6 +190,25 @@ class AiAgentManager extends DefaultPluginManager {
             unset($definitions[$id]);
             break;
           }
+        }
+      }
+    }
+
+    // Merge in ai_agent config entities as plugin definitions. Doing this
+    // inside findDefinitions() (rather than the constructor) ensures the
+    // result participates in normal discovery caching and is refreshed
+    // when the cache is cleared — for example, after an ai_agent entity
+    // is saved.
+    if ($this->entityTypeManager->hasDefinition('ai_agent')) {
+      $agent_configurations = $this->entityTypeManager->getStorage('ai_agent')
+        ->loadMultiple();
+      foreach ($agent_configurations as $id => $entity) {
+        if (!isset($definitions[$id])) {
+          $definitions[$id] = [
+            'id' => $id,
+            'label' => $entity->label(),
+            'custom_type' => 'config',
+          ];
         }
       }
     }

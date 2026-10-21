@@ -5,19 +5,20 @@ declare(strict_types=1);
 namespace Drupal\migrate_plus\Plugin\migrate_plus\data_parser;
 
 use Drupal\Component\Utility\UrlHelper;
-use Drupal\Core\Url;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\Core\Url;
 use Drupal\migrate\MigrateException;
+use Drupal\migrate_plus\Attribute\DataParser;
 use Drupal\migrate_plus\DataParserPluginBase;
 
 /**
  * Obtain JSON data for migration.
- *
- * @DataParser(
- *   id = "json",
- *   title = @Translation("JSON")
- * )
  */
+#[DataParser(
+  id: 'json',
+  title: new TranslatableMarkup('JSON')
+)]
 class Json extends DataParserPluginBase implements ContainerFactoryPluginInterface {
 
   /**
@@ -317,7 +318,7 @@ class Json extends DataParserPluginBase implements ContainerFactoryPluginInterfa
                 unset($next_urls[$key]);
               }
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
               unset($next_urls[$key]);
             }
           }

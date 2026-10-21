@@ -8,9 +8,14 @@ include:
 
 variables:
   OPT_IN_TEST_NEXT_MINOR: 1
-  OPT_IN_TEST_NEXT_MAJOR: 1
-  OPT_IN_TEST_PREVIOUS_MAJOR: 1
-  _CSPELL_WORDS: 'Csvg, Cpath, Unrestorable'
+  _CSPELL_WORDS: 'Csvg, Cpath, Unrestorable, trashable'
+
+# Test against the oldest core release the module supports, so the default
+# pipeline catches anything that only works on a newer minor. The 'next minor'
+# jobs cover the other end of the range.
+composer:
+  variables:
+    DRUPAL_CORE: '11.3.3'
 
 composer-lint:
   allow_failure: false
@@ -30,19 +35,7 @@ phpstan:
 phpstan (next minor):
   allow_failure: false
 
-phpstan (next major):
-  allow_failure: false
-
-phpstan (previous major):
-  allow_failure: true
-
 phpunit (next minor):
-  allow_failure: false
-
-phpunit (next major):
-  allow_failure: false
-
-phpunit (previous major):
   allow_failure: false
 
 phpunit:
@@ -52,6 +45,6 @@ phpunit:
       - _TARGET_DB_TYPE: 'mysql'
         _TARGET_DB_VERSION: '8'
       - _TARGET_DB_TYPE: 'pgsql'
-        _TARGET_DB_VERSION: '16'
+        _TARGET_DB_VERSION: '18'
       - _TARGET_DB_TYPE: 'sqlite'
         _TARGET_DB_VERSION: '3'

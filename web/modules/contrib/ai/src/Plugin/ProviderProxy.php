@@ -6,6 +6,7 @@ use Drupal\Component\Uuid\UuidInterface;
 use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\ai\Base\AiProviderClientBase;
+use Drupal\ai\Event\AiExceptionEvent;
 use Drupal\ai\Event\PostGenerateResponseEvent;
 use Drupal\ai\Event\PreGenerateResponseEvent;
 use Drupal\ai\Exception\AiBadRequestException;
@@ -17,9 +18,12 @@ use Drupal\ai\Exception\AiRequestErrorException;
 use Drupal\ai\Exception\AiResponseErrorException;
 use Drupal\ai\Exception\AiUnsafePromptException;
 use Drupal\ai\OperationType\Chat\ChatInput;
+use Drupal\ai\OperationType\Chat\ChatMessage;
+use Drupal\ai\OperationType\Chat\ChatOutput;
+use Drupal\ai\OperationType\Chat\StreamedChatMessageIteratorInterface;
 use Drupal\ai\OperationType\InputInterface;
 use Drupal\ai\OperationType\OperationTypeInterface;
-use Drupal\ai\OperationType\Chat\StreamedChatMessageIteratorInterface;
+use Drupal\ai\Service\HostnameFilter;
 use Psr\Http\Client\ClientExceptionInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
@@ -31,7 +35,7 @@ class ProviderProxy {
   /**
    * The plugin to proxy.
    *
-   * @var object
+   * @var \Drupal\ai\Base\AiProviderClientBase
    */
   protected $plugin;
 
@@ -64,6 +68,13 @@ class ProviderProxy {
   protected $uuid;
 
   /**
+   * The Hostname filter service.
+   *
+   * @var \Drupal\ai\Service\HostnameFilter
+   */
+  protected $hostnameFilterService;
+
+  /**
    * The request parent id.
    *
    * @var string
@@ -81,6 +92,7 @@ class ProviderProxy {
     ?string $model_id = NULL,
     ?array $provider_configuration = NULL,
     array $tags = [],
+    array $metadata = [],
   ) {
     $streamed->setInput($input);
     $streamed->setProviderId($provider_id);
@@ -88,6 +100,9 @@ class ProviderProxy {
     $streamed->setProviderConfiguration($provider_configuration);
     $streamed->setTags($tags);
     $streamed->setRequestThreadId($event_id);
+    if (!empty($metadata)) {
+      $streamed->setMetadata($metadata);
+    }
   }
 
   /**
@@ -103,13 +118,16 @@ class ProviderProxy {
    *   The UUID service.
    * @param \Drupal\Core\Cache\CacheBackendInterface $cache_backend
    *   The cache backend.
+   * @param \Drupal\ai\Service\HostnameFilter $hostname_filter_service
+   *   The hostname filter service.
    */
-  public function __construct(AiProviderClientBase $plugin, EventDispatcherInterface $event_dispatcher, LoggerChannelFactoryInterface $logger_factory, UuidInterface $uuid, CacheBackendInterface $cache_backend) {
+  public function __construct(AiProviderClientBase $plugin, EventDispatcherInterface $event_dispatcher, LoggerChannelFactoryInterface $logger_factory, UuidInterface $uuid, CacheBackendInterface $cache_backend, HostnameFilter $hostname_filter_service) {
     $this->plugin = $plugin;
     $this->eventDispatcher = $event_dispatcher;
     $this->loggerFactory = $logger_factory;
     $this->uuid = $uuid;
     $this->cacheBackend = $cache_backend;
+    $this->hostnameFilterService = $hostname_filter_service;
   }
 
   /**
@@ -206,25 +224,39 @@ class ProviderProxy {
     // Temporary fix until 2.0.0, to move the streamed chat into the input.
     // And also do the reverse for the providers that might not have updated.
     // @todo Remove in 2.0.0.
+    // @phpstan-ignore-next-line
     if (is_bool($this->plugin->isStreamedOutput()) && $this->plugin->isStreamedOutput() && isset($arguments[0]) && $arguments[0] instanceof ChatInput) {
+      // @phpstan-ignore-next-line
       $arguments[0]->setStreamedOutput($this->plugin->isStreamedOutput());
     }
+    // @phpstan-ignore-next-line
     if ($this->plugin->isStreamedOutput() !== NULL && isset($arguments[0]) && $arguments[0] instanceof ChatInput && is_bool($arguments[0]->isStreamedOutput())) {
+      // @phpstan-ignore-next-line
       $this->plugin->streamedOutput($arguments[0]->isStreamedOutput());
     }
 
     // Temporary fix until 2.0.0, to move the system role into the input.
     // And also do the reverse for the providers that might not have updated.
     // @todo Remove in 2.0.0.
+    // @phpstan-ignore-next-line
     if (!empty($this->plugin->getChatSystemRole()) && isset($arguments[0]) && $arguments[0] instanceof ChatInput) {
+      // @phpstan-ignore-next-line
       $arguments[0]->setSystemPrompt($this->plugin->getChatSystemRole());
     }
+    // @phpstan-ignore-next-line
     if (empty($this->plugin->getChatSystemRole()) && isset($arguments[0]) && $arguments[0] instanceof ChatInput && !empty($arguments[0]->getSystemPrompt())) {
+      // @phpstan-ignore-next-line
       $this->plugin->setChatSystemRole($arguments[0]->getSystemPrompt());
     }
 
     // Create a unique event id.
     $event_id = $this->uuid->generate();
+
+    // Seed event metadata from the input so callers can pass directed
+    // context through to subscribers (e.g. ai_ckeditor's editing entity).
+    $input_metadata = $arguments[0] instanceof InputInterface
+      ? $arguments[0]->getAllRequestMetadata()
+      : [];
 
     // Invoke the pre generate response event.
     $pre_generate_event = new PreGenerateResponseEvent(
@@ -235,7 +267,8 @@ class ProviderProxy {
       input: $arguments[0],
       modelId: $arguments[1],
       tags: $this->plugin->getTags(),
-      debugData: $this->plugin->getDebugData()
+      debugData: $this->plugin->getDebugData(),
+      metadata: $input_metadata,
     );
     // Too not have breaking changes, it can't be in the constructor and check.
     if (method_exists($pre_generate_event, 'setRequestParentId') && $this->requestParentId) {
@@ -252,6 +285,12 @@ class ProviderProxy {
     // Get the possible new auth, configuration and input from the event.
     $this->plugin->configuration = $pre_generate_event->getConfiguration();
     $arguments[0] = $pre_generate_event->getInput();
+    // Update chat system role with system prompt from the input, as it could be
+    // modified during PreGenerateResponseEvent.
+    if ($arguments[0] instanceof ChatInput && !empty($arguments[0]->getSystemPrompt())) {
+      // @phpstan-ignore-next-line
+      $this->plugin->setChatSystemRole($arguments[0]->getSystemPrompt());
+    }
     // Only set the authentication if it is set.
     if ($pre_generate_event->getAuthentication()) {
       $this->plugin->setAuthentication($pre_generate_event->getAuthentication());
@@ -264,87 +303,106 @@ class ProviderProxy {
       $this->plugin->setTag($tag);
     }
 
-    // Trigger the provider and try to catch where it went wrong.
+    // Apply HostnameFilterDto BEFORE invoking the provider so that strings
+    // built inside the plugin (notably ToolsPropertyResult::setValue, which
+    // runs filterText eagerly during ChatMessage::fromArray) honour the
+    // per-call override. Snapshot the singleton's previous state so we can
+    // restore it in finally — otherwise overrides leak between calls.
+    $hostname_snapshot = NULL;
+    if ($arguments[0] instanceof ChatInput && $arguments[0]->getHostnameFilter()) {
+      $hostname_snapshot = $this->hostnameFilterService->snapshotSettings();
+      $this->hostnameFilterService->applySettings($arguments[0]->getHostnameFilter());
+    }
+
     try {
-      $response = $method->invokeArgs($this->plugin, $arguments);
-    }
-    // Response is wrong.
-    catch (ClientExceptionInterface $e) {
-      $this->loggerFactory->get('ai')->error('Error invoking client: @error', ['@error' => $e->getMessage()]);
-      throw new AiBadRequestException('Error invoking client: ' . $e->getMessage());
-    }
-    // If the provider does a responder error.
-    catch (AiResponseErrorException $e) {
-      $this->loggerFactory->get('ai')->error('Error invoking model response: @error', ['@error' => $e->getMessage()]);
-      throw $e;
-    }
-    // If its a missing feature exception.
-    catch (AiMissingFeatureException $e) {
-      $this->loggerFactory->get('ai')->error('The provider was missing a requested feature: @error', ['@error' => $e->getMessage()]);
-      throw $e;
-    }
-    // If its a quota exception.
-    catch (AiQuotaException $e) {
-      $this->loggerFactory->get('ai')->error('The provider claims missing quota: @error', ['@error' => $e->getMessage()]);
-      throw $e;
-    }
-    // If its a rate limit exception.
-    catch (AiRateLimitException $e) {
-      $this->loggerFactory->get('ai')->error('The provider claims rate limit: @error', ['@error' => $e->getMessage()]);
-      throw $e;
-    }
-    // Its not safe.
-    catch (AiUnsafePromptException $e) {
-      $this->loggerFactory->get('ai')->error('The Prompt is unsafe: @error', ['@error' => $e->getMessage()]);
-      throw $e;
-    }
-    // If an request error happens.
-    catch (AiRequestErrorException $e) {
-      $this->loggerFactory->get('ai')->error('Error invoking model response: @error', ['@error' => $e->getMessage()]);
-      throw $e;
-    }
-    // Anything else is probably due to a bad request.
-    catch (\Exception $e) {
-      $this->loggerFactory->get('ai')->error('Error invoking model response: @error', ['@error' => $e->getMessage()]);
-      throw new AiRequestErrorException('Error invoking model response: ' . $e->getMessage());
-    }
+      try {
+        $response = $method->invokeArgs($this->plugin, $arguments);
+      }
+      // Catch one of the known exceptions.
+      catch (ClientExceptionInterface | AiResponseErrorException | AiMissingFeatureException | AiQuotaException | AiRateLimitException | AiUnsafePromptException | AiRequestErrorException | \Exception $e) {
+        // Wrap raw HTTP client exceptions so downstream code and event
+        // subscribers always receive a typed AiBadRequestException, preserving
+        // the original exception as the previous for full stack traces.
+        $exception = $e instanceof ClientExceptionInterface ? new AiBadRequestException('Error invoking client: ' . $e->getMessage(), 0, $e) : $e;
+        // Dispatch the exception event for customization and logging, carrying
+        // the request context so failover subscribers know which provider,
+        // model and input failed.
+        $event = new AiExceptionEvent(
+          exception: $exception,
+          requestThreadId: $event_id,
+          providerId: $this->plugin->getPluginId(),
+          operationType: $operation_type,
+          configuration: $this->plugin->configuration ?? [],
+          input: $arguments[0],
+          modelId: $arguments[1] ?? '',
+          tags: $this->plugin->getTags(),
+          debugData: $this->plugin->getDebugData(),
+          metadata: $pre_generate_event->getAllMetadata(),
+        );
+        $this->eventDispatcher->dispatch($event);
+        // If a subscriber forced a response output object, return it instead of
+        // throwing. The subscriber providing the forced output is responsible '
+        // for ensuring that output is safe and filtered, matching the same
+        // design as the PreGenerateResponseEvent early return above.
+        if ($forced = $event->getForcedOutputObject()) {
+          return $forced;
+        }
+        // Throw the possibly customized exception.
+        throw $event->getException();
+      }
 
-    // Invoke the post generate response event.
-    $post_generate_event = new PostGenerateResponseEvent(
-      requestThreadId: $event_id,
-      providerId: $this->plugin->getPluginId(),
-      operationType: $operation_type,
-      configuration: $this->plugin->configuration,
-      input: $arguments[0],
-      modelId: $arguments[1],
-      output: $response,
-      tags: $this->plugin->getTags(),
-      debugData: $this->plugin->getDebugData(),
-      metadata: $pre_generate_event->getAllMetadata()
-    );
-    // Too not have breaking changes, it can't be in the constructor and check.
-    if (method_exists($post_generate_event, 'setRequestParentId') && $this->requestParentId) {
-      $post_generate_event->setRequestParentId($this->requestParentId);
-    }
-    $this->eventDispatcher->dispatch($post_generate_event, PostGenerateResponseEvent::EVENT_NAME);
-    // Get a potential new response from the event.
-    $response = $post_generate_event->getOutput();
-
-    // Since we need to attach events on streaming responses as well.
-    if ($response->getNormalized() instanceof StreamedChatMessageIteratorInterface) {
-      $this->attachStreamMetadata(
-        streamed: $response->getNormalized(),
-        event_id: $event_id,
-        input: $arguments[0] ?? NULL,
-        provider_id: $this->plugin->getPluginId(),
-        model_id: $arguments[1] ?? NULL,
-        provider_configuration: $this->plugin->configuration ?? NULL,
-        tags: $this->plugin->getTags() ?? []
+      // Invoke the post generate response event.
+      $post_generate_event = new PostGenerateResponseEvent(
+        requestThreadId: $event_id,
+        providerId: $this->plugin->getPluginId(),
+        operationType: $operation_type,
+        configuration: $this->plugin->configuration,
+        input: $arguments[0],
+        modelId: $arguments[1],
+        output: $response,
+        tags: $this->plugin->getTags(),
+        debugData: $this->plugin->getDebugData(),
+        metadata: $pre_generate_event->getAllMetadata()
       );
-    }
+      // Too not have breaking changes, it can't be in the constructor.
+      if (method_exists($post_generate_event, 'setRequestParentId') && $this->requestParentId) {
+        $post_generate_event->setRequestParentId($this->requestParentId);
+      }
+      // If the output is a none-streamed ChatOutput we apply host validation.
+      // The DTO (if any) is already applied on the singleton at this point.
+      if ($response instanceof ChatOutput && $response->getNormalized() instanceof ChatMessage) {
+        // Filter the content.
+        $new_text = $this->hostnameFilterService->filterText($response->getNormalized()->getText());
+        $response->getNormalized()->setText($new_text);
+      }
+      $this->eventDispatcher->dispatch($post_generate_event, PostGenerateResponseEvent::EVENT_NAME);
+      // Get a potential new response from the event.
+      $response = $post_generate_event->getOutput();
 
-    // Return the response.
-    return $response;
+      // Since we need to attach events on streaming responses as well.
+      if ($response->getNormalized() instanceof StreamedChatMessageIteratorInterface) {
+        $this->attachStreamMetadata(
+          streamed: $response->getNormalized(),
+          event_id: $event_id,
+          input: $arguments[0],
+          provider_id: $this->plugin->getPluginId(),
+          model_id: $arguments[1],
+          provider_configuration: $this->plugin->configuration,
+          tags: $this->plugin->getTags() ?? [],
+          metadata: $post_generate_event->getAllMetadata(),
+        );
+      }
+
+      // Return the response.
+      return $response;
+    }
+    finally {
+      // Restore the singleton HostnameFilter state so a per-call DTO never
+      // leaks into subsequent calls. Runs on success and on exception.
+      if ($hostname_snapshot !== NULL) {
+        $this->hostnameFilterService->restoreSettings($hostname_snapshot);
+      }
+    }
   }
 
   /**
@@ -515,6 +573,16 @@ class ProviderProxy {
     $pattern = '/(?<=\\w)(?=[A-Z])|(?<=[a-z])(?=[0-9])/';
     $snakeCase = preg_replace($pattern, '_', $camelCase);
     return strtolower($snakeCase);
+  }
+
+  /**
+   * Get the proxied plugin.
+   *
+   * @return \Drupal\ai\Base\AiProviderClientBase
+   *   The plugin.
+   */
+  public function getPlugin(): AiProviderClientBase {
+    return $this->plugin;
   }
 
 }

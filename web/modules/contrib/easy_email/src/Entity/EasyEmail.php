@@ -218,7 +218,19 @@ class EasyEmail extends RevisionableContentEntityBase implements EasyEmailInterf
    */
   public function getRecipients() {
     if ($this->hasField('recipient_uid')) {
-      return $this->get('recipient_uid')->referencedEntities();
+      // During mail change account form submit with patch #85494 user object has temporary new email
+      // which isn't saved to account yet, so we need to avoid reloading user object from db & use form
+      // submit values in a temporary user account object that was cloned from a db user & proxied as
+      // a $params['account'] to easy email but referencedEntities() reloads it with the old mail data.
+      $recipients = [];
+
+      foreach ($this->recipient_uid as $recipient_item) {
+        if ($recipient_item->entity instanceof UserInterface) {
+          $recipients[] = $recipient_item->entity;
+        }
+      }
+
+      return !empty($recipients) ? $recipients : $this->get('recipient_uid')->referencedEntities();
     }
     return NULL;
   }

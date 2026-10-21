@@ -5,8 +5,39 @@
  * Contains hook implementations for the ai_agents module.
  */
 
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Plugin\Context\ContextDefinition;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\Core\Url;
+
+/**
+ * Implements hook_ENTITY_TYPE_insert() for ai_agent entities.
+ *
+ * AiAgent config entities are exposed as ai_function_call plugin definitions
+ * via hook_ai_function_call_info_alter(). The function-call plugin manager
+ * caches that result, so it must be cleared whenever an ai_agent entity is
+ * created, updated, or deleted — otherwise the cached list is stale.
+ */
+function ai_agents_ai_agent_insert(EntityInterface $entity) {
+  \Drupal::service('plugin.manager.ai_agents')->clearCachedDefinitions();
+  \Drupal::service('plugin.manager.ai.function_calls')->clearCachedDefinitions();
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_update() for ai_agent entities.
+ */
+function ai_agents_ai_agent_update(EntityInterface $entity) {
+  \Drupal::service('plugin.manager.ai_agents')->clearCachedDefinitions();
+  \Drupal::service('plugin.manager.ai.function_calls')->clearCachedDefinitions();
+}
+
+/**
+ * Implements hook_ENTITY_TYPE_delete() for ai_agent entities.
+ */
+function ai_agents_ai_agent_delete(EntityInterface $entity) {
+  \Drupal::service('plugin.manager.ai_agents')->clearCachedDefinitions();
+  \Drupal::service('plugin.manager.ai.function_calls')->clearCachedDefinitions();
+}
 
 /**
  * Implements hook_ai_function_call_info_alter().
@@ -86,4 +117,41 @@ function ai_agents_tokens($type, $tokens, array $data = [], array $options = [])
   }
 
   return $replacements;
+}
+
+/**
+ * Implements hook_preprocess_ai_tools_library_item().
+ */
+function ai_agents_preprocess_ai_tools_library_item(array &$variables) {
+  // Check that the current route is for editing an AI Agent.
+  $route_match = \Drupal::routeMatch();
+  $current_route_name = $route_match->getRouteName();
+  // It should either be the edit form or the add form.
+  if (!in_array($current_route_name, ['entity.ai_agent.edit_form', 'entity.ai_agent.add_form'])) {
+    return;
+  }
+  // Get the agent ID from the route parameters.
+  $agent_id = $route_match->getParameter('ai_agent');
+  // Create the variables button with an array of link render arrays.
+  $url = $agent_id ?
+    Url::fromRoute('entity.ai_agent.edit_form', [
+      'ai_agent' => $agent_id->id(),
+    ]) : Url::fromRoute('entity.ai_agent.add_form');
+  $link = [
+    '#type' => 'link',
+    '#title' => t('Configure'),
+    '#url' => $url,
+    '#attributes' => [
+      'class' => [
+        'dynamic-tool-modal',
+        'btn',
+        'btn-secondary',
+        'button',
+        'btn-small',
+        'button-small',
+      ],
+      'data-tool' => str_replace(':', '_', $variables['tool_id']),
+    ],
+  ];
+  $variables['buttons'] = $link;
 }

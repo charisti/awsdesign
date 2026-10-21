@@ -10,6 +10,8 @@ use Drupal\Component\Serialization\Yaml;
 use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use Drupal\project_browser_test\TestActivator;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+use PHPUnit\Framework\Attributes\TestWith;
 
 /**
  * Tests multiple Project Browser instances on a single page.
@@ -17,6 +19,7 @@ use PHPUnit\Framework\Attributes\Group;
  * @group project_browser
  */
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class MultipleInstancesTest extends WebDriverTestBase {
 
   use ProjectBrowserUiTestTrait;
@@ -160,11 +163,10 @@ final class MultipleInstancesTest extends WebDriverTestBase {
    *   Whether the filter is applied or not.
    * @param int $expected_count
    *   The expected number of results that should be displayed after filtering.
-   *
-   * @testWith ["security_advisory_coverage", false, 17]
-   *   ["maintenance_status", false, 14]
-   *   ["development_status", true, 8]
    */
+  #[TestWith(['security_advisory_coverage', FALSE, 17])]
+  #[TestWith(['maintenance_status', FALSE, 14])]
+  #[TestWith(['development_status', TRUE, 8])]
   public function testFiltersAreIndependent(string $filter_name, bool $filter_applied, int $expected_count): void {
     $count_results = function (NodeElement $instance): string {
       return trim($instance->find('css', '.pb-search-results')?->getText() ?? '');

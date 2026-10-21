@@ -7,8 +7,8 @@ namespace Drupal\automatic_updates\Controller;
 use Drupal\automatic_updates\Validation\ValidationResultDisplayTrait;
 use Drupal\automatic_updates\Validation\StatusChecker;
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\system\SystemManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
@@ -50,12 +50,12 @@ final class StatusCheckController extends ControllerBase {
     }
     else {
       // Determine if any of the results are errors.
-      $error_results = $this->statusChecker->getResults(SystemManager::REQUIREMENT_ERROR);
+      $error_results = $this->statusChecker->getResults(RequirementSeverity::Error->value);
       // If there are any errors, display a failure message as an error.
       // Otherwise, display it as a warning.
-      $severity = $error_results ? SystemManager::REQUIREMENT_ERROR : SystemManager::REQUIREMENT_WARNING;
+      $severity = $error_results ? RequirementSeverity::Error->value : RequirementSeverity::Warning->value;
       $failure_message = $this->getFailureMessageForSeverity($severity);
-      if ($severity === SystemManager::REQUIREMENT_ERROR) {
+      if ($severity === RequirementSeverity::Error->value) {
         $this->messenger()->addError($failure_message);
       }
       else {

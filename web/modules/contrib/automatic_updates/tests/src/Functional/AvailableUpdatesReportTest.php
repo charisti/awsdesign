@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace Drupal\Tests\automatic_updates\Functional;
 
 use Drupal\Core\Url;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests changes to the Available Updates report provided by the Update module.
  *
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[RunTestsInSeparateProcesses]
 class AvailableUpdatesReportTest extends AutomaticUpdatesFunctionalTestBase {
 
   /**

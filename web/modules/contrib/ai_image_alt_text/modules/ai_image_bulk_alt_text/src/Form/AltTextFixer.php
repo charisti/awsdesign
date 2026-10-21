@@ -6,6 +6,9 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
+/**
+ * Form for bulk fixing alt text on images using AI.
+ */
 class AltTextFixer extends FormBase {
 
 
@@ -133,7 +136,6 @@ class AltTextFixer extends FormBase {
       ],
     ];
 
-
     $form['table'] = [
       '#type' => 'table',
       '#header' => $header,
@@ -147,31 +149,31 @@ class AltTextFixer extends FormBase {
       // @var \Drupal\file\Entity\File $file */
       $form['table'][$i] = [
         'image' => [
-            '#theme' => 'image_style',
-            '#style_name' => 'large',
-            '#uri' => $image['entity']->getFileUri(),
-            '#alt' => $image['entity']->getFilename(),
+          '#theme' => 'image_style',
+          '#style_name' => 'large',
+          '#uri' => $image['entity']->getFileUri(),
+          '#alt' => $image['entity']->getFilename(),
         ],
         'entity_type' => [
-            '#markup' => substr($image['base_entity']->label(), 0, 30) . ' (' . $image['field'] . ')',
+          '#markup' => substr($image['base_entity']->label(), 0, 30) . ' (' . $image['field'] . ')',
         ],
         'suggested_alt_text' => [
-            '#type' => 'textarea',
-            '#default_value' => '',
-            '#attributes' => [
-              'class' => ['alt-text-' . $image['unique_id'], 'alt-text-textarea'],
-            ],
-            '#suffix' => '<div class="textarea-loader load-' . $image['unique_id'] . '"><div class="loader"></div>',
+          '#type' => 'textarea',
+          '#default_value' => '',
+          '#attributes' => [
+            'class' => ['alt-text-' . $image['unique_id'], 'alt-text-textarea'],
+          ],
+          '#suffix' => '<div class="textarea-loader load-' . $image['unique_id'] . '"><div class="loader"></div>',
         ],
         'actions' => [
-            '#type' => 'button',
-            '#value' => $this->t('Generate with AI'),
-            '#attributes' => [
-              'class' => ['alt-text-item'],
-              'data-unique-id' => $image['unique_id'],
-              'data-entity-language' => $image['base_entity']->language()->getId() ?? 'en',
-              'data-file-id' => $image['entity']->id(),
-            ],
+          '#type' => 'button',
+          '#value' => $this->t('Generate with AI'),
+          '#attributes' => [
+            'class' => ['alt-text-item'],
+            'data-unique-id' => $image['unique_id'],
+            'data-entity-language' => $image['base_entity']->language()->getId() ?? 'en',
+            'data-file-id' => $image['entity']->id(),
+          ],
         ],
         'base_entity_id' => [
           '#type' => 'hidden',
@@ -223,7 +225,7 @@ class AltTextFixer extends FormBase {
    * @return array
    *   An array of entities and fields.
    */
-  protected function getEntitiesAndFields($limit = 50) {
+  protected function getEntitiesAndFields($limit = 100) {
     $entity_types = $this->getImageFields();
     $missing_alt_text = [];
     $i = 0;
@@ -306,4 +308,5 @@ class AltTextFixer extends FormBase {
     }
     return $bundles;
   }
+
 }

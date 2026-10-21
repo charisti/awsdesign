@@ -12,12 +12,17 @@ use Drupal\Tests\user\Traits\UserCreationTrait;
 use PhpTuf\ComposerStager\API\Core\StagerInterface;
 use PhpTuf\ComposerStager\API\Exception\ExceptionInterface;
 use PhpTuf\ComposerStager\API\Exception\InvalidArgumentException;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @coversDefaultClass \Drupal\automatic_updates\UpdateSandboxManager
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(UpdateSandboxManager::class)]
+#[RunTestsInSeparateProcesses]
 class UpdateSandboxManagerTest extends AutomaticUpdatesKernelTestBase {
 
   use UserCreationTrait;
@@ -120,10 +125,12 @@ class UpdateSandboxManagerTest extends AutomaticUpdatesKernelTestBase {
   }
 
   /**
-   * @covers ::begin
+   * Tests that updates cannot be done with invalid versions.
    *
-   * @dataProvider providerInvalidProjectVersions
+   * @param array $project_versions
+   *   The project versions to pass to the sandbox manager.
    */
+  #[DataProvider('providerInvalidProjectVersions')]
   public function testInvalidProjectVersions(array $project_versions): void {
     $this->expectException(\InvalidArgumentException::class);
     $this->expectExceptionMessage('Currently only updates to Drupal core are supported.');
@@ -174,9 +181,8 @@ class UpdateSandboxManagerTest extends AutomaticUpdatesKernelTestBase {
    *   The throwable class that should be thrown by Composer Stager.
    * @param string|null $expected_class
    *   The expected exception class.
-   *
-   * @dataProvider providerCommitException
    */
+  #[DataProvider('providerCommitException')]
   public function testCommitException(string $thrown_class, ?string $expected_class = NULL): void {
     $this->getStageFixtureManipulator()->setCorePackageVersion('9.8.1');
 

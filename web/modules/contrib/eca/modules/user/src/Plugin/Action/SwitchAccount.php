@@ -11,10 +11,25 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 /**
  * Switch current account.
  *
+ * This action runs with the authority of the model, not with that of the user
+ * who triggered it, and ECA deliberately grants access to it unconditionally.
+ * Switching the account is the very purpose of the action, and gating it on a
+ * permission held by the account before the switch would defeat the service
+ * account pattern it exists for, where a low privileged trigger elevates to a
+ * configured account on purpose.
+ *
+ * Restricting who may cause a switch is therefore a model restriction
+ * requirement rather than a permission check. It is stated for site builders in
+ * the plugin description below and in the notice on the configuration form,
+ * both of which are inherited by SwitchServiceAccount.
+ *
+ * @see \Drupal\eca_user\Plugin\Action\SwitchServiceAccount
+ * @see https://www.drupal.org/project/eca/issues/3590400
+ *
  * @Action(
  *   id = "eca_switch_account",
  *   label = @Translation("User: switch current account"),
- *   description = @Translation("Switch to given user account."),
+ *   description = @Translation("Switch to given user account. Everything after this action runs with the permissions of that account, not with those of the user who triggered the model. ECA does not check any permission before the switch, so restricting it is part of the model: make sure the triggering event and the conditions in front of this action cannot be reached by an account that should not be able to cause the switch."),
  *   eca_version_introduced = "1.0.0"
  * )
  */
@@ -56,6 +71,14 @@ class SwitchAccount extends ConfigurableActionBase implements CleanupInterface {
       '#description' => $this->t('The numeric ID of the user account to switch to.'),
       '#weight' => -10,
       '#eca_token_replacement' => TRUE,
+    ];
+    // ECA does not gate account switching on a permission, so the model has to
+    // do the restricting. Say so where the site builder configures the action.
+    // @see https://www.drupal.org/project/eca/issues/3590400
+    $form['eca_account_switch_notice'] = [
+      '#type' => 'markup',
+      '#markup' => $this->t('<em>Restricting this action is part of the model.</em> Everything after it runs with the permissions of the account being switched to, not with those of the user who triggered the model. ECA does not check any permission before the switch, because switching is the very purpose of this action. Make sure that the triggering event and the conditions in front of this action cannot be reached by an account that should not be able to cause the switch, for example by adding a role or permission condition before it, and grant the account being switched to only the permissions that the model actually needs.'),
+      '#weight' => -9,
     ];
     return parent::buildConfigurationForm($form, $form_state);
   }

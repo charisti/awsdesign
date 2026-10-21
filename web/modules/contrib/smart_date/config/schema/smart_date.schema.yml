@@ -145,7 +145,7 @@ field.formatter.settings.smartdate_custom:
       translation context: 'Smart date display'
 
 field.widget.settings.smartdate_datelist:
-  type: mapping
+  type: field.widget.settings.smartdate_default
   label: 'Smart date select list display format settings'
   mapping:
     increment:
@@ -157,9 +157,6 @@ field.widget.settings.smartdate_datelist:
     time_type:
       type: string
       label: 'Time type'
-    show_extra:
-      type: boolean
-      label: 'Show extra'
 
 field.widget.settings.smartdate_default:
   type: mapping
@@ -192,11 +189,15 @@ field.widget.settings.smartdate_default:
 
 field.widget.settings.smartdate_inline:
   type: field.widget.settings.smartdate_default
-  label: 'Smart Date, date-only range widget settings'
+  label: 'Smart Date, inline range widget settings'
   mapping:
     separator:
       type: string
       label: 'Separator string (separating start and end date)'
+
+field.widget.settings.smartdate_only:
+  type: field.widget.settings.smartdate_inline
+  label: 'Smart Date, date-only range widget settings'
 
 field.widget.settings.smartdate_timezone:
   type: field.widget.settings.smartdate_inline

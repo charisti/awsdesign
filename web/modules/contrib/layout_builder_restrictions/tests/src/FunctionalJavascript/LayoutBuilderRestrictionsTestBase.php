@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace Drupal\Tests\layout_builder_restrictions\FunctionalJavascript;
 
 use Drupal\block_content\Entity\BlockContent;
-use Drupal\block_content\Entity\BlockContentType;
+use Drupal\Component\Utility\DeprecationHelper;
+use Drupal\filter\FilterFormatRepositoryInterface;
 use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
+use Drupal\Tests\block_content\Traits\BlockContentCreationTrait;
 
 /**
  * General-purpose methods for testing restrictions.
  */
 abstract class LayoutBuilderRestrictionsTestBase extends WebDriverTestBase {
+
+  use BlockContentCreationTrait;
 
   /**
    * {@inheritdoc}
@@ -117,23 +121,26 @@ abstract class LayoutBuilderRestrictionsTestBase extends WebDriverTestBase {
    * @return array
    *   A keyed array of the generated demo blocks with IDs.
    */
-  public static function generateTestBlocks() {
-    $bundle = BlockContentType::create([
+  public function generateTestBlocks() {
+    $bundle = $this->createBlockContentType([
       'id' => 'basic',
       'label' => 'Basic',
     ]);
-    $bundle->save();
-    $bundle = BlockContentType::create([
+    $bundle = $this->createBlockContentType([
       'id' => 'alternate',
       'label' => 'Alternate',
-    ]);
-    $bundle->save();
-    block_content_add_body_field($bundle->id());
+    ], TRUE);
     $blocks = [
       'Basic Block 1' => 'basic',
       'Basic Block 2' => 'basic',
       'Alternate Block 1' => 'alternate',
     ];
+    $default_format = DeprecationHelper::backwardsCompatibleCall(
+      \Drupal::VERSION,
+      '11.4.0',
+      fn() => \Drupal::service(FilterFormatRepositoryInterface::class)->getDefaultFormat()->id(),
+      fn() => filter_default_format(),
+    );
     foreach ($blocks as $info => $type) {
       $block = BlockContent::create([
         'info' => $info,
@@ -141,7 +148,7 @@ abstract class LayoutBuilderRestrictionsTestBase extends WebDriverTestBase {
         'body' => [
           [
             'value' => 'This is the block content',
-            'format' => filter_default_format(),
+            'format' => $default_format,
           ],
         ],
       ]);

@@ -11,7 +11,7 @@ props:
       title: Card Attributes
       description: Attributes for the card.
     card_body:
-      type: string
+      type: ['string', 'null', 'object', 'array']
       title: Card Body
     card_body_tag:
       type: string
@@ -21,7 +21,7 @@ props:
         - div
         - section
     card_title:
-      type: string
+      type: ["string", "null"]
       title: Card Title
     card_title_tag:
       type: string
@@ -36,7 +36,7 @@ props:
         - h5
         - h6
     card_subtitle:
-      type: string
+      type: ['string', 'null']
       title: Card Subtitle
     card_subtitle_tag:
       type: string
@@ -58,19 +58,19 @@ props:
         - span
         - div
     card_link_text:
-      type: string
+      type: ['string', 'null']
       title: Card Link Text
     card_link_url:
-      type: string
+      type: ['string', 'null']
       title: Card Link URL
     card_media:
-      type: string
+      type: ['string', 'null']
       title: Card Media
     card_image_src:
-      type: string
+      type: ['string', 'null']
       title: Card Image Source URL
     card_image_alt:
-      type: string
+      type: ['string', 'null']
       title: Card Image Alternative Text
     card_image_cap:
       type: string
@@ -85,10 +85,10 @@ props:
       title: Use Image Overlays?
       default: false
     card_header:
-      type: string
+      type: ['string', 'null']
       title: Card Header
     card_footer:
-      type: string
+      type: ['string', 'null']
       title: Card Footer
     card_border:
       type: boolean
@@ -151,14 +151,14 @@ props:
       description: An array of utility classes. These can be used to add extra Bootstrap utility classes or custom CSS classes to the card footer component.
       default: []
     card_title_prefix:
-      type: array
+      type: ['array', 'null', 'string', 'object']
       items:
         type: string
       title: Components Title Prefix
       description: Additional output populated by modules, intended to be displayed in front of the components title tag that appears in the template.
       default: []
     card_title_suffix:
-      type: array
+      type: ['array', 'null', 'string', 'object']
       items:
         type: string
       title: Components Title Suffix

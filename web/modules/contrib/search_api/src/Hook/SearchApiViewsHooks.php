@@ -5,6 +5,7 @@ namespace Drupal\search_api\Hook;
 use Drupal\Component\Plugin\Exception\PluginException;
 use Drupal\Component\Plugin\Exception\PluginNotFoundException;
 use Drupal\Component\Plugin\PluginManagerInterface;
+use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
@@ -48,6 +49,9 @@ class SearchApiViewsHooks {
     protected PluginManagerInterface $dataTypePluginManager,
     #[Autowire(service: 'logger.channel.search_api')]
     protected LoggerInterface $logger,
+    // @todo Change to "cache.memory" once we depend on Drupal 11.3+.
+    #[Autowire(service: 'cache.static')]
+    protected CacheBackendInterface $memoryCache,
   ) {}
 
   /**
@@ -65,9 +69,20 @@ class SearchApiViewsHooks {
    * Also, for each entity type encountered in any table, a table with
    * field/relationship handlers for all of that entity type's properties is
    * created. Those tables will use the key "search_api_entity_ENTITY".
+   *
+   * On errors, we call this function a second time so we have a chance to get
+   * correct data after all. To avoid infinite loops, we use a local variable to
+   * tell whether we are inside such a nested call.
+   *
+   * @param bool $nestedCall
+   *   Whether this is a nested call.
+   *
+   * @throws \Exception
+   *   Thrown if an internal error occurred in Typed Data handling twice in a
+   *   row.
    */
   #[Hook('views_data')]
-  public function viewsData(): array {
+  public function viewsData(bool $nestedCall = FALSE): array {
     $data = [];
 
     try {
@@ -147,10 +162,20 @@ class SearchApiViewsHooks {
         }
       }
       catch (\Exception $e) {
+        // If this was a nested call, don't catch the exception.
+        if ($nestedCall) {
+          throw $e;
+        }
         $args = [
           '%index' => $index->label(),
         ];
         Error::logException($this->logger, $e, '%type while computing Views data for index %index: @message in %function (line %line of %file).', $args);
+
+        // Try again, depending on the specific error encountered this might now
+        // work. In case this is an issue of timing, we wait a moment before
+        // proceeding.
+        sleep(2);
+        return $this->viewsData(TRUE);
       }
     }
 
@@ -762,12 +787,13 @@ class SearchApiViewsHooks {
    *   general entity-typed fields or "entity:ENTITY_TYPE" (with "ENTITY_TYPE"
    *   being the machine name of an entity type) for entities of that type.
    *
-   * @see search_api_views_handler_mapping_alter()
+   * @see \Drupal\search_api\Event\MappingViewsHandlersEvent
    */
   protected function getHandlerMapping(): array {
-    $mapping = &drupal_static(__FUNCTION__);
+    $cid = __CLASS__ . '::' . __FUNCTION__;
+    $cache = $this->memoryCache->get($cid);
 
-    if ($mapping === NULL) {
+    if ($cache === FALSE) {
       $mapping = [
         'boolean' => [
           'argument' => [
@@ -840,15 +866,15 @@ class SearchApiViewsHooks {
         'language' => [
           'argument' => [
             'id' => 'search_api',
-            ],
+          ],
           'filter' => [
             'id' => 'search_api_language',
             'allow empty' => FALSE,
-            ],
+          ],
           'sort' => [
             'id' => 'search_api',
-            ],
           ],
+        ],
         'options' => [
           'argument' => [
             'id' => 'search_api',
@@ -904,6 +930,11 @@ class SearchApiViewsHooks {
       $event = new MappingViewsHandlersEvent($mapping);
       $this->eventDispatcher
         ->dispatch($event, SearchApiEvents::MAPPING_VIEWS_HANDLERS);
+
+      $this->memoryCache->set($cid, $mapping);
+    }
+    else {
+      $mapping = $cache->data;
     }
 
     return $mapping;
@@ -920,11 +951,14 @@ class SearchApiViewsHooks {
    *     property data types to their field handler definitions, ordered by
    *     descending string length of the regular expression.
    *   - default: The default definition for data types that match no other field.
+   *
+   * @see \Drupal\search_api\Event\MappingViewsFieldHandlersEvent
    */
   protected function getFieldHandlerMapping(): array {
-    $mappings = &drupal_static(__FUNCTION__);
+    $cid = __CLASS__ . '::' . __FUNCTION__;
+    $cache = $this->memoryCache->get($cid);
 
-    if ($mappings === NULL) {
+    if ($cache === FALSE) {
       // First create a plain mapping and pass it to the alter hook.
       $plain_mapping = [];
 
@@ -1033,6 +1067,11 @@ class SearchApiViewsHooks {
         return strlen($b) - strlen($a);
       };
       uksort($mappings['regex'], $compare);
+
+      $this->memoryCache->set($cid, $mappings);
+    }
+    else {
+      $mappings = $cache->data;
     }
 
     return $mappings;

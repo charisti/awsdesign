@@ -56,37 +56,16 @@ props:
     attributes:
       type: Drupal\Core\Template\Attribute
     dropdown_menu_utility_classes:
-      type: array
+      type: ['array', 'null']
       name: Utility Classes
       items:
         type: string
       description: "Additional utility classes that can be added to the nav component. These classes should be defined in your theme's CSS."
-    nav_utility_classes:
-      type: array
-      name: Nav Utility Classes
-      items:
-        type: string
-      description: "Additional utility classes that can be added to the nav component."
-    nav_link_utility_classes:
-      type: array
-      name: Nav Link Utility Classes
-      items:
-        type: string
-      description: "Additional utility classes that can be added to the nav links."
-    alignment:
-      type: string
-      enum:
-        - null
-        - ''
-        - right
-        - center
-        - vertical
-      title: Alignment
-      description: "Alignment of the nav component."
     dropdown_direction:
       type: string
       enum:
+        - ''
         - dropstart
         - dropend
       title: Dropdown Direction
-      description: "Direction of the dropdown menus."
+      description: 'Direction of the dropdown menus. Leave empty to open below (default).'

@@ -5,7 +5,7 @@ package: Testing
 dependencies:
   - drupal:automatic_updates_test
 
-# Information added by Drupal.org packaging script on 2025-06-11
-version: '4.0.0'
+# Information added by Drupal.org packaging script on 2026-01-20
+version: '4.1.0'
 project: 'automatic_updates'
-datestamp: 1749659467
+datestamp: 1768871263

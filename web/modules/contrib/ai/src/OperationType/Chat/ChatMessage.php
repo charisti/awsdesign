@@ -38,6 +38,13 @@ class ChatMessage {
   private array $files;
 
   /**
+   * Remote file identifiers (e.g. IDs from a remote AI provider API).
+   *
+   * @var string[]
+   */
+  private array $remoteFiles = [];
+
+  /**
    * The tools.
    *
    * @var \Drupal\ai\OperationType\Chat\Tools\ToolsFunctionOutputInterface[]|null
@@ -52,6 +59,13 @@ class ChatMessage {
   private ?string $toolId = NULL;
 
   /**
+   * The message timestamp.
+   *
+   * @var int|null
+   */
+  private ?int $timestamp = NULL;
+
+  /**
    * The constructor.
    *
    * @param string $role
@@ -60,11 +74,14 @@ class ChatMessage {
    *   The text.
    * @param \Drupal\ai\OperationType\GenericType\FileBaseInterface[] $images
    *   The files.
+   * @param int|null $timestamp
+   *   The message timestamp.
    */
-  public function __construct(string $role = "", string $text = "", array $images = []) {
+  public function __construct(string $role = "", string $text = "", array $images = [], ?int $timestamp = NULL) {
     $this->role = $role;
     $this->text = $text;
     $this->files = $images;
+    $this->timestamp = $timestamp;
   }
 
   /**
@@ -126,6 +143,36 @@ class ChatMessage {
   public function getImages(): array {
     // As part of the BC we return only images here.
     return array_filter($this->files, fn($file) => $file instanceof ImageFile);
+  }
+
+  /**
+   * Get remote file identifiers.
+   *
+   * @return string[]
+   *   The remote file IDs.
+   */
+  public function getRemoteFiles(): array {
+    return $this->remoteFiles;
+  }
+
+  /**
+   * Add a remote file identifier.
+   *
+   * @param string $remote_file_id
+   *   The remote file ID.
+   */
+  public function addRemoteFile(string $remote_file_id): void {
+    $this->remoteFiles[] = $remote_file_id;
+  }
+
+  /**
+   * Remove a remote file identifier.
+   *
+   * @param string $remote_file_id
+   *   The remote file ID to remove.
+   */
+  public function removeRemoteFile(string $remote_file_id): void {
+    $this->remoteFiles = array_filter($this->remoteFiles, fn($id) => $id !== $remote_file_id);
   }
 
   /**
@@ -261,15 +308,17 @@ class ChatMessage {
   public function toArray(): array {
     $images = [];
     foreach ($this->files as $image) {
-      $images[] = $image->getBinary();
+      $images[] = $image->toArray();
     }
     return [
       'role' => $this->role,
       'text' => $this->text,
       // @todo find out if this can be changed to 'files'
       'images' => $images,
+      'remote_files' => $this->remoteFiles,
       'tools' => $this->tools ? $this->getRenderedTools() : NULL,
-      'tool_id' => $this->toolId ?? NULL,
+      'tool_id' => $this->toolId,
+      'timestamp' => $this->timestamp,
     ];
   }
 
@@ -287,6 +336,11 @@ class ChatMessage {
     if (isset($data['images'])) {
       foreach ($data['images'] as $imageData) {
         $instance->setImage(ImageFile::fromArray($imageData));
+      }
+    }
+    if (isset($data['remote_files']) && is_array($data['remote_files'])) {
+      foreach ($data['remote_files'] as $remote_file_id) {
+        $instance->addRemoteFile($remote_file_id);
       }
     }
     if (isset($data['tools'])) {
@@ -311,8 +365,31 @@ class ChatMessage {
     if (isset($data['role'])) {
       $instance->setRole($data['role']);
     }
+    if (isset($data['timestamp'])) {
+      $instance->setTimestamp($data['timestamp']);
+    }
     // @todo Files.
     return $instance;
+  }
+
+  /**
+   * Gets message timestamp.
+   *
+   * @return int|null
+   *   The timestamp when message was created.
+   */
+  public function getTimestamp(): ?int {
+    return $this->timestamp;
+  }
+
+  /**
+   * Sets message timestamp.
+   *
+   * @param int|null $timestamp
+   *   The timestamp when message was created.
+   */
+  public function setTimestamp(?int $timestamp): void {
+    $this->timestamp = $timestamp;
   }
 
 }

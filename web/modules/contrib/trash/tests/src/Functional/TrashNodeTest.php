@@ -1,14 +1,28 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\Tests\trash\Functional;
 
+use Drupal\Core\Url;
 use Drupal\Tests\BrowserTestBase;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\IgnoreDeprecations;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Tests the basic trash functionality on nodes.
  *
- * @group trash
+ * The IgnoreDeprecations attribute is used because the trash module decorates
+ * entity.memory_cache, and core services that use MemoryCacheInterface for
+ * autowiring trigger a deprecation warning.
+ *
+ * @see https://www.drupal.org/node/3546856
  */
+#[Group('trash')]
+#[IgnoreDeprecations]
+#[RunTestsInSeparateProcesses]
 class TrashNodeTest extends BrowserTestBase {
 
   /**
@@ -127,6 +141,11 @@ class TrashNodeTest extends BrowserTestBase {
     $this->drupalGet('node/' . $node->id());
     $this->assertSession()->statusCodeEquals(404);
 
+    // I can't see the node even with the "in_trash" query string set.
+    // It should be a 404 rather than a 403 which hints at its existence.
+    $this->drupalGet('node/' . $node->id(), ['query' => ['in_trash' => 1]]);
+    $this->assertSession()->statusCodeEquals(404);
+
     // I can restore the content.
     $this->drupalLogin($this->adminUser);
     $this->drupalGet('/admin/content/trash');
@@ -143,12 +162,27 @@ class TrashNodeTest extends BrowserTestBase {
     // Login as a privileged user.
     $this->drupalLogin($this->adminUser);
 
-    $node = $this->drupalCreateNode([
-      'title' => $this->randomMachineName(8),
+    $node = $this->drupalCreateNode();
+    $node2 = $this->drupalCreateNode();
+
+    // Add the selection to the tempstore just like DeleteAction would.
+    $tempstore = \Drupal::service('tempstore.private')->get('entity_delete_multiple_confirm');
+    $tempstore->set($this->adminUser->id() . ':node', [
+      $node->id() => ['en' => 'en'],
+      $node2->id() => ['en' => 'en'],
     ]);
 
     $this->drupalGet('node/' . $node->id() . '/delete');
     $this->assertSession()->pageTextContains('Deleting this content item will move it to the trash. You can restore it from the trash at a later date if necessary.');
+    $this->drupalGet(Url::fromRoute('entity.node.delete_multiple_form'));
+    $this->assertSession()->pageTextContains('Deleting these content items will move them to the trash. You can restore them from the trash at a later date if necessary.');
+
+    // Confirm that the node can not be permanently deleted if the trash context
+    // is ignored.
+    $this->drupalGet('node/' . $node->id() . '/delete', ['query' => ['in_trash' => 1]]);
+    $this->assertSession()->statusCodeEquals(Response::HTTP_NOT_ACCEPTABLE);
+    $this->drupalGet(Url::fromRoute('entity.node.delete_multiple_form', [], ['query' => ['in_trash' => 1]]));
+    $this->assertSession()->statusCodeEquals(Response::HTTP_NOT_ACCEPTABLE);
 
     // Enable auto purge.
     $this->drupalGet('admin/config/content/trash');
@@ -161,6 +195,8 @@ class TrashNodeTest extends BrowserTestBase {
 
     $this->drupalGet('node/' . $node->id() . '/delete');
     $this->assertSession()->pageTextContains('Deleting this content item will move it to the trash. You can restore it from the trash for a limited period of time (');
+    $this->drupalGet(Url::fromRoute('entity.node.delete_multiple_form'));
+    $this->assertSession()->pageTextContains('Deleting these content items will move them to the trash. You can restore them from the trash for a limited period of time (');
   }
 
   /**
@@ -193,6 +229,88 @@ class TrashNodeTest extends BrowserTestBase {
     $this->assertSession()->statusMessageContains('The content item ' . $node->getTitle() . ' has been permanently deleted.', 'status');
     $this->assertSession()->statusCodeEquals(200);
     $this->assertSession()->pageTextContains('There are no deleted content items.');
+  }
+
+  /**
+   * Test the restore and purge local tasks of a trashed node.
+   */
+  public function testRestoreAndPurgeLocalTasks(): void {
+    $this->drupalLogin($this->adminUser);
+
+    $node = $this->drupalCreateNode([
+      'title' => $this->randomMachineName(8),
+    ]);
+    $nid = $node->id();
+    $title = $node->getTitle();
+    $tasks = '#block-page-tabs-block';
+
+    // The tasks are not shown for a node which is not in the trash.
+    $this->drupalGet('node/' . $nid);
+    $this->assertSession()->linkByHrefNotExists('/node/' . $nid . '/restore');
+    $this->assertSession()->linkByHrefNotExists('/node/' . $nid . '/purge');
+
+    $node->delete();
+
+    // Both tasks are shown when the node is viewed in the trash context, and
+    // they keep that context.
+    $this->drupalGet('node/' . $nid, ['query' => ['in_trash' => 1]]);
+    $this->assertSession()->elementExists('css', $tasks . ' a[href$="/node/' . $nid . '/restore?in_trash=1"]');
+    $this->assertSession()->elementExists('css', $tasks . ' a[href$="/node/' . $nid . '/purge?in_trash=1"]');
+
+    // Cancelling returns to the node, which is still in the trash.
+    $this->clickLink('Restore');
+    $this->clickLink('Cancel');
+    $this->assertSession()->addressEquals('node/' . $nid . '?in_trash=1');
+
+    // The restore task restores the node and lands on it outside the trash.
+    $this->clickLink('Restore');
+    $this->submitForm([], 'Confirm');
+    $this->assertSession()->addressEquals('node/' . $nid);
+    $this->assertSession()->statusMessageContains('The content item ' . $title . ' has been restored from trash.', 'status');
+    $this->assertSession()->linkByHrefNotExists('/node/' . $nid . '/restore');
+
+    // Trash the node again. The purge task leads to the purge form, which ends
+    // on the trash listing because the node itself is gone.
+    $this->drupalGet('node/' . $nid . '/delete');
+    $this->submitForm([], 'Delete');
+    $this->drupalGet('node/' . $nid, ['query' => ['in_trash' => 1]]);
+    $this->clickLink('Purge');
+    $this->assertSession()->pageTextContains('This action cannot be undone.');
+    $this->submitForm([], 'Confirm');
+    // The listing of the default entity type redirects to the trash overview.
+    $this->assertSession()->addressEquals('admin/content/trash');
+    $this->assertSession()->statusMessageContains('The content item ' . $title . ' has been permanently deleted.', 'status');
+
+    $node = $this->drupalCreateNode([
+      'title' => $this->randomMachineName(8),
+    ]);
+    $nid = $node->id();
+    $title = $node->getTitle();
+    $node->delete();
+
+    // A user who may view deleted entities but not act on them gets no tasks.
+    $this->drupalLogin($this->drupalCreateUser([
+      'access content',
+      'view deleted entities',
+    ]));
+    $this->drupalGet('node/' . $nid, ['query' => ['in_trash' => 1]]);
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->linkByHrefNotExists('/node/' . $nid . '/restore');
+    $this->assertSession()->linkByHrefNotExists('/node/' . $nid . '/purge');
+
+    // The purge permission does not grant access to the trash listing, so this
+    // user lands on the front page instead of a 403.
+    $this->drupalLogin($this->drupalCreateUser([
+      'access content',
+      'view deleted entities',
+      'purge node entities',
+    ]));
+    $this->drupalGet('node/' . $nid, ['query' => ['in_trash' => 1]]);
+    $this->clickLink('Purge');
+    $this->submitForm([], 'Confirm');
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->addressNotEquals('admin/content/trash');
+    $this->assertSession()->statusMessageContains('The content item ' . $title . ' has been permanently deleted.', 'status');
   }
 
   /**

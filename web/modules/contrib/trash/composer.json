@@ -4,13 +4,15 @@
     "type": "drupal-module",
     "license": "GPL-2.0-or-later",
     "suggest": {
-        "drush/drush": "^12 || ^13"
+        "drush/drush": "^13"
     },
     "conflict": {
         "drush/drush": "<12.5.1"
     },
     "require-dev": {
-        "drupal/wse": "*",
-        "drupal/redirect": "*"
+        "drupal/pathauto": "*",
+        "drupal/redirect": "*",
+        "drupal/search_api": "*",
+        "drupal/wse": "*"
     }
 }

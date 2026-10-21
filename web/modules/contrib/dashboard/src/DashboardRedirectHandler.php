@@ -30,8 +30,7 @@ class DashboardRedirectHandler {
     protected RequestStack $requestStack,
     protected EntityTypeManagerInterface $entityTypeManager,
     protected RouteMatchInterface $routeMatch,
-  ) {
-  }
+  ) {}
 
   /**
    * Redirect to the dashboard if there is an applicable dashboard.

@@ -6,12 +6,14 @@ namespace Drupal\Tests\ai_agents\Kernel\Plugin\AiFunctionCall;
 
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\ai\Service\FunctionCalling\ExecutableFunctionCallInterface;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests for the GetFieldValuesAndContextTest class.
  *
  * @group ai_agents
  */
+#[RunTestsInSeparateProcesses]
 final class GetFieldValuesAndContextTest extends KernelTestBase {
 
   /**

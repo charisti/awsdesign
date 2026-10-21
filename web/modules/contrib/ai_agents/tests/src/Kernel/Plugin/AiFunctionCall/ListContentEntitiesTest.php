@@ -6,12 +6,14 @@ namespace Drupal\Tests\ai_agents\Kernel\Plugin\AiFunctionCall;
 
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\ai\Service\FunctionCalling\ExecutableFunctionCallInterface;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests for the ListContentEntitiesTest class.
  *
  * @group ai_agents
  */
+#[RunTestsInSeparateProcesses]
 final class ListContentEntitiesTest extends KernelTestBase {
 
   /**
@@ -64,6 +66,7 @@ final class ListContentEntitiesTest extends KernelTestBase {
     'user',
     'ai',
     'ai_agents',
+    'ai_agents_tools_test',
     'system',
     'field',
     'link',
@@ -155,6 +158,22 @@ final class ListContentEntitiesTest extends KernelTestBase {
       ],
     ])->save();
 
+    // Add a secret field that the test module forbids viewing access to, so
+    // that field level access checks can be exercised.
+    $this->entityTypeManager->getStorage('field_storage_config')->create([
+      'field_name' => 'field_secret',
+      'entity_type' => 'node',
+      'type' => 'string',
+      'cardinality' => 1,
+    ])->save();
+    $this->entityTypeManager->getStorage('field_config')->create([
+      'field_name' => 'field_secret',
+      'entity_type' => 'node',
+      'bundle' => 'article',
+      'label' => 'Secret',
+      'required' => FALSE,
+    ])->save();
+
     // Create an article.
     $article = $this->entityTypeManager->getStorage('node')->create([
       'type' => 'article',
@@ -163,6 +182,7 @@ final class ListContentEntitiesTest extends KernelTestBase {
         'value' => 'This is the body of the test article.',
         'format' => 'basic_html',
       ],
+      'field_secret' => 'This is a secret value.',
       'created' => 1749637078,
     ]);
     $article->save();
@@ -405,6 +425,60 @@ final class ListContentEntitiesTest extends KernelTestBase {
     $this->assertStringContainsString('nid:', $result, 'The result contains the nid of the first article.');
     $this->assertStringNotContainsString('This is the body of the test article.', $result, 'The result does not contain the body of the first article.');
     $this->assertStringNotContainsString('This is the body of the second test article.', $result, 'The result does not contain the body of the second article.');
+  }
+
+  /**
+   * Test that requesting a field without view access throws an exception.
+   */
+  public function testListContentEntitiesFieldAccessDenied(): void {
+    // Set the current user to the admin user, to show that field level access
+    // is enforced even for users that can access the entity itself.
+    $this->currentUser->setAccount($this->adminUser);
+    // Get the entity field config form tool.
+    $tool = $this->functionCallManager->createInstance('ai_agent:list_content_entities');
+    // Make sure it exists and is a ExecutableFunctionCallInterface.
+    $this->assertInstanceOf(ExecutableFunctionCallInterface::class, $tool);
+    // Explicitly ask for the secret field, which has no view access.
+    $tool->setContextValue('entity_type', 'node');
+    $tool->setContextValue('bundle', 'article');
+    $tool->setContextValue('amount', 10);
+    $tool->setContextValue('offset', 0);
+    $tool->setContextValue('fields', ['nid', 'title', 'field_secret']);
+
+    // Should throw an exception as the secret field cannot be viewed.
+    $this->expectException(\Exception::class);
+    $this->expectExceptionMessage('Access denied to field: field_secret');
+    $tool->execute();
+  }
+
+  /**
+   * Test that fields without view access are skipped when fetching all fields.
+   */
+  public function testListContentEntitiesFieldAccessSkipped(): void {
+    // Set the current user to the admin user.
+    $this->currentUser->setAccount($this->adminUser);
+    // Get the entity field config form tool.
+    $tool = $this->functionCallManager->createInstance('ai_agent:list_content_entities');
+    // Make sure it exists and is a ExecutableFunctionCallInterface.
+    $this->assertInstanceOf(ExecutableFunctionCallInterface::class, $tool);
+    // Ask for all fields by leaving the fields empty.
+    $tool->setContextValue('entity_type', 'node');
+    $tool->setContextValue('bundle', 'article');
+    $tool->setContextValue('amount', 10);
+    $tool->setContextValue('offset', 0);
+
+    // Execute the tool.
+    $tool->execute();
+
+    // Get the output.
+    $result = $tool->getReadableOutput();
+    // The accessible fields are returned, but the secret field is silently
+    // skipped instead of throwing an exception.
+    $this->assertIsString($result, 'The result is a string.');
+    $this->assertStringContainsString('Test Article', $result, 'The result contains the first article.');
+    $this->assertStringContainsString('This is the body of the test article.', $result, 'The result contains the body of the first article.');
+    $this->assertStringNotContainsString('field_secret', $result, 'The result does not contain the secret field name.');
+    $this->assertStringNotContainsString('This is a secret value.', $result, 'The result does not contain the secret field value.');
   }
 
 }

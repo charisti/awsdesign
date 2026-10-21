@@ -15,7 +15,8 @@
     "simshaun/recurr": "^5"
   },
   "require-dev": {
-    "drush/drush": "*"
+    "drush/drush": "*",
+    "drupal/token": "*"
   },
   "suggest": {
     "drupal/multiple_fields_remove_button": "Provides a button for editors to remove unwanted rows."

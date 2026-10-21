@@ -12,7 +12,7 @@ props:
       type: ['string', 'null']
       description: Elements title_display setting.
     required:
-      type: ['null', 'boolean']
+      type: ['boolean', 'null']
       description: An indicator for whether the associated form element is required.
     attributes:
       type: Drupal\Core\Template\Attribute

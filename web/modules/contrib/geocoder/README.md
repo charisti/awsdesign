@@ -1,18 +1,17 @@
 # Geocoder 4.x
 
 This is a complete rewrite of the Geocoder module, based on the
-[Geocoder PHP library](http://geocoder-php.org) - [version 4.x](https://github.com/geocoder-php/Geocoder/tree/4.x).
+[Geocoder PHP library](http://geocoder-php.org).
 
-This branch is a parallel copy of the Geocoder 3.x branch requiring the
-php-http/guzzle7-adapter, thus compatible with Guzzle 7 (that is a possible
-dependency since Drupal 9.4 and a requirement for Drupal 10).
-At the moment this branch still have incompatibilities with packages locked to
-php-http/guzzle6-adapter dependency (see issue #3283651).
+This branch is a parallel copy of the Geocoder 3.x branch requiring
+php-http/guzzle7-adapter compatibility.
 
-### How to seamlessly upgrade to Drupal 10 & Geocoder 4.x ... ###
+### **Note:** How to seamlessly upgrade to the latest Geocoder 4.x.
+At the moment this branch still has incompatibilities with packages locked to
+php-http/guzzle6-adapter dependency (see [issue comment #3283651-50](https://www.drupal.org/project/geocoder/issues/3283651#comment-15050664)).
 
-When preparing for an upgrade to Drupal 10 we recommend that you widen
-your composer version constraints to allow either 3.x or 4.x.
+When preparing for an upgrade we recommend that you widen your composer version
+constraints to allow either 3.x or 4.x.
 Edit composer.json the following way:
 
 ```
@@ -24,467 +23,512 @@ Edit composer.json the following way:
 ```
 
 # Features
-* Solid API based on [Geocoder PHP library](http://geocoder-php.org);
+
+* Solid API based on the [Geocoder PHP library](http://geocoder-php.org);
 * Geocode and Reverse Geocode using one or multiple Geocoder providers
   (ArcGISOnline, BingMaps, File, GoogleMaps, MapQuest, Nominatim,
-  OpeneStreetMap, etc);
-* Results can be dumped into multiple formats such as WKT, GeoJson, etc
-  ...</li>
+  OpenStreetMap, etc.);
+* Results can be dumped into multiple formats such as WKT, GeoJson, KML,
+  GPX, WKB, and AddressText;
 * The Geocoder Provider and Dumper plugins are extendable through a custom
-  module;</li>
-* Submodule Geocoder Field provides Drupal fields widgets and formatters, with
-  even more options;</li>
+  module;
+* Submodule Geocoder Field provides Drupal field widgets and formatters, with
+  even more options;
 * [Geofield](https://www.drupal.org/project/geofield) and
-  [Address](https://www.drupal.org/project/address) fields integration;
+  [Address](https://www.drupal.org/project/address) field integration;
 * Caching results capabilities, enabled by default;
+* Rate limiting per provider via a LeakyBucket algorithm;
+
+# Architecture
+
+## Plugin System
+
+Three plugin types drive the module:
+
+* **Providers** (`src/Plugin/Geocoder/Provider/`): 35+ geocoding services
+  (GoogleMaps, Nominatim, BingMaps, etc.). Base class hierarchy:
+  `ProviderBase` → `ProviderUsingHandlerBase` →
+  `ProviderUsingHandlerWithAdapterBase` →
+  `ConfigurableProviderUsingHandlerWithAdapterBase`.
+  Use the deepest base that fits the provider's needs.
+
+* **Dumpers** (`src/Plugin/Geocoder/Dumper/`): Convert `Location` objects to
+  output formats (GeoJson, Wkt, Kml, Gpx, Wkb, AddressText). Managed by
+  `DumperPluginManager`.
+
+* **Formatters** (`src/Plugin/Geocoder/Formatter/`): Address string formatters.
+  Managed by `FormatterPluginManager`.
+
+## Config Entity
+
+`GeocoderProvider` (`src/Entity/GeocoderProvider.php`) stores a provider plugin
+ID and its configuration (API keys, etc.) as a Drupal config entity. Providers
+must be created in the UI at `/admin/config/system/geocoder/geocoder-provider`
+before they can be used programmatically.
+
+## Main Service
+
+`Geocoder` (`src/Geocoder.php`) — injected as `geocoder`. Two primary methods:
+
+```php
+geocode(string $address, array $providers, ?string $dumper = NULL): ?AddressCollection
+reverse(string $latitude, string $longitude, array $providers, ?string $dumper = NULL): ?AddressCollection
+```
+
+Pass loaded `GeocoderProvider` entities as `$providers`. Caching and throttling
+are handled internally.
+
+## Rate Limiting
+
+`GeocoderThrottle` (`src/GeocoderThrottle.php`) uses a LeakyBucket algorithm
+(`davedevelopment/stiphle`) to throttle requests per provider.
 
 # Requirements
-* [Composer](https://getcomposer.org/), to add the module to your codebase (for
-  more info refer to [Using Composer to manage Drupal site
-  dependencies](https://www.drupal.org/node/2718229);
+
+* [Composer](https://getcomposer.org/), to add the module to your codebase
+  (refer to [Using Composer to manage Drupal site dependencies](https://www.drupal.org/node/2718229));
 * [Drush](http://drush.org), to enable the module (and its dependencies) from
   the shell;
-* The external [Geocoder Provider(s)](https://packagist.org/providers/geocoder-php/provider-implementation)
-  that should enabled and used in the module.
-  Dependant [willdurand/geocoder](https://packagist.org/packages/willdurand/geocoder)
-  and (specific provider) additional / required libraries will be downloaded
-  automatically via composer.
-* The embedded "Geocoder Geofield" submodule requires the [Geofield
-  Module](https://www.drupal.org/project/geofield);
-* The embedded "Geocoder Address" submodule requires the [Address
-  Module](https://www.drupal.org/project/address);
+* One or more [Geocoder Provider packages](https://packagist.org/providers/geocoder-php/provider-implementation)
+  installed via Composer. The dependent
+  [willdurand/geocoder](https://packagist.org/packages/willdurand/geocoder)
+  and any provider-specific libraries are downloaded automatically;
+* The embedded **Geocoder Geofield** submodule requires the
+  [Geofield module](https://www.drupal.org/project/geofield);
+* The embedded **Geocoder Address** submodule requires the
+  [Address module](https://www.drupal.org/project/address);
 
-# Installation and setup
+# Installation and Setup
+
 * Download the module running the following shell command from your project root
   (at the composer.json file level):
 
-  ```$ composer require drupal/geocoder:^4.0```
+  ```bash
+  composer require drupal/geocoder:^4.0
+  ```
 
 * Choose the [Geocoder Provider](https://github.com/geocoder-php/Geocoder#address)
-you want to use and also add it as a required dependency to your project. For
-example if you want to use Nominatim (used by OpenStreetMap) as your provider:
+  you want to use and also add it as a required dependency to your project. For
+  example if you want to use Nominatim (used by OpenStreetMap) as your provider:
 
-  ```$ composer require geocoder-php/nominatim-provider```
+  ```bash
+  composer require geocoder-php/nominatim-provider
+  ```
 
-* Enable the module via [Drush](http://drush.org)
+* Enable the module via [Drush](http://drush.org):
 
-  ```$ drush en geocoder```
+  ```bash
+  drush en geocoder
+  ```
 
-  or the website back-end/administration interface;
-* Eventually enable the submodules: ```geocoder_field``` and
-  ```geocoder_geofield``` / ```geocoder_address```.
+  or the website back-end/administration interface.
+
+* Optionally enable submodules: `geocoder_field` and
+  `geocoder_geofield` / `geocoder_address`.
+
 * Create and configure one or more providers at Configuration > System >
   Geocoder > Providers:
   `admin/config/system/geocoder/geocoder-provider`.
+
 * Configure caching options at Configuration > System > Geocoder:
   `admin/config/system/geocoder`.
 
-* ### Support for [COI (Config Override Inspector) module](https://www.drupal.org/project/coi)
-  It is hard to confirm that the content overrides
-  are being applied correctly in productions. Also api keys are visible when
-  they are being overridden in the production environment.
-  The Geocoder module supports the use of the COI module to more easily see what
-  has been overridden and also hide overridden apiKeys.
+### Support for [COI (Config Override Inspector) module](https://www.drupal.org/project/coi)
+
+It is hard to confirm that configuration overrides are being applied correctly
+in production. Also, API keys are visible when they are being overridden in the
+production environment. The Geocoder module supports the COI module to more
+easily see what has been overridden and to hide overridden API keys.
+
+# Hooks (Extension Points)
+
+Documented in `geocoder.api.php`.
 
 # Submodules
-The geocoder submodules are needed to set-up and implement Geocode and Reverse
-Geocode functionalities on Entity fields from the Drupal backend:
-* The **geocoder_field** module adds the ability to setup Geocode operations
-  on entity insert & edit operations among specific fields types so as field
-  Geo formatters, using all the available Geocoder Provider Plugins and Output
-  Geo Formats (via Dumpers). It also enables the File provider/formatter
-  functionalities for Geocoding valid Exif Geo data present into JPG images;
-  functionalities for Geocoding valid Exif Geo data present into JPG images;
 
-* The **geocoder_geofield** module provides integration with Geofield
-  (module/field type) and the ability to both use it as target of Geocode or
-  source of Reverse Geocode with the other fields. It also enables the
-  provider/formatter functionalities for Geocoding valid GPX, KML and GeoJson
-  data present into files contents;
+The Geocoder submodules are needed to set up and implement Geocode and Reverse
+Geocode functionalities on entity fields from the Drupal backend.
 
-* The **geocoder_address** module provides integration with Address
-  (module/field type) and the ability to both use it as target of Reverse
-  Geocode from a Geofield (module/field type or source of Geocode with the other
-  fields;
+## geocoder_field
 
-From the Geocoder configuration page it is possible to setup custom plugins
-options.
+Adds the ability to set up Geocode operations on entity insert and edit
+operations among specific field types, as well as field Geo formatters, using
+all available Geocoder Provider Plugins and output Geo formats (via Dumpers).
+It also enables the File provider/formatter functionalities for geocoding valid
+Exif Geo data present in JPG images. Uses a `QueueWorker` for async batch
+processing.
 
-Throughout geocoder submodules **the following fields types are supported**
+Check the `geocoder_presave_disabled` global setting and per-field widget
+configuration to control when geocoding runs on save.
 
-###### for Geocode operations:
+## geocoder_geofield
 
- * "text",
- * "text_long",
- * "text_with_summary",
- * "string",
- * "string_long",
- * "file" (with "geocoder_field" module enabled),
- * "image" (with "geocoder_field" module enabled),
- * "computed_string" (with "computed_field" module enabled);
- * "computed_string_long" (with "computed_field" module enabled);
- * "address" (with "address" module and "geocoder_address" sub-module enabled);
- * "address_country" (with "address" module and "geocoder_address" sub-module
-    enabled);
+Provides integration with [Geofield](https://www.drupal.org/project/geofield)
+(module/field type) and the ability to both use it as a target of Geocode or
+source of Reverse Geocode with other fields. It also enables provider/formatter
+functionalities for geocoding valid GPX, KML, and GeoJSON file contents.
 
-###### for Reverse Geocode operations:
+## geocoder_address
 
- * "geofield" (with "geofield" module and "geocoder_geofield" sub-module
-    enabled);
+Provides integration with [Address](https://www.drupal.org/project/address)
+(module/field type) and the ability to both use it as a target of Reverse
+Geocode from a Geofield or as a source of Geocode with other fields.
 
-**Note:** Geocoder Field sub-module provides hooks to alter (change and extend)
-          the list of Geocoding and Reverse Geocoding fields types
-(@see geocoder_field.api)
+---
 
-####Using Geocoder operations behind Proxy
+Throughout Geocoder submodules **the following field types are supported**:
 
-"geocoder.http_adapter" service is based on Guzzle implementation,
-that is using settings array namespaced under $settings['http_client_config'].
-Geocoding behind a proxy will be correctly set by (@see default.settings.php):
+###### For Geocode operations:
 
-$settings['http_client_config']['proxy'];
+* `text`, `text_long`, `text_with_summary`
+* `string`, `string_long`
+* `file` (with `geocoder_field` module enabled)
+* `image` (with `geocoder_field` module enabled)
+* `computed_string`, `computed_string_long` (with `computed_field` module enabled)
+* `address` (with `address` module and `geocoder_address` sub-module enabled)
+* `address_country` (with `address` module and `geocoder_address` sub-module enabled)
+
+###### For Reverse Geocode operations:
+
+* `geofield` (with `geofield` module and `geocoder_geofield` sub-module enabled)
+
+**Note:** The Geocoder Field sub-module provides hooks to alter (change and
+extend) the list of Geocoding and Reverse Geocoding field types
+(see `geocoder_field.api.php`).
+
+## Using Geocoder Behind a Proxy
+
+`geocoder.http_adapter` service respects
+`$settings['http_client_config']['proxy']` as defined in `default.settings.php`.
+
+# Adding a New Provider Plugin
+
+1. Add the provider package:
+   ```bash
+   composer require geocoder-php/<name>-provider
+   ```
+2. Create `src/Plugin/Geocoder/Provider/MyProvider.php` extending the
+   appropriate base class.
+3. Use the `#[GeocoderProvider]` attribute (or `@GeocoderProvider` annotation)
+   for plugin discovery.
+4. If the provider needs configuration (API key, locale, etc.) implement
+   `buildConfigurationForm()` and `defaultConfiguration()`.
 
 # API
 
-## Get a list of available Provider plugins
+## Get a List of Available Provider Plugins
 
-This is the list of plugins that has been installed using Composer and are
+This is the list of plugins that have been installed using Composer and are
 available to configure in the UI.
 
 ```php
 \Drupal::service('plugin.manager.geocoder.provider')->getDefinitions();
 ```
 
-## Get a list of available Dumper plugins
+## Get a List of Available Dumper Plugins
 
 ```php
 \Drupal::service('plugin.manager.geocoder.dumper')->getDefinitions();
 ```
 
-## Get a list of Providers that are created in the UI.
+## Get a List of Providers Created in the UI
 
 ```php
 \Drupal::entityTypeManager()->getStorage('geocoder_provider')->loadMultiple();
 ```
 
-## Geocode a string
+## Geocode a String
 
 ```php
 // A list of machine names of providers that are created in the UI.
 $provider_ids = ['geonames', 'googlemaps', 'bingmaps'];
 $address = '1600 Amphitheatre Parkway Mountain View, CA 94043';
 
-$providers = \Drupal::entityTypeManager()->getStorage('geocoder_provider')->loadMultiple($provider_ids);
+$providers = \Drupal::entityTypeManager()
+  ->getStorage('geocoder_provider')
+  ->loadMultiple($provider_ids);
 
 $addressCollection = \Drupal::service('geocoder')
-->geocode($address, $providers);
+  ->geocode($address, $providers);
 ```
 
-####Note
-
-## Reverse geocode coordinates
+## Reverse Geocode Coordinates
 
 ```php
 $provider_ids = ['freegeoip', 'geonames', 'googlemaps', 'bingmaps'];
 $lat = '37.422782';
 $lon = '-122.085099';
 
-$providers = \Drupal::entityTypeManager()->getStorage('geocoder_provider')->loadMultiple($provider_ids);
+$providers = \Drupal::entityTypeManager()
+  ->getStorage('geocoder_provider')
+  ->loadMultiple($provider_ids);
 
 $addressCollection = \Drupal::service('geocoder')
-->reverse($lat, $lon, $providers);
+  ->reverse($lat, $lon, $providers);
 ```
 
-## Return format
+## Return Format
 
-Both ```Geocoder::geocode()``` and ```Geocoder::reverse()```
-return the same object: ```Geocoder\Model\AddressCollection```,
-which is itself composed of ```Geocoder\Model\Address```.
+Both `Geocoder::geocode()` and `Geocoder::reverse()` return the same object:
+`Geocoder\Model\AddressCollection`, which is itself composed of
+`Geocoder\Model\Address`.
 
-You can transform those objects into arrays. Example:
+You can transform those objects into arrays:
 
 ```php
 $provider_ids = ['geonames', 'googlemaps', 'bingmaps'];
 $address = '1600 Amphitheatre Parkway Mountain View, CA 94043';
 
-$providers = \Drupal::entityTypeManager()->getStorage('geocoder_provider')->loadMultiple($provider_ids);
+$providers = \Drupal::entityTypeManager()
+  ->getStorage('geocoder_provider')
+  ->loadMultiple($provider_ids);
 
 $addressCollection = \Drupal::service('geocoder')
-->geocode($address, $providers);
+  ->geocode($address, $providers);
 $address_array = $addressCollection->first()->toArray();
 
-// You can play a bit more with the API
-
-$addressCollection = \Drupal::service('geocoder')
-->geocode($address, $providers);
-$latitude = $addressCollection->first()->getCoordinates()->getLatitude();
+// You can also get individual coordinate values:
+$latitude  = $addressCollection->first()->getCoordinates()->getLatitude();
 $longitude = $addressCollection->first()->getCoordinates()->getLongitude();
 ```
 
-You can also convert these to different formats using the Dumper plugins.
-Get the list of available Dumper by doing:
+You can also convert results to different formats using the Dumper plugins.
+Get the list of available Dumpers:
 
 ```php
 \Drupal::service('plugin.manager.geocoder.dumper')->getDefinitions();
 ```
 
-Here's an example on how to use a Dumper:
+Here's an example of how to use a Dumper:
 
 ```php
-$provider_ids = ['geonames', 'googlemaps', 'bingmaps'];
-$address = '1600 Amphitheatre Parkway Mountain View, CA 94043';
-
-$providers = \Drupal::entityTypeManager()->getStorage('geocoder_provider')->loadMultiple($provider_ids);
-
 $addressCollection = \Drupal::service('geocoder')
-->geocode($address, $providers);
-$geojson = \Drupal::service('plugin.manager.geocoder.dumper')->createInstance('geojson')->dump($addressCollection->first());
+  ->geocode($address, $providers);
+$geojson = \Drupal::service('plugin.manager.geocoder.dumper')
+  ->createInstance('geojson')
+  ->dump($addressCollection->first());
 ```
 
-There's also a dumper for GeoPHP, here's how to use it:
+There's also a dumper for GeoPHP:
 
 ```php
-$provider_ids = ['geonames', 'googlemaps', 'bingmaps'];
-$address = '1600 Amphitheatre Parkway Mountain View, CA 94043';
-
-$providers = \Drupal::entityTypeManager()->getStorage('geocoder_provider')->loadMultiple($provider_ids);
-
 $addressCollection = \Drupal::service('geocoder')
-->geocode($address, $providers);
-$geometry = \Drupal::service('plugin.manager.geocoder.dumper')->createInstance('geometry')->dump($addressCollection->first());
+  ->geocode($address, $providers);
+$geometry = \Drupal::service('plugin.manager.geocoder.dumper')
+  ->createInstance('geometry')
+  ->dump($addressCollection->first());
 ```
-##Geocoder API Url Endpoints
 
-The Geocoder module provides the following API Url endpoints (with Json output),
-to consume for performing Geocode and Reverse Geocode operations respectively.
+# Geocoder API URL Endpoints
 
-- #### Geocode
-  This endpoint allows to process a Geocode operation
-  (get Geo Coordinates from Addresses) on the basis of an input Address,
-  the operational Geocoders and an (optional) output Format (Dumper).
+The Geocoder module provides the following API URL endpoints (with JSON output)
+for performing Geocode and Reverse Geocode operations.
 
-  Path: **'/geocoder/api/geocode'**
-  Method: **GET**
-  Access Permission: **'access geocoder api endpoints'**
-  Successful Response Body Format: **json**
+## Geocode
 
-  #####Query Parameters:
+This endpoint allows processing a Geocode operation (get Geo Coordinates from
+Addresses) on the basis of an input Address, the operational Geocoders, and an
+optional output Format (Dumper).
 
-  - **address** (required): The Address string to geocode (the more detailed
-  and extended the better possible results.
+Path: **`/geocoder/api/geocode`**
+Method: **GET**
+Access Permission: **`access geocoder api endpoints`**
+Successful Response Body Format: **json**
 
-  - **geocoder** (required): The Geocoder id, or a list of geocoders id
-  separated by a comma (,) that should process the request (in order of
-  priority). At least one should be provided. Each id should correspond with a
-  valid @GeocoderProvider plugin id.
+##### Query Parameters:
 
-    Note: (if not differently specified in the "options") the Geocoder
-    configurations ('/admin/config/system/geocoder') will be used for each
-    Geocoder geocoding/reverse geocoding.
+* **address** (required): The address string to geocode (the more detailed and
+  extended, the better the possible results).
 
-  - **format** (optional): The geocoding output format id for each result.
-  It should be a single value, corresponding to one of the Dumper
-  (@GeocoderDumper) plugin id defined in the Geocoder module. Default value (or
-  fallback in case of not existing id): the output format of the specific
-  @GeocoderProvider able to process the Geocode operation.
+* **geocoder** (required): The Geocoder ID, or a list of Geocoder IDs separated
+  by a comma (,) that should process the request (in order of priority). At
+  least one must be provided. Each ID must correspond to a valid
+  `GeocoderProvider` config entity.
 
-  - **address_format** (optional): The specific geocoder address formatter
-  plugin (@GeocoderFormatter) that should be used to output the
-  "formatted_address" property (present when no specific output
-  format/@GeocoderDumper is requested). This fallback to default (bundled))
-  "default_formatted_address" @GeocoderFormatter
+  Note: unless differently specified in `options`, the Geocoder configurations
+  at `/admin/config/system/geocoder` will be used for each Geocoder.
 
-  - **options** (optional): Possible overriding plugins options written
-  in the form of multi-dimensional arrays query-string (such as a[b][c]=d).
-  For instance to override the google maps locale parameter (into italian):
+* **format** (optional): The geocoding output format ID for each result. Must be
+  a single value corresponding to one of the Dumper (`@GeocoderDumper`) plugin
+  IDs defined in the Geocoder module. Default (or fallback): the native output
+  format of the specific `@GeocoderProvider` processing the operation.
 
-  ````options[googlemaps][locale]=it````
+* **address_format** (optional): The specific Geocoder address formatter plugin
+  (`@GeocoderFormatter`) used to output the `formatted_address` property (present
+  when no specific output format/Dumper is requested). Falls back to the bundled
+  `default_formatted_address` formatter.
 
-- #### Reverse Geocode
-  This endpoint allows to process a Reverse Geocode operation (get an Address
-  from Geo Coordinates) on the basis of an input string of Latitude and
-  Longitude
-  coordinates, the operational Geocoder Providers and an (optional) output
-  Format (Dumper).
+* **options** (optional): Override plugin options written as multi-dimensional
+  array query strings (e.g. `a[b][c]=d`). For instance, to override the Google
+  Maps locale to Italian: `options[googlemaps][locale]=it`
 
-  Path: **'/geocoder/api/reverse_geocode'**
-  Method: **GET**
-  Access Permission: **'access geocoder api endpoints'**
-  Successful Response Body Format: **json**
+## Reverse Geocode
 
-  #####Query Parameters:
+This endpoint allows processing a Reverse Geocode operation (get an Address from
+Geo Coordinates) on the basis of input Latitude/Longitude coordinates, the
+operational Geocoder Providers, and an optional output Format (Dumper).
 
-  - **latlon** (required): The latitude and longitude values, in decimal
-  degrees, as string couple separated by a comma (,) specifying the location for
-  which you wish to obtain the closest, human-readable address.
+Path: **`/geocoder/api/reverse_geocode`**
+Method: **GET**
+Access Permission: **`access geocoder api endpoints`**
+Successful Response Body Format: **json**
 
-  - **plugins** (required): *@see the Geocode endpoint parameters description*
+##### Query Parameters:
 
-  - **format** (optional): *@see the Geocode endpoint parameters description*
+* **latlon** (required): The latitude and longitude values in decimal degrees,
+  as a comma-separated string (e.g. `45.4654,9.1859`) specifying the location
+  for which you wish to obtain the closest human-readable address.
 
-  - **options** (optional): *@see the Geocode endpoint parameters
-  description*
+* **geocoder** (required): See the Geocode endpoint parameters.
 
-#### Successful and Unsuccessful Responses
+* **format** (optional): See the Geocode endpoint parameters.
 
-If the Geocode or Reverse Geocode operation is successful each Response result
-is a Json format output (array list of Json objects), with a 200 ("OK")
-response status code.
-Each result format will comply with the chosen output format (dumper).
-It will be possible to retrieve the PHP results array with the Response
-getContent() method:
+* **options** (optional): See the Geocode endpoint parameters.
 
-````
+## Successful and Unsuccessful Responses
+
+If the Geocode or Reverse Geocode operation is successful, each response result
+is a JSON format output (array list of JSON objects) with a 200 ("OK") response
+status code. Each result format complies with the chosen output format (Dumper).
+Retrieve the PHP results array with:
+
+```php
 $response_array = JSON::decode($this->response->getContent());
 $first_result = $response_array[0];
-````
+```
 
-If something goes wrong in the Geocode or Reverse Geocode operations
-(no Geocoder provided, bad Geocoder configuration, etc.)
-the Response result output is empty, with a 204 ("No content") response
-status code. See the Drupal logs for information regarding possible Geocoder
-wrong configurations causes.
+If something goes wrong (no Geocoder provided, bad Geocoder configuration, etc.)
+the response body is empty with a 204 ("No content") status code. See the Drupal
+logs for information about possible causes.
 
-## Persistent cache for geocoded points
-Ref: Geocoder issue:
-[#2994249](https://www.drupal.org/project/geocoder/issues/2994249)
-It is possible to persist the geocode cache when drupal caches are cleared,
-enabling support and configuration for the
-.
-- install [Permanent Cache Bin module](https://www.drupal.org/project/pcb)
-- in your *settings.php add:
-  `$settings['cache']['bins']['geocoder'] = 'cache.backend.permanent_database'`
+# Persistent Cache for Geocoded Points
 
-# Upgrading from Geocoder 2.x to 3.x (and above))
+Ref: Geocoder issue [#2994249](https://www.drupal.org/project/geocoder/issues/2994249)
 
-## Site builders
+It is possible to persist the geocode cache when Drupal caches are cleared:
 
-1. When upgrading to the new Geocoder 8.x-3.x branch you would
-   need to remove the Geocoder 8.x-2.x branch before
-   (`composer remove drupal/geocoder`), and make sure also its
-   dependency willdurand/geocoder": "^3.0" library is removed.
-   (eventually run also: `composer remove willdurand/geocoder`);
+* Install the [Permanent Cache Bin module](https://www.drupal.org/project/pcb)
+* In your `settings.php` add:
+  ```php
+  $settings['cache']['bins']['geocoder'] = 'cache.backend.permanent_database';
+  ```
 
-2. Require the new default Geocoder 4.x version:
+# Upgrading from Geocoder 2.x to 3.x (and above)
+
+## Site Builders
+
+1. When upgrading to the Geocoder 8.x-3.x branch, remove the Geocoder 8.x-2.x
+   branch first (`composer remove drupal/geocoder`), and make sure its
+   dependency `willdurand/geocoder` is also removed
+   (run also: `composer remove willdurand/geocoder`).
+
+2. Require the new Geocoder 4.x version:
    `composer require 'drupal/geocoder:^4.0'`
-   (this will also install the dependency willdurand/geocoder
-   in its "^4.0" version)
+   (this will also install the `willdurand/geocoder` dependency).
 
 3. Choose the [Geocoder Provider](https://packagist.org/providers/geocoder-php/provider-implementation)
-   you want to use and also add it as a required dependency to your project.
-   For example if you want to use Google Maps as your provider:
+   you want to use and add it as a required dependency to your project.
+   For example, to use Google Maps as your provider:
    `composer require geocoder-php/google-maps-provider`
 
-   It will be added as geocoder provider option choice in the "add provider"
-   select of the Geocoder module Providers settings page
-   ('/admin/config/system/geocoder/geocoder-provider').
+   It will be added as a Geocoder provider option in the "add provider" selector
+   at `/admin/config/system/geocoder/geocoder-provider`.
 
-4. Run the database updates, either by visiting `update.php` or running the
-   `drush updb` command.
+4. Run the database updates, either by visiting `update.php` or running:
+   `drush updb`
 
-5. Check the existing Geocoder provider settings or add new ones from the
-   Geocoder module Providers settings page
-   ('/admin/config/system/geocoder/geocoder-provider')
+5. Check the existing Geocoder provider settings or add new ones at
+   `/admin/config/system/geocoder/geocoder-provider`.
 
-6. Set back (update) the Geocoding & Reverse Geocoding settings for each field
-   you previously applied them, as they would have been lost in
-   (won't work since) the upgrade.
+6. Re-apply the Geocoding and Reverse Geocoding settings for each field you
+   previously configured, as they will have been lost during the upgrade.
 
 ## Developers
 
-Since Geocoder 3.x version the Geocoder providers are config entities,
-whereas in earlier versions the provider settings were stored in simple
-configuration. An upgrade path is provided but any code that
-was relying on the old simple config will need to be updated to use the config
-entities instead. Take a look at the `GeocoderProvider` entity type for more
-information.
+Since Geocoder 3.x, Geocoder providers are config entities, whereas in earlier
+versions the provider settings were stored in simple configuration. An upgrade
+path is provided, but any code relying on the old simple config must be updated
+to use the `GeocoderProvider` config entity. See `src/Entity/GeocoderProvider.php`.
 
-### Removed methods
-#### GeocodeFormatterBase::getEnabledProviderPlugins()
+### Removed Methods
+
+#### `GeocodeFormatterBase::getEnabledProviderPlugins()`
 
 The method
 `\Drupal\geocoder_field\Plugin\Field\GeocodeFormatterBase::getEnabledProviderPlugins()`
-used to return an array of provider configuration as flat properties. It has
-been replaced by
+returned an array of provider configuration as flat properties. It has been
+replaced by
 `\Drupal\geocoder_field\Plugin\Field\GeocodeFormatterBase::getEnabledGeocoderProviders()`
 which returns an array of `GeocoderProvider` entities.
 
-### Signature changes
-#### Geocoder::geocode()
+### Signature Changes
+
+#### `Geocoder::geocode()`
 
 The method `\Drupal\geocoder\Geocoder::geocode()` used to take a string of data
-to geocode as well as a list of provider plugins as an array and an optional
-array of configuration overrides.
+to geocode, a list of provider plugins as an array, and an optional array of
+configuration overrides.
 
-The old signature:
-
-```
+Old signature:
+```php
 public function geocode($data, array $plugins, array $options = []);
 ```
 
-Since the configuration is now stored in config entities this method now takes
-an array of GeocoderProvider entities. The optional array of overrides has been
-dropped since it is already possible to override the configuration using the
-regular entity hooks offered by Drupal core.
+Since configuration is now stored in config entities, this method takes an array
+of `GeocoderProvider` entities. The optional overrides array has been dropped.
 
-The new signature:
-
-```
+New signature:
+```php
 public function geocode(string $data, array $providers): ?AddressCollection;
 ```
 
-#### Geocoder::reverse()
+#### `Geocoder::reverse()`
 
-The method `\Drupal\geocoder\Geocoder::geocode()` used to take the latitude and
-longitude as string values, as well as a list of provider plugins as an array
-and an optional array of configuration overrides.
-
-The old signature:
-
-```
-public function reverse($latitude, $longitude,
-array $plugins,
-array $options = []
-);
+Old signature:
+```php
+public function reverse($latitude, $longitude, array $plugins, array $options = []);
 ```
 
-Since the configuration is now stored in config entities this method now takes
-an array of GeocoderProvider entities. The optional array of overrides has been
-dropped since it is already possible to override the configuration using the
-regular entity hooks offered by Drupal core.
-
-The new signature:
-
-```
-public function reverse(string $latitude,
-string $longitude,
-array $providers): ?AddressCollection;
+New signature:
+```php
+public function reverse(string $latitude, string $longitude, array $providers): ?AddressCollection;
 ```
 
-### Functional changes
-#### ProviderPluginManager::getPlugins()
+### Functional Changes
 
-In Geocoder 2.x `\Drupal\geocoder\ProviderPluginManager::getPlugins()` was the
-main way of retrieving the provider plugins. It was returning the plugin
-definitions with the provider configuration mixed into it.
+#### `ProviderPluginManager::getPlugins()`
 
-Since Geocdoer 3.x this data model has been replaced by the new
-`GeocoderProvider` config entity. Now this method returns the list of
-plugin definitions, making it the same result as
-calling ProviderPluginManager::getDefinitions().
+In Geocoder 2.x, `\Drupal\geocoder\ProviderPluginManager::getPlugins()` was the
+main way of retrieving provider plugins, returning plugin definitions mixed with
+provider configuration.
 
-It is recommended to no longer use this method but instead use one of these
-two alternatives:
+Since Geocoder 3.x this has been replaced by the `GeocoderProvider` config
+entity. The method now returns only plugin definitions, equivalent to calling
+`ProviderPluginManager::getDefinitions()`. Use one of these alternatives instead:
 
-In order to get a list of all available plugin definitions:
-
-```
+To get all available plugin definitions:
+```php
 $definitions = \Drupal\geocoder\ProviderPluginManager::getDefinitions();
 ```
 
-In order to get a list of all geocoding providers that are configured by
-the site builder:
-
-```
+To get all geocoding providers configured by the site builder:
+```php
 $providers = \Drupal\geocoder\Entity\GeocoderProvider::loadMultiple();
 ```
+
+# Authors / Maintainers
+
+From Drupal 8 to today:
+- **Italo Mairo** — [itamair](https://www.drupal.org/u/itamair) — main maintainer
+- **Claudiu Cristea** — [claudiu.cristea](hhttps://www.drupal.org/u/claudiucristea)
+- **Pol Dellaiera** — [pol](https://www.drupal.org/u/pol)
+
+Drupal 7:
+- **Michael Favia** - [michaelfavia](https://www.drupal.org/u/michaelfavia) - original creator
+- **Patrick Hayes** - [phayes](https://www.drupal.org/u/phayes)
+- **Juraj Nemec** - [poker10](https://www.drupal.org/u/poker10)
+- **Brandon Morrison** - [brandonian](https://www.drupal.org/u/brandonian)
+- **Simon Georges** - [simon georges](https://www.drupal.org/u/simon-georges)
+
+And credits to the wider Drupal community
+

@@ -6,12 +6,14 @@ namespace Drupal\Tests\ai_agents\Kernel\Plugin\AiFunctionCall;
 
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\ai\Service\FunctionCalling\ExecutableFunctionCallInterface;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests for the GetCurrentContentEntityValuesTest class.
  *
  * @group ai_agents
  */
+#[RunTestsInSeparateProcesses]
 final class GetCurrentContentEntityValuesTest extends KernelTestBase {
 
   /**
@@ -80,7 +82,18 @@ final class GetCurrentContentEntityValuesTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected static $modules = ['node', 'user', 'ai', 'ai_agents', 'system', 'field', 'field_ui', 'text', 'options'];
+  protected static $modules = [
+    'node',
+    'user',
+    'ai',
+    'ai_agents',
+    'ai_agents_tools_test',
+    'system',
+    'field',
+    'field_ui',
+    'text',
+    'options',
+  ];
 
   /**
    * {@inheritdoc}
@@ -163,6 +176,22 @@ final class GetCurrentContentEntityValuesTest extends KernelTestBase {
       ],
     ])->save();
 
+    // Add a secret field that the test module forbids viewing access to, so
+    // that field level access checks can be exercised.
+    $field_storage->create([
+      'field_name' => 'field_secret',
+      'entity_type' => 'node',
+      'type' => 'string',
+      'cardinality' => 1,
+    ])->save();
+    $field_instance->create([
+      'field_name' => 'field_secret',
+      'entity_type' => 'node',
+      'bundle' => 'article',
+      'label' => 'Secret',
+      'required' => FALSE,
+    ])->save();
+
     // Create two articles to ensure there are content entities to work with.
     $node_storage = $this->entityTypeManager->getStorage('node');
     $node = $node_storage->create([
@@ -172,6 +201,7 @@ final class GetCurrentContentEntityValuesTest extends KernelTestBase {
         'value' => 'This is the body of test article 1.',
         'format' => 'basic_html',
       ],
+      'field_secret' => 'This is a secret value.',
       'status' => 1,
     ]);
     $node->save();
@@ -402,6 +432,58 @@ final class GetCurrentContentEntityValuesTest extends KernelTestBase {
     $this->assertStringContainsString('body', $result);
     $this->assertStringContainsString('nid', $result);
     $this->assertStringContainsString((string) $this->unpublishedArticle, $result);
+  }
+
+  /**
+   * Test that requesting a field without view access throws an exception.
+   */
+  public function testGetContentTypeInfoFieldAccessDenied(): void {
+    // Set the current user to the admin user, to show that field level access
+    // is enforced even for users that can access the entity itself.
+    $this->currentUser->setAccount($this->adminUser);
+
+    // Get the function call plugin.
+    $function_call = $this->functionCallManager->createInstance('ai_agent:get_current_content_entity_values');
+    $this->assertInstanceOf(ExecutableFunctionCallInterface::class, $function_call);
+
+    // Explicitly ask for the secret field, which has no view access.
+    $function_call->setContextValue('entity_type', 'node');
+    $function_call->setContextValue('entity_id', $this->articleOne);
+    $function_call->setContextValue('field_names', ['nid', 'title', 'field_secret']);
+
+    // Should throw an exception as the secret field cannot be viewed.
+    $this->expectException(\Exception::class);
+    $this->expectExceptionMessage('Access denied to field: field_secret');
+    $function_call->execute();
+  }
+
+  /**
+   * Test that fields without view access are skipped when fetching all fields.
+   */
+  public function testGetContentTypeInfoFieldAccessSkipped(): void {
+    // Set the current user to the admin user.
+    $this->currentUser->setAccount($this->adminUser);
+
+    // Get the function call plugin.
+    $function_call = $this->functionCallManager->createInstance('ai_agent:get_current_content_entity_values');
+    $this->assertInstanceOf(ExecutableFunctionCallInterface::class, $function_call);
+
+    // Ask for all fields by leaving the field names empty.
+    $function_call->setContextValue('entity_type', 'node');
+    $function_call->setContextValue('entity_id', $this->articleOne);
+    $function_call->setContextValue('field_names', []);
+
+    // Execute the function call with the 'article' content type.
+    $function_call->execute();
+    $result = $function_call->getReadableOutput();
+
+    // The accessible fields are returned, but the secret field is silently
+    // skipped instead of throwing an exception.
+    $this->assertIsString($result);
+    $this->assertStringContainsString('Test Article 1', $result);
+    $this->assertStringContainsString('This is the body of test article 1.', $result);
+    $this->assertStringNotContainsString('field_secret', $result);
+    $this->assertStringNotContainsString('This is a secret value.', $result);
   }
 
 }

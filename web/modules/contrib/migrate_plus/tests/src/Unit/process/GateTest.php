@@ -7,13 +7,15 @@ namespace Drupal\Tests\migrate_plus\Unit\process;
 use Drupal\migrate\Row;
 use Drupal\migrate_plus\Plugin\migrate\process\Gate;
 use Drupal\Tests\migrate\Unit\process\MigrateProcessTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tests the gate process plugin.
- *
- * @group migrate
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\Gate
  */
+#[CoversClass(Gate::class)]
+#[Group('migrate_plus')]
 final class GateTest extends MigrateProcessTestCase {
 
   /**
@@ -21,6 +23,7 @@ final class GateTest extends MigrateProcessTestCase {
    *
    * @dataProvider gateProvider
    */
+  #[DataProvider('gateProvider')]
   public function testGate($row_data, $destination_data, $configuration, $message): void {
     $row = new Row($row_data);
     if (!empty($destination_data)) {
@@ -152,6 +155,7 @@ final class GateTest extends MigrateProcessTestCase {
    *
    * @dataProvider badConfigurationProvider
    */
+  #[DataProvider('badConfigurationProvider')]
   public function testGateBadConfiguration($configuration, string $message): void {
     $this->expectException(\InvalidArgumentException::class);
     $this->expectExceptionMessage($message);

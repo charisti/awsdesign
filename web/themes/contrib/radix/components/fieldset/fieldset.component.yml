@@ -9,13 +9,13 @@ props:
       type: Drupal\Core\Template\Attribute
       description: The HTML attributes for the fieldset element.
     disabled:
-      type: ['null', 'boolean']
+      type: ['boolean', 'null']
       description: Boolean indicating whether the fieldset element is disabled.
     errors:
       type: ['array', 'string', 'null']
       description: Any errors for this fieldset element.
     required:
-      type: ['null', 'boolean']
+      type: ['boolean', 'null']
       description: Boolean indicating whether the fieldset element is required.
     prefix:
       type: ['array', 'string', 'null']

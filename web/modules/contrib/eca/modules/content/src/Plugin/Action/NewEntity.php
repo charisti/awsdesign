@@ -90,7 +90,7 @@ class NewEntity extends ConfigurableActionBase {
       '#title' => $this->t('Type'),
       '#options' => $options,
       '#default_value' => $this->configuration['type'],
-      '#description' => $this->t('The type of the new entity.<br/>Note: to create a new user entity, enable the eca_user module and use the "User: create new" action from there.'),
+      '#description' => $this->t('The type of the new entity.<br />Note: to create a new user entity, enable the eca_user module and use the "User: create new" action from there.'),
       '#weight' => -50,
       '#eca_token_select_option' => TRUE,
     ];

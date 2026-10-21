@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\layout_builder_restrictions\FunctionalJavascript;
 
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+
 /**
  * Demonstrate that blocks can be individually restricted.
- *
- * @group layout_builder_restrictions
  */
+#[Group('layout_builder_restrictions')]
+#[RunTestsInSeparateProcesses]
 class DefaultRestrictionsTest extends LayoutBuilderRestrictionsTestBase {
 
   /**

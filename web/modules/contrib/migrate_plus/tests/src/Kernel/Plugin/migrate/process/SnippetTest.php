@@ -8,16 +8,20 @@ use Drupal\KernelTests\KernelTestBase;
 use Drupal\migrate\MigrateExecutable;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\MigrateMessageInterface;
-use Drupal\migrate\MigrateSkipProcessException;
 use Drupal\migrate\Plugin\MigratePluginManagerInterface;
 use Drupal\migrate\Row;
+use Drupal\migrate_plus\Plugin\migrate\process\Snippet;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the snippet plugin.
- *
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\Snippet
- * @group migrate_plus
  */
+#[CoversClass(Snippet::class)]
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 final class SnippetTest extends KernelTestBase implements MigrateMessageInterface {
 
   /**
@@ -51,10 +55,9 @@ final class SnippetTest extends KernelTestBase implements MigrateMessageInterfac
    * @param mixed $expected
    *   The expected result of the snippet.
    *
-   * @covers ::transform
-   *
    * @dataProvider providerValidSnippet
    */
+  #[DataProvider('providerValidSnippet')]
   public function testValidSnippet(string $path, $expected): void {
     /** @var \Drupal\migrate\MigrateExecutableInterface $executable */
     $executable = $this->prophesize(MigrateExecutableInterface::class)->reveal();
@@ -68,12 +71,7 @@ final class SnippetTest extends KernelTestBase implements MigrateMessageInterfac
 
     // Replace 'foo' with ' ' and apply trim().
     $value = 'foo foobar bar';
-    try {
-      $result = $snippet->transform($value, $executable, $row, 'destination_property');
-    }
-    catch (MigrateSkipProcessException $e) {
-      $result = NULL;
-    }
+    $result = $snippet->transform($value, $executable, $row, 'destination_property');
     $this->assertEquals($expected, $result);
   }
 
@@ -110,10 +108,9 @@ final class SnippetTest extends KernelTestBase implements MigrateMessageInterfac
    * @param string $message
    *   The expected exception message.
    *
-   * @covers ::__construct
-   *
    * @dataProvider providerConfig
    */
+  #[DataProvider('providerConfig')]
   public function testInvalidConfig(array $configuration, string $message): void {
     $module_path = \Drupal::service('module_handler')
       ->getModule('snippet_process_test')->getPath();

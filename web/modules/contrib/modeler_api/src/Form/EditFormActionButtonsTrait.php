@@ -115,7 +115,22 @@ trait EditFormActionButtonsTrait {
         ],
         '#weight' => -30,
       ];
-      if ($this->moduleHandler()->moduleExists('token')) {
+      if ($this->moduleHandler()->moduleExists('token_browser')) {
+        $buttons['token_browser'] = [
+          '#theme' => 'token_browser_link',
+          '#token_types' => 'all',
+          '#global_types' => TRUE,
+          '#text' => $this->t('Tokens'),
+          '#options' => [
+            'attributes' => [
+              'class' => ['button', 'button--small'],
+              'title' => $this->t('Opens the token browser'),
+            ],
+          ],
+          '#weight' => -5,
+        ];
+      }
+      elseif ($this->moduleHandler()->moduleExists('token')) {
         $buttons['token_browser'] = [
           '#theme' => 'token_tree_link',
           '#token_types' => 'all',

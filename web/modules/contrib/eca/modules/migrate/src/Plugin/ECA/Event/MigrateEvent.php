@@ -193,7 +193,6 @@ class MigrateEvent extends EventBase implements CleanupInterface {
     description: 'The row about to be imported.',
     classes: [
       MigratePreRowSaveEvent::class,
-      MigrateRowDeleteEvent::class,
       EcaMigrateProcessEvent::class,
     ],
     properties: [
@@ -293,9 +292,7 @@ class MigrateEvent extends EventBase implements CleanupInterface {
         break;
 
       case 'row':
-        if ($event instanceof MigratePreRowSaveEvent
-          || $event instanceof MigrateRowDeleteEvent
-        ) {
+        if ($event instanceof MigratePreRowSaveEvent) {
           return $event->getRow();
         }
         if ($event instanceof EcaMigrateProcessEvent) {

@@ -168,6 +168,7 @@ MAINTAINERS
 Current maintainers:
 
 * eiriksm - https://www.drupal.org/u/eiriksm
+* benjifisher - https://www.drupal.org/u/benjifisher
 * UT Austin - https://www.drupal.org/university-of-texas-at-austin
 
 This project has been sponsored by:

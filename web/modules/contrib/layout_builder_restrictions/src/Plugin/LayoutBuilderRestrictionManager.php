@@ -6,6 +6,8 @@ use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Plugin\DefaultPluginManager;
+use Drupal\layout_builder_restrictions\Annotation\LayoutBuilderRestriction as LayoutBuilderRestrictionAnnotation;
+use Drupal\layout_builder_restrictions\Attribute\LayoutBuilderRestriction as LayoutBuilderRestrictionAttribute;
 
 /**
  * Provides the Layout builder restriction plugin plugin manager.
@@ -37,7 +39,14 @@ class LayoutBuilderRestrictionManager extends DefaultPluginManager {
    *   The config factory to load plugin configuration.
    */
   public function __construct(\Traversable $namespaces, CacheBackendInterface $cache_backend, ModuleHandlerInterface $module_handler, ConfigFactoryInterface $config_factory) {
-    parent::__construct('Plugin/LayoutBuilderRestriction', $namespaces, $module_handler, 'Drupal\layout_builder_restrictions\Plugin\LayoutBuilderRestrictionInterface', 'Drupal\layout_builder_restrictions\Annotation\LayoutBuilderRestriction');
+    parent::__construct(
+      'Plugin/LayoutBuilderRestriction',
+      $namespaces,
+      $module_handler,
+      LayoutBuilderRestrictionInterface::class,
+      LayoutBuilderRestrictionAttribute::class,
+      LayoutBuilderRestrictionAnnotation::class,
+    );
     $this->configFactory = $config_factory;
     $this->alterInfo('layout_builder_restrictions_layout_builder_restriction_info');
     $this->setCacheBackend($cache_backend, 'layout_builder_restriction_plugins');

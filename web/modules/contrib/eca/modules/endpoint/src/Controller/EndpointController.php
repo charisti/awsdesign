@@ -7,10 +7,9 @@ use Drupal\Core\Access\AccessResultInterface;
 use Drupal\Core\Ajax\AjaxHelperTrait;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\MessageCommand;
+use Drupal\Core\Cache\RefinableCacheableDependencyInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Datetime\DrupalDateTime;
-use Drupal\Core\DependencyInjection\ClassResolverInterface;
-use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\Core\EventSubscriber\MainContentViewSubscriber;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Logger\RfcLogLevel;
@@ -25,7 +24,9 @@ use Drupal\Core\Session\AccountInterface;
 use Drupal\eca\Event\AccessEventInterface;
 use Drupal\eca\Event\RenderEventInterface;
 use Drupal\eca\Event\TriggerEvent;
-use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\DependencyInjection\Attribute\AutowireLocator;
+use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -34,134 +35,48 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 /**
  * The ECA endpoint controller.
  */
-final class EndpointController implements ContainerInjectionInterface {
+final class EndpointController {
 
   use AjaxHelperTrait;
 
   /**
-   * The trigger event service.
-   *
-   * @var \Drupal\eca\Event\TriggerEvent
-   */
-  protected TriggerEvent $triggerEvent;
-
-  /**
-   * The renderer.
-   *
-   * @var \Drupal\Core\Render\RendererInterface
-   */
-  protected RendererInterface $renderer;
-
-  /**
-   * The main content renderer.
-   *
-   * @var \Drupal\Core\Render\MainContent\HtmlRenderer
-   */
-  protected HtmlRenderer $mainContentHtmlRenderer;
-
-  /**
-   * The current route match.
-   *
-   * @var \Drupal\Core\Routing\RouteMatchInterface
-   */
-  protected RouteMatchInterface $routeMatch;
-
-  /**
-   * The current user.
-   *
-   * @var \Drupal\Core\Session\AccountInterface
-   */
-  protected AccountInterface $currentUser;
-
-  /**
-   * The config factory.
-   *
-   * @var \Drupal\Core\Config\ConfigFactoryInterface
-   */
-  protected ConfigFactoryInterface $configFactory;
-
-  /**
-   * The route match service.
-   *
-   * @var \Drupal\Core\Logger\LoggerChannelInterface
-   */
-  protected LoggerChannelInterface $logger;
-
-  /**
-   * The messenger.
-   *
-   * @var \Drupal\Core\Messenger\MessengerInterface
-   */
-  protected MessengerInterface $messenger;
-
-  /**
-   * The class resolver.
-   *
-   * @var \Drupal\Core\DependencyInjection\ClassResolverInterface
-   */
-  protected ClassResolverInterface $classResolver;
-
-  /**
-   * The main content renderers.
-   *
-   * @var array
-   */
-  protected array $mainContentRenderers;
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function create(ContainerInterface $container): EndpointController {
-    return new EndpointController(
-      $container->get('eca.trigger_event'),
-      $container->get('renderer'),
-      $container->get('main_content_renderer.html'),
-      $container->get('current_route_match'),
-      $container->get('current_user'),
-      $container->get('config.factory'),
-      $container->get('logger.channel.eca'),
-      $container->get('messenger'),
-      $container->get('class_resolver'),
-      $container->getParameter('main_content_renderers')
-    );
-  }
-
-  /**
    * Constructs a new EcaEndpointController object.
    *
-   * @param \Drupal\eca\Event\TriggerEvent $trigger_event
+   * @param \Drupal\eca\Event\TriggerEvent $triggerEvent
    *   The trigger event service.
    * @param \Drupal\Core\Render\RendererInterface $renderer
    *   The renderer.
-   * @param \Drupal\Core\Render\MainContent\HtmlRenderer $html_renderer
-   *   The main content renderer.
-   * @param \Drupal\Core\Routing\RouteMatchInterface $route_match
+   * @param \Drupal\Core\Render\MainContent\HtmlRenderer $mainContentHtmlRenderer
+   *   The main content HTML renderer.
+   * @param \Drupal\Core\Routing\RouteMatchInterface $routeMatch
    *   The current route match.
-   * @param \Drupal\Core\Session\AccountInterface $current_user
+   * @param \Drupal\Core\Session\AccountInterface $currentUser
    *   The current user.
-   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
    *   The config factory.
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
    *   The logger.
    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
    *   The messenger.
-   * @param \Drupal\Core\DependencyInjection\ClassResolverInterface $class_resolver
-   *   The class resolver.
-   * @param array $main_content_renderers
-   *   The main content renderers.
+   * @param \Symfony\Component\DependencyInjection\ServiceLocator $mainContentRenderers
+   *   A service locator that contains the main content renderer services,
+   *   keyed by the 'format' attribute.
    */
-  public function __construct(TriggerEvent $trigger_event, RendererInterface $renderer, HtmlRenderer $html_renderer, RouteMatchInterface $route_match, AccountInterface $current_user, ConfigFactoryInterface $config_factory, LoggerChannelInterface $logger, MessengerInterface $messenger, ClassResolverInterface $class_resolver, array $main_content_renderers) {
-    $this->triggerEvent = $trigger_event;
-    $this->renderer = $renderer;
-    $this->mainContentHtmlRenderer = $html_renderer;
-    $this->routeMatch = $route_match;
-    $this->currentUser = $current_user;
-    $this->configFactory = $config_factory;
-    $this->logger = $logger;
-    $this->messenger = $messenger;
-    $this->classResolver = $class_resolver;
-    $this->mainContentRenderers = $main_content_renderers;
-  }
+  public function __construct(
+    #[Autowire(service: 'eca.trigger_event')]
+    protected TriggerEvent $triggerEvent,
+    protected RendererInterface $renderer,
+    #[Autowire(service: 'main_content_renderer.html')]
+    protected HtmlRenderer $mainContentHtmlRenderer,
+    protected RouteMatchInterface $routeMatch,
+    protected AccountInterface $currentUser,
+    protected ConfigFactoryInterface $configFactory,
+    #[Autowire(service: 'logger.channel.eca')]
+    protected LoggerChannelInterface $logger,
+    protected MessengerInterface $messenger,
+    #[AutowireLocator('render.main_content_renderer', indexAttribute: 'format')]
+    protected ServiceLocator $mainContentRenderers,
+  ) {}
 
   /**
    * Handles the request to the endpoint.
@@ -228,8 +143,10 @@ final class EndpointController implements ContainerInjectionInterface {
     if ($response instanceof AjaxResponse) {
       if (Element::children($build)) {
         $wrapper = $request->query->get(MainContentViewSubscriber::WRAPPER_FORMAT, 'drupal_modal');
-        $renderer = $this->classResolver->getInstanceFromDefinition($this->mainContentRenderers[$wrapper]);
-        $response = $renderer->renderResponse($build, $request, $this->routeMatch);
+        if (!$this->mainContentRenderers->has($wrapper)) {
+          $wrapper = 'drupal_modal';
+        }
+        $response = $this->mainContentRenderers->get($wrapper)->renderResponse($build, $request, $this->routeMatch);
       }
       foreach ($this->messenger->deleteAll() as $type => $type_messages) {
         /** @var string[]|\Drupal\Component\Render\MarkupInterface[] $type_messages */
@@ -342,14 +259,35 @@ final class EndpointController implements ContainerInjectionInterface {
     // we catch the current route match from the global container instead.
     $route = $this->routeMatch->getRouteObject();
     if ($route && ($route->getDefault('_controller') === 'Drupal\eca_endpoint\Controller\EndpointController::handle')) {
-      // Let ::handle decide whether access is allowed.
-      return AccessResult::allowed()
-        ->addCacheContexts([
-          'url.path',
-          'url.query_args',
-          'user',
-          'user.permissions',
-        ]);
+      $given_arguments = $this->routeMatch->getRawParameters()->all();
+      if ($eca_endpoint_argument_1 === ($given_arguments['eca_endpoint_argument_1'] ?? NULL) && $eca_endpoint_argument_2 === ($given_arguments['eca_endpoint_argument_2'] ?? NULL)) {
+        // Let ::handle decide whether access is allowed. It makes that
+        // decision anew on every request, by dispatching the
+        // "eca_endpoint:access" event to the ECA models. Their verdict may
+        // depend on anything at all, for example on the time of day, on a
+        // field value, on state or on a remote service, and none of that is
+        // expressed by the cache contexts below. Those contexts are still
+        // correct, they are just not sufficient on their own: without a zero
+        // max age, the very first verdict would be stored and replayed, and
+        // ::handle would never get to re-decide. Therefore disable caching on
+        // this dynamically determined access.
+        //
+        // The cacheability built here deliberately differs from the one built
+        // at the bottom of this method: this branch decides nothing and only
+        // describes the request it defers, whereas the branch below carries
+        // the verdict of the ECA models and therefore also the cacheability
+        // those models raised. The asymmetry is intentional, not an oversight.
+        //
+        // @see https://git.drupalcode.org/project/eca/-/work_items/3590449
+        return AccessResult::allowed()
+          ->addCacheContexts([
+            'url.path',
+            'url.query_args',
+            'user',
+            'user.permissions',
+          ])
+          ->mergeCacheMaxAge(0);
+      }
     }
 
     $account = $account ?? $this->currentUser;
@@ -362,11 +300,38 @@ final class EndpointController implements ContainerInjectionInterface {
     }
 
     $forbidden = AccessResult::forbidden("No ECA configuration set an access result");
-    $event = $this->triggerEvent->dispatchFromPlugin('eca_endpoint:access', $path_arguments, $account, $forbidden);
-    if ($event instanceof AccessEventInterface && ($result = $event->getAccessResult())) {
-      return $result;
+    $render_context = new RenderContext();
+    $triggerEvent = $this->triggerEvent;
+    $event = $this->renderer->executeInRenderContext($render_context, static function () use (&$path_arguments, $account, $forbidden, $triggerEvent) {
+      // ECA may use parts of the rendering system to evaluate access, such as
+      // token replacement. Cacheability metadata coming from there need to be
+      // collected, by wrapping the event dispatching with a render context.
+      return $triggerEvent->dispatchFromPlugin('eca_endpoint:access', $path_arguments, $account, $forbidden);
+    });
+
+    $result = $forbidden;
+    if ($event instanceof AccessEventInterface && ($event_result = $event->getAccessResult())) {
+      $result = $event_result;
     }
-    return $forbidden;
+    if ($result instanceof RefinableCacheableDependencyInterface) {
+      // If available, add the cacheability metadata from the render context.
+      if (!$render_context->isEmpty()) {
+        $result->addCacheableDependency($render_context->pop());
+      }
+      // Invalidate whenever ECA config changes. The list cache tag is the
+      // right one here, rather than the cache tags of the models that
+      // reacted: a verdict also changes when a model that did not exist yet
+      // starts to react upon the event, and no per-model tag can express
+      // that. It is the same tag that ECA attaches elsewhere when the outcome
+      // depends on which models exist.
+      $result->addCacheTags(['config:eca_list']);
+      // Disable caching on dynamically determined access. The models decide
+      // this verdict anew on every request and may base it on anything at
+      // all, none of which is expressed as a cache context. There is
+      // currently no way for a model to declare what its verdict depends on.
+      $result->mergeCacheMaxAge(0);
+    }
+    return $result;
   }
 
 }

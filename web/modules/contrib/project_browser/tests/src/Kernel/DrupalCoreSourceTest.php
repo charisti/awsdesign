@@ -11,11 +11,13 @@ use Drupal\project_browser\Plugin\ProjectBrowserSource\DrupalCore;
 use Drupal\project_browser\Plugin\ProjectBrowserSourceManager;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the Drupal core source plugin.
  */
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 #[CoversClass(DrupalCore::class)]
 final class DrupalCoreSourceTest extends KernelTestBase {
 
@@ -32,10 +34,10 @@ final class DrupalCoreSourceTest extends KernelTestBase {
     // them.
     $available_profiles = array_map(
       fn (Extension $profile): string => $profile->getName(),
-      $this->container->get(ProfileExtensionList::class)->getList(),
+      \Drupal::service(ProfileExtensionList::class)->getList(),
     );
 
-    $source = $this->container->get(ProjectBrowserSourceManager::class)
+    $source = \Drupal::service(ProjectBrowserSourceManager::class)
       ->createInstance('drupal_core');
     $project_names = array_column($source->getProjects()->list, 'machineName');
     $this->assertNotEmpty($project_names);

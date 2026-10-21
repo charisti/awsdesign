@@ -40,6 +40,18 @@ abstract class FieldUpdateActionBase extends ActionBase implements ConfigurableI
   use PropertyPathTrait;
 
   /**
+   * {@inheritdoc}
+   *
+   * This base class replaces core's FieldUpdateActionBase via class_alias().
+   * Core actions (e.g. PromoteNode) that extend this base must remain visible
+   * outside ECA, so this returns TRUE. ECA-specific subclasses like
+   * SetFieldValue override this to return FALSE.
+   */
+  public static function externallyAvailable(): bool {
+    return TRUE;
+  }
+
+  /**
    * Gets an array of values to be set.
    *
    * @return array

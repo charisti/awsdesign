@@ -57,21 +57,21 @@
 
       // This class means to submit the form to the action using Ajax.
       once('ajax', '.use-ajax-submit').forEach((el) => {
-        const elementSettings = {};
-
-        // Ajax submits specified in this manner automatically submit to the
-        // normal form action.
-        elementSettings.url = $(el.form).attr('action');
-        // Form submit button clicks need to tell the form what was clicked so
-        // it gets passed in the POST request.
-        elementSettings.setClick = true;
-        // Form buttons use the 'click' event rather than mousedown.
-        elementSettings.event = 'click';
-        // Clicked form buttons look better with the throbber than the progress
-        // bar.
-        elementSettings.progress = { type: 'throbber' };
-        elementSettings.base = el.id;
-        elementSettings.element = el;
+        const elementSettings = {
+          // Ajax submits specified in this manner automatically submit to the
+          // normal form action.
+          url: $(el.form).attr('action'),
+          // Form submit button clicks need to tell the form what was clicked so
+          // it gets passed in the POST request.
+          setClick: true,
+          // Form buttons use the 'click' event rather than mousedown.
+          event: 'click',
+          // Clicked form buttons look better with the throbber than the progress
+          // bar.
+          progress: { type: 'throbber' },
+          base: el.id,
+          element: el,
+        };
 
         Drupal.ajax(elementSettings);
       });
@@ -492,7 +492,7 @@
     this.url = this.url.replace(/\/nojs(\/|$|\?|#)/, '/ajax$1');
     // If the 'nojs' version of the URL is trusted, also trust the 'ajax'
     // version.
-    if (drupalSettings.ajaxTrustedUrl[originalUrl]) {
+    if (drupalSettings.ajaxTrustedUrl.hasOwnProperty(originalUrl)) {
       drupalSettings.ajaxTrustedUrl[this.url] = true;
     }
 
@@ -569,7 +569,10 @@
         //   #ajax) can bypass header verification. This is especially useful
         //   for Ajax with multipart forms. Because IFRAME transport is used,
         //   the response headers cannot be accessed for verification.
-        if (response !== null && !drupalSettings.ajaxTrustedUrl[ajax.url]) {
+        if (
+          response !== null &&
+          !drupalSettings.ajaxTrustedUrl.hasOwnProperty(ajax.url)
+        ) {
           if (xmlhttprequest.getResponseHeader('X-Drupal-Ajax-Token') !== '1') {
             const customMessage = Drupal.t(
               'The response failed verification so will not be processed.',
@@ -636,7 +639,7 @@
     // Bind the ajaxSubmit function to the element event.
     $(ajax.element).on(elementSettings.event, function (event) {
       if (
-        !drupalSettings.ajaxTrustedUrl[ajax.url] &&
+        !drupalSettings.ajaxTrustedUrl.hasOwnProperty(ajax.url) &&
         !Drupal.url.isLocal(ajax.url)
       ) {
         throw new Error(
@@ -1234,7 +1237,7 @@
    * @param {object} response
    *   The response from the Ajax request.
    *
-   * @deprecated in drupal:8.6.0 and is removed from drupal:12.0.0.
+   * @deprecated in drupal:8.6.0 and is removed from drupal:13.0.0.
    *   Use data with desired wrapper.
    *
    * @see https://www.drupal.org/node/2940704
@@ -1265,7 +1268,7 @@
    * @param {jQuery} $elements
    *   Response elements after parsing.
    *
-   * @deprecated in drupal:8.6.0 and is removed from drupal:12.0.0.
+   * @deprecated in drupal:8.6.0 and is removed from drupal:13.0.0.
    *   Use data with desired wrapper.
    *
    * @see https://www.drupal.org/node/2940704
@@ -1862,23 +1865,7 @@
      *   Selector to use.
      */
     scrollTop(ajax, response) {
-      const offset = $(response.selector).offset();
-      // We can't guarantee that the scrollable object should be
-      // the body, as the element could be embedded in something
-      // more complex such as a modal popup. Recurse up the DOM
-      // and scroll the first element that has a non-zero top.
-      let scrollTarget = response.selector;
-      while ($(scrollTarget).scrollTop() === 0 && $(scrollTarget).parent()) {
-        scrollTarget = $(scrollTarget).parent();
-      }
-
-      // Only scroll upward.
-      if (offset.top - 10 < $(scrollTarget).scrollTop()) {
-        scrollTarget.get(0).scrollTo({
-          top: offset.top - 10,
-          behavior: 'smooth',
-        });
-      }
+      document.querySelector(response.selector)?.scrollIntoView();
     },
   };
 

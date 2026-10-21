@@ -13,6 +13,7 @@ use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Element;
 use Drupal\Core\Template\Attribute;
 use Drupal\Core\Url;
 use Drupal\eca\Event\RenderEventInterface;
@@ -372,13 +373,33 @@ function _eca_render_trigger_extra_field(array &$build, EntityInterface $entity,
     if ($event instanceof RenderEventInterface) {
       $render_build = &$event->getRenderArray();
     }
-    $build[$name] = $render_build;
-    if (!empty($build[$name]) && ($display_type === 'form') && !isset($build[$name]['#type'])) {
-      // Wrap as container so that the extra field can be grouped.
-      $build[$name]['#type'] = 'container';
+    if (!empty($render_build)) {
+      $build[$name] = $render_build;
+    }
+    if (isset($build[$name])) {
+      if (!_eca_render_has_renderable_content($build[$name])) {
+        $build[$name]['#access'] = FALSE;
+      }
+      elseif (($display_type === 'form') && !isset($build[$name]['#type'])) {
+        // Wrap as container so that the extra field can be grouped.
+        $build[$name]['#type'] = 'container';
+      }
     }
     if (!isset($build['#weight']) && isset($options['weight'])) {
       $build['#weight'] = $options['weight'];
     }
   }
+}
+
+/**
+ * Determines whether a render array produces renderable content.
+ */
+function _eca_render_has_renderable_content(array $build): bool {
+  if (Element::getVisibleChildren($build) !== []) {
+    return TRUE;
+  }
+  if (isset($build['#type']) || isset($build['#theme'])) {
+    return TRUE;
+  }
+  return isset($build['#markup']) && trim((string) $build['#markup']) !== '';
 }

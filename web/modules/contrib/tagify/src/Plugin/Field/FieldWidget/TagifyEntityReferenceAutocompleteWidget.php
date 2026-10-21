@@ -134,6 +134,7 @@ class TagifyEntityReferenceAutocompleteWidget extends WidgetBase {
       'show_entity_id' => 0,
       'show_info_label' => 0,
       'info_label' => '',
+      'parent_selection' => 1,
     ] + parent::defaultSettings();
   }
 
@@ -180,17 +181,24 @@ class TagifyEntityReferenceAutocompleteWidget extends WidgetBase {
       '#default_value' => $this->getSetting('show_info_label'),
       '#description' => $this->t('Show an extra tag with information next to the entity label.'),
     ];
+    $element['parent_selection'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Parent selection'),
+      '#default_value' => $this->getSetting('parent_selection'),
+      '#description' => $this->t('Allow parent selection from hierarchical entities.'),
+    ];
     $element['info_label'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Info label content'),
       '#default_value' => $this->getSetting('info_label'),
-      '#description' => $this->t('The information that will be shown. You can use tokens to make this dynamic.'),
+      '#description' => $this->t('The extra information which will be shown within the tag. You can use tokens to make this dynamic.'),
       '#states' => [
         'visible' => [
           sprintf(':input[name="fields[%s][settings_edit_form][settings][show_info_label]"]', $this->fieldDefinition->getName()) => ['checked' => TRUE],
         ],
       ],
     ];
+
     if ($this->moduleHandler->moduleExists('token')) {
       $token_type = $this->fieldDefinition->getFieldStorageDefinition()->getSetting('target_type');
       // Convert 'taxonomy_term' target type into 'term' in order to make it
@@ -227,16 +235,18 @@ class TagifyEntityReferenceAutocompleteWidget extends WidgetBase {
     $suggestions_dropdown = $this->getSuggestionsDropdownOptions();
     $summary[] = $this->t('Autocomplete suggestions dropdown: @suggestions_dropdown', ['@suggestions_dropdown' => $suggestions_dropdown[$this->getSetting('suggestions_dropdown')]]);
     $placeholder = $this->getSetting('placeholder');
-    $show_entity_id = $this->getSetting('show_entity_id');
-    $summary[] = $show_entity_id ? $this->t('Include the entity ID within the tag') : $this->t('Remove the entity ID from the tag');
-    if ($this->getSetting('show_info_label')) {
-      $summary[] = $this->t('Include a label with extra information inside the tag');
-    }
     if (!empty($placeholder)) {
       $summary[] = $this->t('Placeholder: @placeholder', ['@placeholder' => $placeholder]);
     }
     else {
       $summary[] = $this->t('No placeholder');
+    }
+    $show_entity_id = $this->getSetting('show_entity_id');
+    $summary[] = $show_entity_id ? $this->t('Include the entity ID within the tag') : $this->t('Remove the entity ID from the tag');
+    $parent_selection = $this->getSetting('parent_selection');
+    $summary[] = $parent_selection ? $this->t('Parent selection allowed') : $this->t('Parent selection not allowed');
+    if ($this->getSetting('show_info_label')) {
+      $summary[] = $this->t('Include a label with extra information inside the tag');
     }
 
     return $summary;
@@ -261,6 +271,10 @@ class TagifyEntityReferenceAutocompleteWidget extends WidgetBase {
       $selection_settings['info_label'] = $this->getSetting('info_label');
     }
     $target_type = $this->getFieldSetting('target_type');
+
+    if ($target_type === 'taxonomy_term') {
+      $selection_settings['parent_selection'] = $this->getSetting('parent_selection');
+    }
 
     // User field definition doesn't have fieldStorage defined.
     $cardinality = $target_type !== 'user'
@@ -290,6 +304,7 @@ class TagifyEntityReferenceAutocompleteWidget extends WidgetBase {
       '#placeholder' => $this->getSetting('placeholder'),
       '#suggestions_dropdown' => $this->getSetting('suggestions_dropdown'),
       '#show_entity_id' => $this->getSetting('show_entity_id'),
+      '#parent_selection' => $this->getSetting('parent_selection'),
       '#attributes' => [
         'class' => [$limited, $autocreate, $tags_identifier],
       ],
@@ -342,6 +357,7 @@ class TagifyEntityReferenceAutocompleteWidget extends WidgetBase {
       'target_type' => $target_type,
       'placeholder' => $this->getSetting('placeholder'),
       'show_entity_id' => $this->getSetting('show_entity_id'),
+      'parent_selection' => $this->getSetting('parent_selection'),
     ];
     if ($this->getSetting('show_info_label')) {
       $selection_settings['info_label'] = $this->getSetting('info_label');

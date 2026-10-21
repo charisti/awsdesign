@@ -14,6 +14,7 @@ dependencies:
     - media_library
     - path
     - scheduler
+    - tagify
     - text
 id: node.page.default
 targetEntityType: node
@@ -22,13 +23,13 @@ mode: default
 content:
   created:
     type: datetime_timestamp
-    weight: 11
+    weight: 12
     region: content
     settings: {  }
     third_party_settings: {  }
   field_content:
     type: text_textarea
-    weight: 7
+    weight: 9
     region: content
     settings:
       rows: 9
@@ -36,7 +37,7 @@ content:
     third_party_settings: {  }
   field_description:
     type: string_textarea
-    weight: 6
+    weight: 8
     region: content
     settings:
       rows: 5
@@ -51,19 +52,16 @@ content:
     third_party_settings: {  }
   field_tags:
     type: tagify_entity_reference_autocomplete_widget
-    weight: 9
+    weight: 10
     region: content
     settings:
       match_operator: CONTAINS
       match_limit: 10
       placeholder: ''
-    third_party_settings: {  }
-  langcode:
-    type: language_select
-    weight: 8
-    region: content
-    settings:
-      include_locked: true
+      suggestions_dropdown: 1
+      show_entity_id: 0
+      show_info_label: 0
+      info_label: ''
     third_party_settings: {  }
   moderation_state:
     type: moderation_state_default
@@ -73,13 +71,13 @@ content:
     third_party_settings: {  }
   path:
     type: path
-    weight: 14
+    weight: 15
     region: content
     settings: {  }
     third_party_settings: {  }
   promote:
     type: boolean_checkbox
-    weight: 12
+    weight: 13
     region: content
     settings:
       display_label: true
@@ -87,6 +85,12 @@ content:
   publish_on:
     type: datetime_timestamp_no_default
     weight: 4
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  publish_state:
+    type: options_select
+    weight: 5
     region: content
     settings: {  }
     third_party_settings: {  }
@@ -110,7 +114,7 @@ content:
     third_party_settings: {  }
   sticky:
     type: boolean_checkbox
-    weight: 13
+    weight: 14
     region: content
     settings:
       display_label: true
@@ -125,7 +129,7 @@ content:
     third_party_settings: {  }
   uid:
     type: entity_reference_autocomplete
-    weight: 10
+    weight: 11
     region: content
     settings:
       match_operator: CONTAINS
@@ -135,11 +139,16 @@ content:
     third_party_settings: {  }
   unpublish_on:
     type: datetime_timestamp_no_default
-    weight: 5
+    weight: 6
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  unpublish_state:
+    type: options_select
+    weight: 7
     region: content
     settings: {  }
     third_party_settings: {  }
 hidden:
   layout_builder__layout: true
-  publish_state: true
-  unpublish_state: true
+  url_redirects: true

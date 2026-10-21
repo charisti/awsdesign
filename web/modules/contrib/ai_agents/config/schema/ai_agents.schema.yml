@@ -66,6 +66,10 @@ ai_agents.ai_agent.*:
       label: Max Loops
       description: 'The maximum number of loops that the AI agent can do. This is to prevent infinite loops. If the AI agent reaches this number of loops, it will stop and return the result.'
       default: 3
+    max_loops_message:
+      type: string
+      label: Max Loops Message
+      description: 'The message displayed when the agent reaches its maximum number of loops. If empty, a default message will be used.'
     default_information_tools:
       type: string
       label: Default Information Tools
@@ -90,10 +94,20 @@ ai_agents.ai_agent.*:
     structured_output_enabled:
       type: boolean
       label: Structured Output Enabled
-      description: 'Whether structured output is enabled for the AI agent. If this is set to true, the AI agent will format its responses according to the provided structured output schema.'
+      description: 'Whether structured output is enabled for the AI agent. If this is set to true, the AI agent will format its responses according to the provided structured output schema. Note: Certain AI providers (Mistral, Claude) cannot combine structured output with tool calling. Use sparingly and avoid when tools are required.'
       default: false
     structured_output_schema:
       type: string
       label: Structured Output Schema
-      description: 'The schema that defines the structured output format for the AI agent. This schema guides how the AI agent should format its responses when structured output is enabled. It should be in JSON Schema format.'
+      description: 'The schema that defines the structured output format for the AI agent. This schema guides how the AI agent should format its responses when structured output is enabled. It should be in JSON Schema format. Note: Some providers cannot use structured output with tool calling simultaneously.'
+      default: ''
+    hostname_filter_disabled:
+      type: boolean
+      label: Hostname Filter Disabled
+      description: 'Whether to disable hostname whitelisting for the AI agent. If this is set to true, the AI agent will not filter tool usage based on hostnames. This can be useful for agents that need to access a wide range of tools without restrictions.'
+      default: false
+    guardrail_set:
+      type: string
+      label: Guardrail Set
+      description: 'The guardrail set that the AI agent should use. This is the machine name of the guardrail set that the AI agent should use to filter its responses. If left empty, no guardrails will be applied.'
       default: ''

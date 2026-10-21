@@ -92,8 +92,10 @@ class TagifySelectWidget extends OptionsWidgetBase {
   public static function defaultSettings() {
     return [
       'match_operator' => 'CONTAINS',
-      'match_limit' => 10,
+      'match_limit' => 0,
       'placeholder' => '',
+      'show_entity_id' => 0,
+      'parent_selection' => 1,
     ] + parent::defaultSettings();
   }
 
@@ -121,6 +123,18 @@ class TagifySelectWidget extends OptionsWidgetBase {
       '#default_value' => $this->getSetting('placeholder'),
       '#description' => $this->t('Text that will be shown inside the field until a value is entered. This hint is usually a sample value or a brief description of the expected format.'),
     ];
+    $element['show_entity_id'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Include entity id'),
+      '#default_value' => $this->getSetting('show_entity_id'),
+      '#description' => $this->t('Include the entity ID within the tag.'),
+    ];
+    $element['parent_selection'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Parent selection'),
+      '#default_value' => $this->getSetting('parent_selection'),
+      '#description' => $this->t('Allow parent selection from hierarchical entities.'),
+    ];
 
     return $element;
   }
@@ -134,6 +148,10 @@ class TagifySelectWidget extends OptionsWidgetBase {
     $size = $this->getSetting('match_limit') ?: $this->t('unlimited');
     $summary[] = $this->t('Autocomplete suggestion list size: @size', ['@size' => $size]);
     $placeholder = $this->getSetting('placeholder');
+    $show_entity_id = $this->getSetting('show_entity_id');
+    $summary[] = $show_entity_id ? $this->t('Include the entity ID within the tag') : $this->t('Remove the entity ID from the tag');
+    $parent_selection = $this->getSetting('parent_selection');
+    $summary[] = $parent_selection ? $this->t('Parent selection allowed') : $this->t('Parent selection not allowed');
     if (!empty($placeholder)) {
       $summary[] = $this->t('Placeholder: @placeholder', ['@placeholder' => $placeholder]);
     }
@@ -166,10 +184,24 @@ class TagifySelectWidget extends OptionsWidgetBase {
       }
     }
 
+    // Append the match operation to the selection settings.
+    $selection_settings = ($this->getFieldSetting('handler_settings') ?? []) + [
+      'match_operator' => $this->getSetting('match_operator'),
+      'match_limit' => $this->getSetting('match_limit'),
+      'placeholder' => $this->getSetting('placeholder'),
+      'cardinality' => $this->fieldDefinition
+        ->getFieldStorageDefinition()
+        ->getCardinality(),
+      'show_entity_id' => (bool) $this->getSetting('show_entity_id'),
+      'parent_selection' => (bool) $this->getSetting('parent_selection'),
+    ];
+
     $element += [
       '#type' => 'select_tagify',
       '#options' => $this->getOptions($items->getEntity()),
       '#default_value' => $this->getSelectedOptions($items),
+      '#selection_handler' => $this->getFieldSetting('handler'),
+      '#selection_settings' => $selection_settings,
       '#mode' => !$cardinality ? 'select' : '',
       '#attributes' => [
         'class' => [$tags_identifier],
@@ -183,11 +215,13 @@ class TagifySelectWidget extends OptionsWidgetBase {
       '#match_limit' => $this->getSetting('match_limit'),
       '#placeholder' => $this->getSetting('placeholder'),
       '#identifier' => $tags_identifier,
+      '#show_entity_id' => $this->getSetting('show_entity_id'),
+      '#parent_selection' => $this->getSetting('parent_selection'),
     ];
 
     $empty_value = $element['#empty_value'] ?? NULL;
 
-    if (!$element['#multiple'] && !isset($element['#options'][$empty_value])) {
+    if (!$element['#multiple'] && (!$empty_value || !isset($element['#options'][$empty_value]))) {
       // Add an empty option to single select elements. Key 0 should be
       // reserved option to empty values.
       $element['#options'] = ['_none' => ''] + $element['#options'];

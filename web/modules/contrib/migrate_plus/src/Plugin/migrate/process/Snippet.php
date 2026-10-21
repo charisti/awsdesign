@@ -6,9 +6,9 @@ namespace Drupal\migrate_plus\Plugin\migrate\process;
 
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\Plugin\MigratePluginManagerInterface;
-use Drupal\migrate\Plugin\MigrateProcessInterface;
 use Drupal\migrate\Plugin\MigrationInterface;
 use Drupal\migrate\ProcessPluginBase;
 use Drupal\migrate\Row;
@@ -83,17 +83,14 @@ use Symfony\Component\Yaml\Yaml;
  * - plugin: default_value
  *   default_value: default value
  * @endcode
- *
- * @MigrateProcessPlugin(
- *   id = "snippet"
- * )
  */
+#[MigrateProcess(id: 'snippet')]
 class Snippet extends ProcessPluginBase implements ContainerFactoryPluginInterface {
 
   /**
    * The process pipeline.
    *
-   * @var Drupal\migrate\Plugin\MigrateProcessInterface[]
+   * @var \Drupal\migrate\Plugin\MigrateProcessInterface[]
    */
   protected $pipeline = [];
 
@@ -171,16 +168,11 @@ class Snippet extends ProcessPluginBase implements ContainerFactoryPluginInterfa
    * {@inheritdoc}
    */
   public function transform($value, MigrateExecutableInterface $migrate_executable, Row $row, $destination_property) {
-    // Starting with Drupal 10.3, the interface includes isPipelineStopped() and
-    // reset().
-    $can_reset = method_exists(MigrateProcessInterface::class, 'reset');
     /** @var \Drupal\migrate\Plugin\MigrateProcessInterface $step */
     foreach ($this->pipeline as $step) {
-      if ($can_reset) {
-        $step->reset();
-      }
+      $step->reset();
       $value = $step->transform($value, $migrate_executable, $row, $destination_property);
-      if ($can_reset && $step->isPipelineStopped()) {
+      if ($step->isPipelineStopped()) {
         $this->stopPipeline();
         return $value;
       }

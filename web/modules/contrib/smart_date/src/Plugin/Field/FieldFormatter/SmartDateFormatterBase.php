@@ -10,7 +10,7 @@ use Drupal\smart_date\SmartDatePluginTrait;
 /**
  * Template to provide common formatter functionality.
  */
-class SmartDateFormatterBase extends DateTimeDefaultFormatter {
+abstract class SmartDateFormatterBase extends DateTimeDefaultFormatter {
 
   use SmartDatePluginTrait;
 

@@ -2,10 +2,10 @@
 
 namespace Drupal\ai_agents\EventSubscriber;
 
-use Drupal\ai\Service\FunctionCalling\FunctionCallPluginManager;
-use Drupal\ai_agents\Enum\AiAgentStatusItemTypes;
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Component\Serialization\Json;
+use Drupal\ai\Service\FunctionCalling\FunctionCallPluginManager;
+use Drupal\ai_agents\Enum\AiAgentStatusItemTypes;
 use Drupal\ai_agents\Event\AgentFinishedExecutionEvent;
 use Drupal\ai_agents\Event\AgentRequestEvent;
 use Drupal\ai_agents\Event\AgentResponseEvent;
@@ -184,7 +184,7 @@ class AgentStatusSubscriber implements EventSubscriberInterface {
         request_data: $event->getChatInput()->toArray(),
         provider_name: $event->getAgent()->getAiProvider()->getPluginId(),
         model_name: $event->getAgent()->getModelName(),
-        config: $event->getAgent()->getAiConfiguration(),
+        config: $event->getAgent()->getAiConfiguration() ?? [],
         calling_agent_id: $event->getCallerId(),
       ));
     }
@@ -240,6 +240,7 @@ class AgentStatusSubscriber implements EventSubscriberInterface {
         $tool_as_array = $tool->getOutputRenderArray();
         $definition = $this->functionCallPluginManager->getFunctionCallFromFunctionName($tool_as_array['function']['name']);
         $plugin = $definition->getPluginDefinition();
+        $settings = $event->getAgent()->getAiAgentEntity()->get('tool_settings')[$plugin['id']]['progress_message'] ?? '';
         $this->statusStorage->storeStatusUpdateItem($event->getThreadId(), new ToolSelected(
           time: $combined_ms,
           agent_id: $event->getAgentId(),
@@ -249,7 +250,7 @@ class AgentStatusSubscriber implements EventSubscriberInterface {
           tool_input: $tool_as_array['function']['arguments'] ?? '',
           calling_agent_id: $event->getCallerId(),
           tool_id: $tool->getToolId() ?? '',
-          tool_feedback_message: (string) $plugin['feedback_message'],
+          tool_feedback_message: $settings,
         ));
       }
     }
@@ -274,10 +275,25 @@ class AgentStatusSubscriber implements EventSubscriberInterface {
     $tool = $event->getTool();
     // Create a tool input from contexts.
     $tool_input = [];
-    $contexts = $event->getTool()->getContexts();
-    foreach ($contexts as $context) {
-      $data_def = $context->getContextDefinition()->getDataDefinition();
-      $tool_input[(string) $data_def->getLabel()] = $context->getContextValue();
+    $is_default_information_tool = ($event->isAgentDecision() === FALSE);
+    if ($is_default_information_tool) {
+      foreach ($tool->getContextValues() as $name => $value) {
+        $tool_input[$name] = Json::encode($value);
+      }
+    }
+    else {
+      $history = $event->getAgent()->getChatHistory();
+      $message = end($history);
+      if ($message->getTools()) {
+        foreach ($message->getTools() as $tool_object) {
+          if ($tool_object->getToolId() == $tool->getToolsId()) {
+            $arguments = $tool_object->getArguments() ?? [];
+            foreach ($arguments as $argument) {
+              $tool_input[$argument->getName()] = Json::encode($argument->getValue());
+            }
+          }
+        }
+      }
     }
     $this->statusStorage->storeStatusUpdateItem($event->getThreadId(), new ToolFinishedExecution(
       time: $this->time->getCurrentMicroTime(),
@@ -290,6 +306,7 @@ class AgentStatusSubscriber implements EventSubscriberInterface {
       calling_agent_id: $event->getCallerId(),
       tool_id: $tool->getToolsId() ?? '',
       tool_feedback_message: $event->getProgressMessage(),
+      is_agent_decision: $event->isAgentDecision(),
     ));
   }
 
@@ -311,10 +328,25 @@ class AgentStatusSubscriber implements EventSubscriberInterface {
     // Create a tool input from contexts.
     $tool_input = [];
     $tool = $event->getTool();
-    $contexts = $tool->getContexts();
-    foreach ($contexts as $context) {
-      $data_def = $context->getContextDefinition()->getDataDefinition();
-      $tool_input[(string) $data_def->getLabel()] = $context->getContextValue();
+    $is_default_information_tool = ($event->isAgentDecision() === FALSE);
+    if ($is_default_information_tool) {
+      foreach ($tool->getContextValues() as $name => $value) {
+        $tool_input[$name] = Json::encode($value);
+      }
+    }
+    else {
+      $history = $event->getAgent()->getChatHistory();
+      $message = end($history);
+      if ($message->getTools()) {
+        foreach ($message->getTools() as $tool_object) {
+          if ($tool_object->getToolId() == $tool->getToolsId()) {
+            $arguments = $tool_object->getArguments() ?? [];
+            foreach ($arguments as $argument) {
+              $tool_input[$argument->getName()] = Json::encode($argument->getValue());
+            }
+          }
+        }
+      }
     }
     $this->statusStorage->storeStatusUpdateItem($event->getThreadId(), new ToolStartedExecution(
       time: $this->time->getCurrentMicroTime(),
@@ -326,6 +358,7 @@ class AgentStatusSubscriber implements EventSubscriberInterface {
       calling_agent_id: $event->getCallerId(),
       tool_id: $tool->getToolsId() ?? '',
       tool_feedback_message: $event->getProgressMessage(),
+      is_agent_decision: $event->isAgentDecision(),
     ));
   }
 

@@ -1,0 +1,13 @@
+name: Test Index
+description: 'Configuration for testing Simple Search Form with Search API.'
+type: module
+package: Testing
+dependencies:
+  - drupal:node
+  - drupal:views
+  - search_api:search_api_db
+
+# Information added by Drupal.org packaging script on 2026-01-08
+version: '8.x-1.9'
+project: 'simple_search_form'
+datestamp: 1767865969

@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Drupal\Tests\layout_builder_restrictions\Kernel;
 
 use Drupal\KernelTests\KernelTestBase;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Layout builder restrictions manager kernel tests.
- *
- * @group layout_builder_restrictions
  */
+#[Group('layout_builder_restrictions')]
+#[RunTestsInSeparateProcesses]
 class RestrictionManagerTest extends KernelTestBase {
 
   /**

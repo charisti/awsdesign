@@ -124,9 +124,9 @@ function automatic_updates_preprocess_update_project_status(array &$variables) {
       // If this version will not be displayed as an option on this module's
       // update form replace the link to download the archive file with the
       // release notes link. The release notes page will provide Composer
-      // instructions. While this isn't a perfect solution the Update module twig
-      // templates do not check if 'download_link' is set, so we cannot unset it
-      // here.
+      // instructions. While this isn't a perfect solution the Update module
+      // Twig templates do not check if 'download_link' is set, so we cannot
+      // unset it here.
       $themed_version['#attributes']['class'][] = 'automatic-updates-unsupported-version';
       $version_info['download_link'] = $version_info['release_link'];
     }

@@ -84,6 +84,30 @@ final class Routes implements ContainerInjectionInterface {
           '_permission' => ModelerApiPermissions::getPermissionKey('edit', $ownerId) . '+' . ModelerApiPermissions::getPermissionKey('view', $ownerId),
         ],
       ));
+      if ($owner->supportsReplayData()) {
+        $routes->add('entity.' . $type . '.replay', new Route(
+          '/admin/modeler_api/' . $type . '/replay',
+          [
+            '_controller' => 'Drupal\modeler_api\Controller\ModelerApi::loadReplayData',
+            'model_owner_id' => $owner->getPluginId(),
+          ],
+          [
+            '_permission' => ModelerApiPermissions::getPermissionKey('edit', $ownerId) . '+' . ModelerApiPermissions::getPermissionKey('view', $ownerId),
+          ],
+        ));
+      }
+      if ($owner->supportsTesting()) {
+        $routes->add('entity.' . $type . '.test', new Route(
+          '/admin/modeler_api/' . $type . '/test',
+          [
+            '_controller' => 'Drupal\modeler_api\Controller\ModelerApi::testModel',
+            'model_owner_id' => $owner->getPluginId(),
+          ],
+          [
+            '_permission' => ModelerApiPermissions::getPermissionKey('edit', $ownerId) . '+' . ModelerApiPermissions::getPermissionKey('view', $ownerId),
+          ],
+        ));
+      }
 
       $basePath = $owner->configEntityBasePath();
       if ($basePath === NULL) {
@@ -199,12 +223,12 @@ final class Routes implements ContainerInjectionInterface {
       $routes->add('entity.' . $type . '.clone', new Route(
         '/' . $basePath . '/{' . $type . '}/clone',
         [
-          '_controller' => 'Drupal\modeler_api\Controller\ModelerApi::clone',
+          '_form' => 'Drupal\modeler_api\Form\CloneForm',
+          '_title' => 'Clone',
           'model' => '',
         ],
         [
           '_permission' => ModelerApiPermissions::getPermissionKey('edit', $ownerId),
-          '_csrf_token' => 'TRUE',
         ],
         $options,
       ));
@@ -223,10 +247,7 @@ final class Routes implements ContainerInjectionInterface {
           '_controller' => 'Drupal\modeler_api\Controller\ModelerApi::export',
           'model' => '',
         ],
-        [
-          '_permission' => ModelerApiPermissions::getPermissionKey('edit', $ownerId),
-          '_csrf_token' => 'TRUE',
-        ],
+        ['_permission' => ModelerApiPermissions::getPermissionKey('edit', $ownerId)],
         $options,
       ));
       $routes->add('entity.' . $type . '.export_recipe', new Route(

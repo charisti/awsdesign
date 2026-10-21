@@ -2,6 +2,7 @@
 
 namespace Drupal\ai_automators\Plugin\AiAutomatorType;
 
+use Drupal\ai\Utility\Textarea;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Form\FormStateInterface;
@@ -62,6 +63,14 @@ class LlmVideoToHtml extends VideoToText implements AiAutomatorTypeInterface {
       ],
       '#default_value' => $defaultValues['automator_generating_prompt'] ?? '',
       '#weight' => 24,
+      // This property will land into core soon, see
+      // https://www.drupal.org/project/drupal/issues/3202631. It can stay
+      // after this is added to Drupal core.
+      '#normalize_newlines' => TRUE,
+      // Until that the custom value callback is needed. Should be removed
+      // after the issue mentioned above is merged into core and the minimum
+      // supported Drupal version includes `#normalize_newlines` property.
+      '#value_callback' => [Textarea::class, 'valueCallback'],
     ];
 
     if ($this->moduleHandler->moduleExists('token')) {
@@ -110,7 +119,9 @@ class LlmVideoToHtml extends VideoToText implements AiAutomatorTypeInterface {
           $input = new ChatInput([
             new ChatMessage('user', $prompt, $this->images),
           ]);
+          $input = $this->applyGuardrailsToInput($input, $automatorConfig);
           $response = $instance->chat($input, $automatorConfig['ai_model'])->getNormalized();
+          $this->assertNotStoppedByGuardrail($input);
           $json = json_decode(str_replace("\n", "", trim(str_replace(['```json', '```'], '', $response->getText()))), TRUE);
           $values = $this->decodeValueArray($json);
           $total = array_merge_recursive($total, $values);

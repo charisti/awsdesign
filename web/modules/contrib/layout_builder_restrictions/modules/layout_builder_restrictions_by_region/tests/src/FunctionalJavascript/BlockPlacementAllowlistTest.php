@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Drupal\Tests\layout_builder_restrictions_by_region\FunctionalJavascript;
 
 use Drupal\Tests\layout_builder_restrictions\FunctionalJavascript\LayoutBuilderRestrictionsTestBase;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Demonstrate that blocks can be individually restricted.
- *
- * @group layout_builder_restrictions_by_region
  */
+#[Group('layout_builder_restrictions_by_region')]
+#[RunTestsInSeparateProcesses]
 class BlockPlacementAllowlistTest extends LayoutBuilderRestrictionsTestBase {
 
   /**
@@ -57,7 +59,7 @@ class BlockPlacementAllowlistTest extends LayoutBuilderRestrictionsTestBase {
     ];
     $config = \Drupal::service('config.factory')->getEditable('layout_builder_restrictions.plugins');
     $config->set('plugin_config', $layout_builder_restrictions_plugins)->save();
-    $this->getSession()->resizeWindow(900, 2000);
+    $this->getSession()->resizeWindow(1600, 2000);
   }
 
   /**
@@ -203,6 +205,9 @@ class BlockPlacementAllowlistTest extends LayoutBuilderRestrictionsTestBase {
     $this->clickLink('Remove Section 1');
     $this->assertNotEmpty($assert_session->waitForText('Are you sure'));
     $page->pressButton('Remove');
+    $this->assertNotEmpty($assert_session->waitForElementRemoved('css', '.layout-builder-remove-section.confirmation'));
+    $page->pressButton('Save');
+    $this->navigateToNodeLayout($node_id);
     $this->assertNotEmpty($assert_session->waitForText('Add section'));
     $this->clickLink('Add section');
     $this->assertNotEmpty($assert_session->waitForText('Two column'));
@@ -334,7 +339,7 @@ class BlockPlacementAllowlistTest extends LayoutBuilderRestrictionsTestBase {
     $this->assertNotEmpty($assert_session->waitForLink('Body'));
     $assert_session->linkExists('Body');
     // ... but other 'content' fields aren't.
-    $assert_session->linkNotExists('Promoted to front page');
+    $assert_session->linkNotExists('Authored by');
     $assert_session->linkNotExists('Sticky at top of lists');
     // "Basic" Content blocks are allowed.
     $assert_session->linkExists('Basic Block 1');
@@ -354,7 +359,7 @@ class BlockPlacementAllowlistTest extends LayoutBuilderRestrictionsTestBase {
     $element = $page->find('xpath', '//*[@id="edit-layout-builder-restrictions-allowed-blocks-by-layout-layout-twocol-section-table"]/tbody/tr[@data-region="first"]//a');
     $element->click();
     $this->assertNotEmpty($assert_session->waitForText('Allowed blocks'));
-
+    $this->assertNotEmpty($assert_session->waitForText('Content block'));
     $element = $page->find('xpath', '//*[starts-with(@id, "edit-allowed-blocks-custom-blocks-restriction-allowlisted--")]');
     $element->click();
     // Allow Alternate Block 1.
@@ -383,8 +388,8 @@ class BlockPlacementAllowlistTest extends LayoutBuilderRestrictionsTestBase {
     $element = $page->find('xpath', '//*[@id="edit-layout-builder-restrictions-allowed-blocks-by-layout-layout-twocol-section-table"]/tbody/tr[@data-region="second"]//a');
     $element->click();
     $this->assertNotEmpty($assert_session->waitForText('Allowed blocks'));
-
-    // System blocks are disallowed.
+    $this->assertNotEmpty($assert_session->waitForText('Content block'));
+    // Disallow blocks provided by the "System" module.
     $element = $page->find('xpath', '//*[starts-with(@id, "edit-allowed-blocks-system-restriction-allowlisted--")]');
     $element->click();
     $element = $page->find('xpath', '//*[starts-with(@id,"edit-submit--")]');
@@ -488,15 +493,15 @@ class BlockPlacementAllowlistTest extends LayoutBuilderRestrictionsTestBase {
     $this->navigateToNodeLayout($node_id);
     $element = $page->find('xpath', '//*[contains(@class, "layout--twocol-section")]/*[contains(@class, "layout__region--first")]//a');
     $element->click();
-    $this->assertNotEmpty($assert_session->waitForLink('Promoted to front page'));
-    $assert_session->linkExists('Promoted to front page');
+    $this->assertNotEmpty($assert_session->waitForLink('Authored by'));
+    $assert_session->linkExists('Authored by');
     $page->pressButton('Close');
     $this->assertNotEmpty($assert_session->waitForElementRemoved('css', '.ui-dialog-off-canvas'));
 
     $element = $page->find('xpath', '//*[contains(@class, "layout--twocol-section")]/*[contains(@class, "layout__region--second")]//a');
     $element->click();
-    $this->assertNotEmpty($assert_session->waitForLink('Promoted to front page'));
-    $assert_session->linkExists('Promoted to front page');
+    $this->assertNotEmpty($assert_session->waitForLink('Authored by'));
+    $assert_session->linkExists('Authored by');
     $page->pressButton('Close');
     $this->assertNotEmpty($assert_session->waitForText('Save'));
     $page->pressButton('Save');
@@ -524,14 +529,14 @@ class BlockPlacementAllowlistTest extends LayoutBuilderRestrictionsTestBase {
     $element = $page->find('xpath', '//*[contains(@class, "layout--twocol-section")]/*[contains(@class, "layout__region--first")]//a');
     $element->click();
     $this->assertNotEmpty($assert_session->waitForText('Choose a block'));
-    $assert_session->linkNotExists('Promoted to front page');
+    $assert_session->linkNotExists('Authored by');
     $page->pressButton('Close');
     $this->assertNotEmpty($assert_session->waitForElementRemoved('css', '.ui-dialog-off-canvas'));
 
     $element = $page->find('xpath', '//*[contains(@class, "layout--twocol-section")]/*[contains(@class, "layout__region--second")]//a');
     $element->click();
     $this->assertNotEmpty($assert_session->waitForText('Choose a block'));
-    $assert_session->linkNotExists('Promoted to front page');
+    $assert_session->linkNotExists('Authored by');
   }
 
 }

@@ -32,13 +32,17 @@ abstract class ConfigActionBase extends ConfigurableActionBase {
 
   /**
    * {@inheritdoc}
+   *
+   * No cache metadata is attached, in line with every other ECA action.
+   *
+   * @see \Drupal\eca\Plugin\Action\ActionBase::access()
    */
   public function access($object, ?AccountInterface $account = NULL, $return_as_object = FALSE) {
     $account = $account ?: $this->currentUser;
     if ($account->hasPermission('administer site configuration')) {
-      return $return_as_object ? AccessResult::allowed()->cachePerPermissions() : TRUE;
+      return $return_as_object ? AccessResult::allowed() : TRUE;
     }
-    return $return_as_object ? AccessResult::forbidden()->cachePerPermissions() : FALSE;
+    return $return_as_object ? AccessResult::forbidden() : FALSE;
   }
 
   /**

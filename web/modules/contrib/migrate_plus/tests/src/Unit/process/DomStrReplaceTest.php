@@ -6,16 +6,18 @@ namespace Drupal\Tests\migrate_plus\Unit\process;
 
 use Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException;
 use Drupal\Component\Utility\Html;
-use Drupal\Tests\migrate\Unit\process\MigrateProcessTestCase;
 use Drupal\migrate\MigrateSkipRowException;
 use Drupal\migrate_plus\Plugin\migrate\process\DomStrReplace;
+use Drupal\Tests\migrate\Unit\process\MigrateProcessTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tests the dom_str_replace process plugin.
- *
- * @group migrate
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\DomStrReplace
  */
+#[CoversClass(DomStrReplace::class)]
+#[Group('migrate_plus')]
 final class DomStrReplaceTest extends MigrateProcessTestCase {
 
   /**
@@ -23,7 +25,7 @@ final class DomStrReplaceTest extends MigrateProcessTestCase {
    *
    * @var array
    */
-  private static $exampleConfiguration = [
+  private static array $exampleConfiguration = [
     'mode' => 'attribute',
     'xpath' => '//a',
     'attribute_options' => [
@@ -34,10 +36,11 @@ final class DomStrReplaceTest extends MigrateProcessTestCase {
   ];
 
   /**
-   * @covers ::__construct
+   * Tests empty configuration.
    *
    * @dataProvider providerTestConfigEmpty
    */
+  #[DataProvider('providerTestConfigEmpty')]
   public function testConfigValidation(array $config_overrides, string $message): void {
     $configuration = $config_overrides + self::$exampleConfiguration;
     $value = '<p>A simple paragraph.</p>';
@@ -80,7 +83,7 @@ final class DomStrReplaceTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::transform
+   * Tests invalid input.
    */
   public function testTransformInvalidInput(): void {
     $configuration = [
@@ -100,10 +103,11 @@ final class DomStrReplaceTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::transform
+   * Tests valid input.
    *
    * @dataProvider providerTestTransform
    */
+  #[DataProvider('providerTestTransform')]
   public function testTransform(string $input_string, array $configuration, string $output_string): void {
     $value = Html::load($input_string);
     $document = (new DomStrReplace($configuration, 'dom_str_replace', []))

@@ -15,10 +15,15 @@
       "name": "Eirik Morland (eiriksm)",
       "homepage": "https://www.drupal.org/u/eiriksm",
       "role": "Maintainer"
+    },
+    {
+      "name": "Benji Fisher (benjifisher)",
+      "homepage": "https://www.drupal.org/u/benjifisher",
+      "role": "Maintainer"
     }
   ],
   "require": {
-    "drupal/core": "^10 || ^11"
+    "drupal/core": "^10 || ^11 || ^12"
   },
   "support": {
     "issues": "https://www.drupal.org/project/issues/layout_builder_restrictions",

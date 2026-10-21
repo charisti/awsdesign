@@ -30,7 +30,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
       label: new TranslatableMarkup("Data Name"),
       description: new TranslatableMarkup("The required node type data name. Allows for underscore and alphanumeric characters."),
       required: TRUE,
-      constraints: ['Regex' => '/^[a-zA-Z0-9_]+$/'],
+      constraints: ['Regex' => ['pattern' => '/^[a-zA-Z0-9_]+$/']],
     ),
     'label' => new ContextDefinition(
       data_type: 'string',
@@ -133,7 +133,7 @@ class CreateContentType extends FunctionCallBase implements ExecutableFunctionCa
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Collect the context values.
     $data_name = $this->getContextValue('data_name');
     $label = $this->getContextValue('label');

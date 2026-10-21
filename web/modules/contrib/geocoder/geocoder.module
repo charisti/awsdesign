@@ -23,6 +23,7 @@ function geocoder_theme($existing, $type, $theme, $path) {
   return [
     'geocoder_help' => [
       'template' => 'help',
+      'variables' => [],
     ],
   ];
 }

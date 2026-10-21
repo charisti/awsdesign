@@ -7,6 +7,7 @@ namespace Drupal\trash\RouteProcessor;
 use Drupal\Core\Render\BubbleableMetadata;
 use Drupal\Core\RouteProcessor\OutboundRouteProcessorInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\trash\TrashManagerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Route;
 
@@ -18,6 +19,7 @@ class TrashRouteProcessor implements OutboundRouteProcessorInterface {
   public function __construct(
     protected RequestStack $requestStack,
     protected RouteMatchInterface $routeMatch,
+    protected TrashManagerInterface $trashManager,
   ) {}
 
   /**
@@ -39,9 +41,14 @@ class TrashRouteProcessor implements OutboundRouteProcessorInterface {
 
     if ($request->query->has('in_trash')) {
       $parts = explode('.', $this->routeMatch->getRouteName());
-      if ($parts[0] === 'entity') {
+      if ($parts[0] === 'entity' && $parts[2] === 'canonical') {
         $entity_type_id = $parts[1];
         $entity_id = $this->routeMatch->getRawParameter($entity_type_id);
+
+        // Bail out early if the entity type is not trash-enabled.
+        if (!$this->trashManager->isEntityTypeEnabled($entity_type_id)) {
+          return;
+        }
 
         if (isset($parameters[$entity_type_id]) && $parameters[$entity_type_id] === $entity_id) {
           $parameters['in_trash'] = TRUE;

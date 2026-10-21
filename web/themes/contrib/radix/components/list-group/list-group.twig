@@ -20,8 +20,8 @@
 {% set list_group_html_tag = list_group_html_tag ?? (numbered ? 'ol' : 'ul') %}
 {% set list_group_item_html_tag = list_group_item_html_tag ?? 'li' %}
 {% set list_group_item_variants = list_group_item_variants ?? '' %}
-{% set numbered = numbered|default(false) %}
-{% set horizontal = horizontal|default(false) %}
+{% set numbered = numbered ?? false %}
+{% set horizontal = horizontal ?? false %}
 {% set horizontal_breakpoint = horizontal_breakpoint|default('') %}
 
 {%

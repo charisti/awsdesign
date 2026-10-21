@@ -69,9 +69,16 @@ class EcaMigrateProcessEvent extends Event {
    *   Value to set.
    */
   public function setValue(mixed $value): void {
-    $this->value = ($value instanceof DataTransferObject)
-      ? $value->getValue()
-      : $value;
+    if ($value instanceof DataTransferObject) {
+      // A DTO with no properties only carries a scalar/string representation,
+      // so return that scalar directly. Any array of actual properties
+      // (indexed or associative, single or multiple elements) is returned
+      // unchanged.
+      $this->value = $value->count() ? $value->toArray() : $value->getValue();
+    }
+    else {
+      $this->value = $value;
+    }
   }
 
   /**

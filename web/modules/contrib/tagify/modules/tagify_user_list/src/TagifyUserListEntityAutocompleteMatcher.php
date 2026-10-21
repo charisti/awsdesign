@@ -61,6 +61,11 @@ class TagifyUserListEntityAutocompleteMatcher extends TagifyEntityAutocompleteMa
           }
           $context = ['entity' => $entity] + $options;
           $this->moduleHandler->alter('tagify_autocomplete_match', $label, $info_label, $context);
+
+          if ($info_label !== NULL) {
+            $info_label = self::filterHtmlWithImages($info_label);
+          }
+
           if ($label !== NULL) {
             $matches[$entity_id] = $this->buildTagifyUserListItem($target_type, $entity_id, $label, $info_label, $selection_settings['image'], $selection_settings['image_style']);
           }

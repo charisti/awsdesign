@@ -3,6 +3,7 @@
 namespace Drupal\Tests\eca_endpoint\Kernel;
 
 use Drupal\Core\Action\ActionManager;
+use Drupal\Core\Form\FormState;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\eca\Token\TokenInterface;
 use Drupal\eca_endpoint\EndpointEvents;
@@ -101,6 +102,27 @@ class EndpointActionsTest extends KernelTestBase {
 
     $this->assertTrue($this->tokenService->hasTokenData('the_client_ip'));
     $this->assertEquals(\Drupal::requestStack()->getCurrentRequest()->getClientIp(), $this->tokenService->getTokenData('the_client_ip'));
+  }
+
+  /**
+   * Tests that the update build ID form uses its configuration keys.
+   */
+  public function testUpdateBuildIdConfigurationForm(): void {
+    /** @var \Drupal\eca_endpoint\Plugin\Action\SetAjaxResponseUpdateBuildIdCommand $action */
+    $action = $this->actionManager->createInstance('eca_endpoint_set_ajax_response_update_build_id');
+    $form_state = new FormState();
+    $form = $action->buildConfigurationForm([], $form_state);
+
+    $this->assertArrayHasKey('old', $form);
+    $this->assertArrayHasKey('new', $form);
+    $this->assertArrayNotHasKey('old_id', $form);
+    $this->assertArrayNotHasKey('new_id', $form);
+
+    $form_state->setValue('old', 'submitted-old');
+    $form_state->setValue('new', 'submitted-new');
+    $action->submitConfigurationForm($form, $form_state);
+    $this->assertSame('submitted-old', $action->getConfiguration()['old']);
+    $this->assertSame('submitted-new', $action->getConfiguration()['new']);
   }
 
   /**

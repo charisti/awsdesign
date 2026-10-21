@@ -5,23 +5,20 @@
 $utilities: map.merge(
   $utilities,
   (
-    "background-color": (
-      property: background-color,
-      class: bg,
-      local-vars: (
-        "bg-opacity": 1,
+    "background-color":
+      map.merge(
+        map.get($utilities, "background-color"),
+        (
+          values:
+            map.merge(map.get(map.get($utilities, "background-color"), "values"), $colors),
+        )
       ),
-      responsive: false,
-      values: map.merge($utilities-bg-colors, ($colors)),
-    ),
-    "color": (
-      property: color,
-      class: text,
-      local-vars: (
-        "text-opacity": 1,
+    "color":
+      map.merge(
+        map.get($utilities, "color"),
+        (
+          values: map.merge(map.get(map.get($utilities, "color"), "values"), $colors),
+        )
       ),
-      responsive: false,
-      values: map.merge($utilities-text-colors, ($colors)),
-    ),
   )
 );

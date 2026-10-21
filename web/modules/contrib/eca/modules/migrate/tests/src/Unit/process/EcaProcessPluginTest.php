@@ -76,4 +76,34 @@ class EcaProcessPluginTest extends MigrateProcessTestCase {
     $this->assertSame($expected, $value);
   }
 
+  /**
+   * Tests that multiple() defaults to FALSE without the "multiple" config key.
+   */
+  public function testMultipleDefaultsToFalse(): void {
+    $plugin = new Eca(['token_name' => ['processed_value']], 'eca', [], $this->triggerEvent);
+    $this->assertFalse($plugin->multiple());
+  }
+
+  /**
+   * Tests that multiple() reflects the "multiple" config key.
+   *
+   * When set to TRUE, the pipeline applies subsequent process plugins that do
+   * not handle multiples themselves (e.g. "callback: trim") to each element of
+   * the returned list individually.
+   */
+  public function testMultipleFromConfiguration(): void {
+    $plugin = new Eca([
+      'token_name' => ['processed_value'],
+      'multiple' => TRUE,
+    ], 'eca', [], $this->triggerEvent);
+    $this->assertTrue($plugin->multiple());
+
+    // A falsy value keeps multiples handling disabled.
+    $plugin = new Eca([
+      'token_name' => ['processed_value'],
+      'multiple' => FALSE,
+    ], 'eca', [], $this->triggerEvent);
+    $this->assertFalse($plugin->multiple());
+  }
+
 }

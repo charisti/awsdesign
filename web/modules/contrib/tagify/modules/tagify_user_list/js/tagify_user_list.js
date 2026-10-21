@@ -1,5 +1,6 @@
 // eslint-disable-next-line func-names
 (function ($, Drupal, drupalSettings, Sortable) {
+  // cspell:ignore whitelist
   Drupal.behaviors.tagifyAutocompleteUserList = {
     attach: function attach() {
       // see https://github.com/yairEO/tagify#ajax-whitelist
@@ -10,17 +11,24 @@
       // eslint-disable-next-line func-names
       elements.each(function () {
         const input = this;
-        const { identifier } = input.dataset;
         const { cardinality } = input.dataset;
+        // Assigned once Tagify is initialized below. Every helper here needs
+        // Tagify's own scope element: data-drupal-selector resolves to the
+        // original <input>, which holds no tags and cannot host the loading
+        // markup.
+        let tagify;
 
         /**
          * Counts the number of selected tags.
          * @return {int} - The number of selected tags.
          */
         function countSelectedTags() {
-          const tagsElement = document.querySelector(`.${identifier}`);
-          const tagElements = tagsElement.querySelectorAll('.tagify__tag');
-          return tagElements.length;
+          // Tagify renders the dropdown header from inside its constructor,
+          // before the instance is assigned; no tags exist yet at that point.
+          if (!tagify) {
+            return 0;
+          }
+          return tagify.DOM.scope.querySelectorAll('.tagify__tag').length;
         }
 
         /**
@@ -33,29 +41,33 @@
 
         /**
          * Creates loading text markup.
+         *
+         * Reuses an existing element when present, so superseded (aborted)
+         * autocomplete requests cannot leave orphaned nodes behind.
          */
         function createLoadingTextMarkup() {
-          const tagsElement = document.querySelector(`.${identifier}`);
+          if (
+            !tagify ||
+            tagify.DOM.scope.querySelector('.tagify--loading-text')
+          ) {
+            return;
+          }
           // Create the loading text div element
           const loadingText = document.createElement('div');
           loadingText.className = 'tagify--loading-text hidden';
           loadingText.textContent = 'Loading...';
           // Add the loading text div inside the tags element
-          tagsElement.appendChild(loadingText);
+          tagify.DOM.scope.appendChild(loadingText);
         }
 
         /**
-         * Removes loading text markup.
+         * Removes the loading text markup element(s).
          */
         function removeLoadingTextMarkup() {
-          const tagsElement = document.querySelector(`.${identifier}`);
-          if (tagsElement) {
-            const loadingText = tagsElement.querySelector(
-              '.tagify--loading-text',
-            );
-            if (loadingText) {
-              loadingText.remove();
-            }
+          if (tagify) {
+            tagify.DOM.scope
+              .querySelectorAll('.tagify--loading-text')
+              .forEach((loadingText) => loadingText.remove());
           }
         }
 
@@ -152,10 +164,16 @@
          * @return {string} - The HTML template for the dropdown header.
          */
         function dropdownHeaderTemplate(suggestions) {
+          // Fallback to 'en' if the locale is not available.
+          const userLocale = navigator.language || 'en';
+          const pluralRule = new Intl.PluralRules(userLocale);
+          const pluralSuffix =
+            pluralRule.select(suggestions.length) === 'one' ? '' : 's';
+
           return !isTagLimitReached()
             ? `<div
             class="tagify__dropdown__count">
-              <span>${suggestions.length} members</span>
+                <span>${suggestions.length} member${pluralSuffix}</span>
             </div>`
             : '';
         }
@@ -177,7 +195,7 @@
         }
 
         // eslint-disable-next-line no-undef
-        const tagify = new Tagify(input, {
+        tagify = new Tagify(input, {
           dropdown: {
             enabled: parseInt(input.dataset.suggestionsDropdown, 10),
             highlightFirst: true,
@@ -213,6 +231,7 @@
           placeholder: parseInt(input.dataset.placeholder, 10),
           editTags: false,
           maxTags: cardinality > 0 ? cardinality : Infinity,
+          pasteAsTags: false,
         });
 
         let controller;
@@ -252,6 +271,7 @@
           }
 
           controller = new AbortController();
+          const requestController = controller;
 
           // Create Loading text markup.
           createLoadingTextMarkup();
@@ -291,9 +311,6 @@
               // Build the whitelist with the values coming from the fetch.
               if (newWhitelistData) {
                 tagify.whitelist = newWhitelistData;
-                if (identifier) {
-                  removeLoadingTextMarkup();
-                }
               }
               // Show dropdown suggestion if the input is or not matching.
               tagify.loading(false).dropdown.show(value);
@@ -305,19 +322,26 @@
                 // eslint-disable-next-line no-console
                 console.error('Error fetching data:', error);
               }
+            })
+            .finally(() => {
+              // Clean up on every outcome, including aborts, but only when
+              // this request is still the current one: a superseded request
+              // must not remove the loading text of its successor.
+              if (controller === requestController) {
+                removeLoadingTextMarkup();
+              }
             });
         }
 
         // If 'On click' dropdown suggestions is enabled (Simulated 'Select').
         if (!tagify.settings.dropdown.enabled) {
-          const tagsElement = document.querySelector(`.${identifier}`);
-          tagsElement.classList.add('tagify-select');
+          tagify.DOM.scope.classList.add('tagify-select');
         }
 
         // Tagify input event with debounce.
         // eslint-disable-next-line func-names
         const onInput = Drupal.debounce(function (e) {
-          const { value } = e.detail;
+          const value = e.detail?.value ?? e.detail.pastedText ?? '';
           handleAutocomplete(
             value,
             tagify.value.map((item) => item.entity_id),
@@ -335,7 +359,7 @@
 
         // Input event (when a tag is being typed/edited. e.detail exposes
         // value, inputElm & isValid).
-        tagify.on('input', onInput);
+        tagify.on('input paste cut', onInput);
         // Change event (any change to the value has occurred. e.detail.value
         // callback listener argument is a String).
         tagify.on('change', onChange);
@@ -346,9 +370,10 @@
          * @param {Event} e - The click event object.
          */
         function handleClickEvent(e) {
-          const containerClass = `.${identifier}`;
           const isTagifyInput = e.target.classList.contains('tagify__input');
-          const isDesiredContainer = e.target.closest(containerClass);
+          // The listener is on document, so the click must be confined to
+          // this widget's own Tagify scope.
+          const isDesiredContainer = tagify.DOM.scope.contains(e.target);
           if (isTagifyInput && isDesiredContainer) {
             handleAutocomplete(
               '',
@@ -361,65 +386,6 @@
           document.addEventListener('click', handleClickEvent);
         }
       });
-    },
-  };
-
-  /**
-   * Behaviors for tabs in entity edit forms.
-   *
-   * @type {Drupal~behavior}
-   *
-   * @prop {Drupal~behaviorAttach} attach
-   *   Attaches summary behavior for tabs in entity edit forms.
-   */
-  Drupal.behaviors.entityDetailsSummaries = {
-    attach: function attach(context) {
-      const $context = $(context);
-
-      // eslint-disable-next-line no-shadow,func-names
-      const element = $context.find('.node-form-author, .media-form-author');
-      if (element.length) {
-        element.drupalSetSummary((authorContext) => {
-          const $authorContext = $(authorContext);
-          const $authorInput = $authorContext.find('.field--name-uid input');
-          const $createdInput = $authorContext.find(
-            '.field--name-created input',
-          );
-
-          let name = null;
-          if ($authorInput.length) {
-            const value = $authorInput.val();
-            if (value) {
-              try {
-                const parsed = JSON.parse(value);
-                if (Array.isArray(parsed) && parsed[0]?.label) {
-                  name = parsed[0].label;
-                }
-              } catch (e) {
-                console.error('Invalid JSON in $authorInput:', value, e);
-              }
-            }
-          }
-
-          let date = null;
-          if ($createdInput.length) {
-            date = $createdInput.val();
-          }
-
-          if (name && date) {
-            return Drupal.t('By @name on @date', {
-              '@name': name,
-              '@date': date,
-            });
-          }
-          if (name) {
-            return Drupal.t('By @name', { '@name': name });
-          }
-          if (date) {
-            return Drupal.t('Authored on @date', { '@date': date });
-          }
-        });
-      }
     },
   };
 })(jQuery, Drupal, drupalSettings, Sortable);

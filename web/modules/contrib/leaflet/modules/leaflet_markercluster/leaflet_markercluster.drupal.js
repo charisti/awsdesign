@@ -6,6 +6,12 @@
 (function($, Drupal) {
 
   /**
+  * Preserve the original (non-clustering) add_features implementation from
+  * the base leaflet.drupal.js so we can fall back to it per map instance.
+  */
+  const original_add_features = Drupal.Leaflet.prototype.add_features;
+
+  /**
    * Add Leaflet Features with Marker Clustering to the Leaflet Map.
    *
    * @param features
@@ -14,6 +20,18 @@
    *   Boolean to identify initial status.
    */
   Drupal.Leaflet.prototype.add_features = function (features, initial) {
+    /**
+     * The prototype override is global, but clustering must be opt-in per
+     * map. If this specific map instance has clustering disabled, delegate
+     * to the original leaflet.drupal.js implementation so that other maps
+     * on the same page are not forced into clustering.
+     */
+    if (!this.map_settings
+        || !this.map_settings.leaflet_markercluster
+        || !this.map_settings.leaflet_markercluster.control
+    ) {
+      return original_add_features.call(this, features, initial);
+    }
     const leaflet_markercluster_options = this.map_settings.leaflet_markercluster.options && this.map_settings.leaflet_markercluster.options.length > 0 ? JSON.parse(this.map_settings.leaflet_markercluster.options) : {};
     const leaflet_markercluster_include_path = this.map_settings.leaflet_markercluster.include_path;
 

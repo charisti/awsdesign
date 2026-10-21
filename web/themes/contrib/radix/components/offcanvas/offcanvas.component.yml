@@ -24,7 +24,7 @@ props:
       type: array
       items:
         type: string
-      default: [] 
+      default: []
       description: 'Utility classes for the offcanvas title.'
     offcanvas_content:
       type: string
@@ -42,21 +42,21 @@ props:
       type: array
       items:
         type: string
-      default: [] 
+      default: []
       description: 'Utility classes for the offcanvas.'
     offcanvas_header_utility_classes:
       type: array
       items:
         type: string
-      default: [] 
+      default: []
       description: 'Utility classes for the offcanvas header.'
     offcanvas_body_utility_classes:
       type: array
       items:
         type: string
-      default: [] 
+      default: []
       description: 'Utility classes for the offcanvas body.'
-    backdrop: 
+    backdrop:
       type: 'string'
       default: 'true'
       enum:
@@ -64,7 +64,7 @@ props:
         - 'false'
         - 'static'
       description: 'Whether the offcanvas has a backdrop.'
-    body_scrolling: 
+    body_scrolling:
       type: boolean
       default: false
       description: 'Whether the body is scrolling when the offcanvas is open.'
@@ -88,7 +88,7 @@ props:
     offcanvas_attributes:
       type: Drupal\Core\Template\Attribute
       description: 'HTML attributes for the offcanvas element.'
-    offcanvas_title_attributes: 
+    offcanvas_title_attributes:
       type: Drupal\Core\Template\Attribute
       description: 'HTML attributes for the offcanvas title element.'
     offcanvas_body_attributes:
@@ -97,7 +97,7 @@ props:
     offcanvas_button_attributes:
       type: Drupal\Core\Template\Attribute
       description: 'HTML attributes for the offcanvas button element.'
-slots: 
+slots:
   offcanvas_header:
     title: 'Offcanvas header'
     description: 'Offcanvas header.'
@@ -107,4 +107,3 @@ slots:
   offcanvas_toggler:
     title: 'Offcanvas toggler'
     description: 'Offcanvas toggler.'
-

@@ -1,0 +1,157 @@
+/**
+ * @file
+ * Bootstrap 5.3 modal styling for core (jQuery UI) AJAX dialogs, mapping the
+ * jQuery UI structure onto Bootstrap's modal box model so dialogs look the same
+ * for anonymous and authenticated users.
+ *
+ * @see https://www.drupal.org/project/radix/issues/3546407
+ */
+
+/* .modal-content */
+.ui-dialog {
+  position: fixed;
+  z-index: 1055;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: calc(100% - 1rem);
+  max-height: calc(100% - 1rem);
+  padding: 0;
+  pointer-events: auto;
+  color: var(--bs-body-color, #212529);
+  border: var(--bs-border-width, 1px) solid
+    var(--bs-border-color-translucent, rgb(0, 0, 0, 0.175));
+  border-radius: var(--bs-border-radius-lg, 0.5rem);
+  outline: 0;
+  background-color: var(--bs-body-bg, #fff);
+  background-clip: padding-box;
+  box-shadow: var(--bs-box-shadow-sm, 0 0.125rem 0.25rem rgb(0, 0, 0, 0.075));
+}
+
+.ui-dialog.ui-widget,
+.ui-dialog.ui-widget-content {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* .modal-header */
+.ui-dialog .ui-dialog-titlebar {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 1rem;
+  border: 0;
+  border-bottom: var(--bs-border-width, 1px) solid
+    var(--bs-border-color, #dee2e6);
+  border-top-left-radius: calc(
+    var(--bs-border-radius-lg, 0.5rem) - var(--bs-border-width, 1px)
+  );
+  border-top-right-radius: calc(
+    var(--bs-border-radius-lg, 0.5rem) - var(--bs-border-width, 1px)
+  );
+  background: none;
+}
+
+/* .modal-title */
+.ui-dialog .ui-dialog-title {
+  float: none;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* .btn-close */
+.ui-dialog .ui-dialog-titlebar-close {
+  position: static;
+  box-sizing: content-box;
+  width: 1em;
+  height: 1em;
+  margin: calc(-0.5 * 1rem) calc(-0.5 * 1rem) calc(-0.5 * 1rem) auto;
+  padding: 0.25em 0.25em;
+  transition: opacity 0.15s ease-in-out;
+  text-indent: 0;
+  opacity: 0.5;
+  color: var(--bs-body-color, #000);
+  border: 0;
+  border-radius: var(--bs-border-radius, 0.375rem);
+  background: transparent
+    var(
+      --bs-btn-close-bg,
+      url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath d='M.293.293a1 1 0 0 1 1.414 0L8 6.586 14.293.293a1 1 0 1 1 1.414 1.414L9.414 8l6.293 6.293a1 1 0 0 1-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L6.586 8 .293 1.707a1 1 0 0 1 0-1.414z'/%3e%3c/svg%3e")
+    )
+    center / 1em auto no-repeat;
+  font-size: inherit;
+}
+
+.ui-dialog .ui-dialog-titlebar-close:hover {
+  text-decoration: none;
+  opacity: 0.75;
+  color: var(--bs-body-color, #000);
+}
+
+.ui-dialog .ui-dialog-titlebar-close:focus {
+  opacity: 1;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgb(var(--bs-primary-rgb, 13, 110, 253), 0.25);
+}
+
+.ui-dialog .ui-dialog-titlebar-close .ui-icon,
+.ui-dialog .ui-dialog-titlebar-close .ui-button-icon,
+.ui-dialog .ui-dialog-titlebar-close .ui-button-icon-space {
+  display: none;
+}
+
+/* .modal-body */
+.ui-dialog .ui-dialog-content {
+  position: relative;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  padding: 1rem;
+}
+
+/* .modal-footer */
+.ui-dialog .ui-dialog-buttonpane {
+  display: flex;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 0.75rem;
+  border: 0;
+  border-top: var(--bs-border-width, 1px) solid var(--bs-border-color, #dee2e6);
+  border-bottom-right-radius: calc(
+    var(--bs-border-radius-lg, 0.5rem) - var(--bs-border-width, 1px)
+  );
+  border-bottom-left-radius: calc(
+    var(--bs-border-radius-lg, 0.5rem) - var(--bs-border-width, 1px)
+  );
+  background: none;
+}
+
+.ui-dialog .ui-dialog-buttonpane .ui-dialog-buttonset {
+  display: flex;
+  gap: 0.5rem;
+  float: none;
+  margin: 0;
+}
+
+.ui-dialog .ui-dialog-buttonpane button {
+  margin: 0;
+}
+
+/* .modal-backdrop */
+.ui-widget-overlay {
+  position: fixed;
+  z-index: 1050;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  opacity: 0.5;
+  background-color: #000;
+}

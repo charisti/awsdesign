@@ -11,13 +11,13 @@
  * Unfortunately the core Html::cleanCssIdentifier() method is not doing that
  * well.
  *
- * @param string|null $identifier
+ * @param mixed $identifier
  *   The identifier to clean.
  *
  * @return string
  *   The cleaned identifier.
  */
-function radix_clean_identifier($identifier) {
+function radix_clean_identifier(mixed $identifier): string {
   // If the identifier is null or not a string, return an empty string.
   if ($identifier === NULL || !is_string($identifier)) {
     return '';

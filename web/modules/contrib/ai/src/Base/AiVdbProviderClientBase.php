@@ -69,6 +69,16 @@ abstract class AiVdbProviderClientBase implements AiVdbProviderInterface, AiVdbP
   protected ServerInterface $server;
 
   /**
+   * Item IDs for which deletion should be skipped during indexItems().
+   *
+   * Set by the backend when an item's chunks are being progressively indexed
+   * across multiple batch runs so that already-stored chunks are not erased.
+   *
+   * @var string[]
+   */
+  protected array $skipDeleteItemIds = [];
+
+  /**
    * Constructs a new AiVdbClientBase abstract class.
    *
    * @param string $plugin_id
@@ -132,6 +142,16 @@ abstract class AiVdbProviderClientBase implements AiVdbProviderInterface, AiVdbP
    */
   public function setSearchApiServer(?ServerInterface $server = NULL): void {
     $this->server = $server;
+  }
+
+  /**
+   * Sets item IDs that should not be deleted during the next indexItems() call.
+   *
+   * @param string[] $item_ids
+   *   The Search API item IDs to skip deletion for.
+   */
+  public function setSkipDeleteItemIds(array $item_ids): void {
+    $this->skipDeleteItemIds = $item_ids;
   }
 
   /**
@@ -287,9 +307,15 @@ abstract class AiVdbProviderClientBase implements AiVdbProviderInterface, AiVdbP
     ];
 
     // Check if we need to delete some items first.
-    $this->deleteIndexItems($configuration, $index, array_values(array_map(function ($item) {
-      return $item->getId();
-    }, $items)));
+    // Items in $skipDeleteItemIds are being progressively re-indexed across
+    // multiple batch runs; deleting them would erase previously stored chunks.
+    $delete_ids = array_values(array_diff(
+      array_map(fn($item) => $item->getId(), $items),
+      $this->skipDeleteItemIds,
+    ));
+    if (!empty($delete_ids)) {
+      $this->deleteIndexItems($configuration, $index, $delete_ids);
+    }
 
     /** @var \Drupal\search_api\Item\ItemInterface $item */
     foreach ($items as $item) {
@@ -313,7 +339,7 @@ abstract class AiVdbProviderClientBase implements AiVdbProviderInterface, AiVdbP
         ]);
         continue;
       }
-
+      $batch = [];
       foreach ($embeddings as $embedding) {
         // Ensure consistent embedding structure as per
         // EmbeddingStrategyInterface.
@@ -328,9 +354,14 @@ abstract class AiVdbProviderClientBase implements AiVdbProviderInterface, AiVdbP
         foreach ($embedding['metadata'] as $key => $value) {
           $data[$key] = $value;
         }
-        $this->insertIntoCollection(
+        $batch[] = $data;
+      }
+      // Skip items that produced no embeddings; inserting an empty batch would
+      // push a malformed record into the collection.
+      if (!empty($batch)) {
+        $this->insertBatchIntoCollection(
           collection_name: $configuration['database_settings']['collection'],
-          data: $data,
+          batch: $batch,
           database: $configuration['database_settings']['database_name'],
         );
       }
@@ -339,6 +370,26 @@ abstract class AiVdbProviderClientBase implements AiVdbProviderInterface, AiVdbP
     }
 
     return $successfulItemIds;
+  }
+
+  /**
+   * Insert records into collection.
+   *
+   * @param string $collection_name
+   *   The name of the collection.
+   * @param array $batch
+   *   The list of records to insert.
+   * @param string $database
+   *   The database name.
+   */
+  public function insertBatchIntoCollection(string $collection_name, array $batch, string $database = 'default'): void {
+    foreach ($batch as $record) {
+      $this->insertIntoCollection(
+        collection_name: $collection_name,
+        data: $record,
+        database: $database,
+      );
+    }
   }
 
   /**
@@ -384,10 +435,10 @@ abstract class AiVdbProviderClientBase implements AiVdbProviderInterface, AiVdbP
       database: $configuration['database_settings']['database_name'],
     );
     if ($vdbIds) {
-      $this->getClient()->deleteFromCollection(
+      $this->deleteFromCollection(
         collection_name: $configuration['database_settings']['collection'],
         ids: $vdbIds,
-        database_name: $configuration['database_settings']['database_name'],
+        database: $configuration['database_settings']['database_name'],
       );
     }
   }
@@ -426,15 +477,21 @@ abstract class AiVdbProviderClientBase implements AiVdbProviderInterface, AiVdbP
    */
   public function isMultiple(FieldInterface $field): bool {
     [$fieldName] = explode(':', $field->getPropertyPath());
-    [, $entity_type] = explode(':', $field->getDatasourceId());
-    $fields = $this->entityFieldManager->getFieldStorageDefinitions($entity_type);
-    foreach ($fields as $field) {
-      if ($field->getName() === $fieldName) {
-        $cardinality = $field->getCardinality();
-        return !($cardinality === 1);
-      }
+    $datasource = $field->getDatasourceId();
+    if ($datasource && str_contains($datasource, ':')) {
+      [, $entity_type] = explode(':', $field->getDatasourceId());
     }
-    return TRUE;
+    if (!empty($entity_type)) {
+      $fields = $this->entityFieldManager->getFieldStorageDefinitions($entity_type);
+      foreach ($fields as $field) {
+        if ($field->getName() === $fieldName) {
+          $cardinality = $field->getCardinality();
+          return !($cardinality === 1);
+        }
+      }
+      return TRUE;
+    }
+    return $field->getDataDefinition()->isList();
   }
 
   /**

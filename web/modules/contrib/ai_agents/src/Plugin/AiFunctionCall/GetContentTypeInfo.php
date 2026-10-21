@@ -82,7 +82,7 @@ class GetContentTypeInfo extends FunctionCallBase implements ExecutableFunctionC
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Collect the context values.
     $node_type_id = $this->getContextValue('node_type');
     // Check permissions for the current user.

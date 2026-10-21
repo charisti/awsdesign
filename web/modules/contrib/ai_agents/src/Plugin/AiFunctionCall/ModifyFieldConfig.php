@@ -170,7 +170,7 @@ class ModifyFieldConfig extends FunctionCallBase implements ExecutableFunctionCa
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Get the context.
     $type_of_operation = $this->getContextValue('type_of_operation');
     $field_name = $this->getContextValue('field_name');

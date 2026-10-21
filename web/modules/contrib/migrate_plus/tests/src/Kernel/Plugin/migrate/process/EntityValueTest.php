@@ -5,41 +5,45 @@ declare(strict_types=1);
 namespace Drupal\Tests\migrate_plus\Kernel\Plugin\migrate\process;
 
 use Drupal\KernelTests\KernelTestBase;
+use Drupal\language\Entity\ConfigurableLanguage;
 use Drupal\migrate\MigrateException;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\Row;
 use Drupal\migrate_plus\Plugin\migrate\process\EntityValue;
 use Drupal\node\Entity\Node;
-use Drupal\language\Entity\ConfigurableLanguage;
 use Drupal\node\Entity\NodeType;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the entity_value plugin.
- *
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\EntityValue
- * @group migrate_drupal
  */
+#[CoversClass(EntityValue::class)]
+#[Group('migrate_drupal')]
+#[RunTestsInSeparateProcesses]
 final class EntityValueTest extends KernelTestBase {
 
   /**
    * The generated title.
    */
-  protected ?string $title;
+  protected ?string $title = NULL;
 
   /**
    * The generated Spanish title.
    */
-  protected ?string $titleSpanish;
+  protected ?string $titleSpanish = NULL;
 
   /**
    * The generated node ID.
    */
-  protected ?string $uid;
+  protected ?string $uid = NULL;
 
   /**
    * The plugin to test.
    */
-  protected ?EntityValue $plugin;
+  protected ?EntityValue $plugin = NULL;
 
 
   /**
@@ -83,8 +87,6 @@ final class EntityValueTest extends KernelTestBase {
 
   /**
    * Test the EntityLoad plugin succeeding.
-   *
-   * @covers ::transform
    */
   public function testEntityValueSuccess(): void {
     $this->plugin = \Drupal::service('plugin.manager.migrate.process')
@@ -120,8 +122,6 @@ final class EntityValueTest extends KernelTestBase {
 
   /**
    * Test the EntityLoad plugin succeeding.
-   *
-   * @covers ::transform
    */
   public function testEntityValueLangSuccess(): void {
     $this->plugin = \Drupal::service('plugin.manager.migrate.process')
@@ -147,8 +147,6 @@ final class EntityValueTest extends KernelTestBase {
 
   /**
    * Test the EntityLoad plugin failure.
-   *
-   * @covers ::transform
    */
   public function testEntityValueLangException(): void {
     $config_entity = NodeType::create(['type' => 'page', 'name' => 'page']);
@@ -174,11 +172,11 @@ final class EntityValueTest extends KernelTestBase {
    * Test the EntityLoad plugin throwing.
    *
    * @param mixed $config
-   *   the Plugin Config.
+   *   The plugin Config.
    *
-   * @covers ::__construct
    * @dataProvider entityValueFailureConfigData
    */
+  #[DataProvider('entityValueFailureConfigData')]
   public function testEntityValueConfig(array $config): void {
     $this->expectException(\InvalidArgumentException::class);
     \Drupal::service('plugin.manager.migrate.process')

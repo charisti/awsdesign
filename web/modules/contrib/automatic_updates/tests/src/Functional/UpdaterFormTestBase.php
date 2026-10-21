@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Drupal\Tests\automatic_updates\Functional;
 
 use Drupal\automatic_updates_test\EventSubscriber\TestSubscriber1;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\package_manager\Event\StatusCheckEvent;
 use Drupal\package_manager\ValidationResult;
-use Drupal\system\SystemManager;
 use Drupal\Tests\automatic_updates\Traits\ValidationTestTrait;
 use Drupal\Tests\package_manager\Traits\PackageManagerBypassTestTrait;
 
@@ -75,7 +75,7 @@ abstract class UpdaterFormTestBase extends AutomaticUpdatesFunctionalTestBase {
    */
   protected function setAndAssertCachedMessage(): TranslatableMarkup {
     // Store a status error, which will be cached.
-    $message = t("You've not experienced Shakespeare until you have read him in the original Klingon.");
+    $message = new TranslatableMarkup("You've not experienced Shakespeare until you have read him in the original Klingon.");
     $result = ValidationResult::createError([$message]);
     TestSubscriber1::setTestResult([$result], StatusCheckEvent::class);
     // Run the status checks a visit an admin page the message will be
@@ -135,7 +135,7 @@ abstract class UpdaterFormTestBase extends AutomaticUpdatesFunctionalTestBase {
    */
   protected function assertStatusMessageContainsResult(ValidationResult $result): void {
     $assert_session = $this->assertSession();
-    $type = $result->severity === SystemManager::REQUIREMENT_ERROR ? 'error' : 'warning';
+    $type = $result->severity === RequirementSeverity::Error->value ? 'error' : 'warning';
     $assert_session->statusMessageContains((string) $result->summary, $type);
     $assert_session->pageTextContainsOnce((string) $result->summary);
     foreach ($result->messages as $message) {

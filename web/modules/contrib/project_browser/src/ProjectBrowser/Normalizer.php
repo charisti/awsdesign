@@ -11,6 +11,7 @@ use Drupal\Core\Session\AccountInterface;
 use Drupal\project_browser\ActivationManager;
 use Drupal\project_browser\Activator\InstructionsInterface;
 use Drupal\project_browser\Activator\TasksInterface;
+use Drupal\project_browser\CsrfTokenPath;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 
 /**
@@ -25,6 +26,7 @@ final class Normalizer implements NormalizerInterface {
   public function __construct(
     private readonly ActivationManager $activationManager,
     private readonly RendererInterface $renderer,
+    private readonly CsrfTokenPath $csrfTokenPath,
   ) {}
 
   /**
@@ -133,7 +135,9 @@ final class Normalizer implements NormalizerInterface {
 
         return [
           'text' => (string) $text,
-          'url' => $url->toString(),
+          // Finalize CSRF placeholders so task links work when delivered via
+          // JSON to the Svelte UI (outside the HTML render pipeline).
+          'url' => $this->csrfTokenPath->toString($url),
           // The `project_browser_ajax` option is supported for backwards
           // compatibility.
           'ajax' => boolval($options['ajax'] ?? $url->getOption('project_browser_ajax') ?? FALSE),

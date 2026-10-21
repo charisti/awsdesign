@@ -38,27 +38,8 @@ class AnthropicProvider extends OpenAiBasedProviderClientBase {
    * {@inheritdoc}
    */
   public function getConfiguredModels(?string $operation_type = NULL, array $capabilities = []): array {
-    // Check if dynamic fetching is enabled (default: true for seamless
-    // upgrade).
-    $dynamic_enabled = $this->getConfig()->get('dynamic_models_enabled') ?? TRUE;
-    if ($dynamic_enabled) {
-      // Try to get dynamic models first.
-      $dynamic_models = $this->fetchAvailableModels();
-
-      $models = [];
-      if (!empty($dynamic_models)) {
-        // If we got models from the API, use them exclusively.
-        // This prevents duplicates from hardcoded models.
-        $models = $dynamic_models;
-      }
-
-      // Also use hardcoded models for backward compatibility.
-      $models = array_merge($this->getHardcodedModels($operation_type, $capabilities), $models);
-    }
-    else {
-      // Use only hardcoded models if dynamic fetching is disabled.
-      $models = $this->getHardcodedModels($operation_type, $capabilities);
-    }
+    // Get the dynamic models from the API.
+    $models = $this->fetchAvailableModels();
 
     // Apply capability filtering.
     if (in_array(AiModelCapability::ChatJsonOutput, $capabilities)) {
@@ -89,42 +70,55 @@ class AnthropicProvider extends OpenAiBasedProviderClientBase {
    * {@inheritdoc}
    */
   public function getSetupData(): array {
-    $models = $this->getConfiguredModels();
-    // Get the 4.1 models for complex tasks from the list.
-    $default_complex_model = 'claude-opus-4-1-latest';
+    try {
+      $models = $this->getConfiguredModels();
+    }
+    catch (\Exception $e) {
+      // If we fail to get models dynamically, fall back to empty array.
+      $models = [];
+    }
+
+    // Get the 4.5 models for complex tasks from the list.
+    $default_complex_model = 'claude-opus-4-5-20251101';
     foreach ($models as $model_id => $model_name) {
-      if (str_starts_with($model_id, 'claude-opus-4-1')) {
-        // We found a 4.1 model, we can use it.
+      if (str_starts_with($model_id, 'claude-opus-4-5')) {
+        // We found a 4.5 model, we can use it.
         $default_complex_model = $model_id;
         break;
       }
     }
-    // Get the 4.0 sonnet model for general tasks from the list.
-    $default_chat_model = 'claude-sonnet-4-latest';
+    // Get the 4.5 sonnet model for general tasks from the list.
+    $default_chat_model = 'claude-sonnet-4-5-20250929';
     foreach ($models as $model_id => $model_name) {
-      if (str_starts_with($model_id, 'claude-sonnet-4')) {
-        // We found a 4.0 sonnet model, we can use it.
+      if (str_starts_with($model_id, 'claude-sonnet-4-5')) {
+        // We found a 4.5 sonnet model, we can use it.
         $default_chat_model = $model_id;
         break;
       }
     }
 
-    return [
-      'key_config_name' => 'api_key',
-      'default_models' => [
-        'chat' => $default_chat_model,
-        'chat_with_image_vision' => $default_chat_model,
-        'chat_with_complex_json' => $default_complex_model,
-        'chat_with_tools' => $default_complex_model,
-        'chat_with_structured_response' => $default_complex_model,
-      ],
-    ];
+    $setup['key_config_name'] = 'api_key';
+    if ($default_complex_model) {
+      $setup['default_models']['chat_with_complex_json'] = $default_complex_model;
+      $setup['default_models']['chat_with_tools'] = $default_complex_model;
+      $setup['default_models']['chat_with_structured_response'] = $default_complex_model;
+    }
+    if ($default_chat_model) {
+      $setup['default_models']['chat'] = $default_chat_model;
+      $setup['default_models']['chat_with_image_vision'] = $default_chat_model;
+    }
+    return $setup;
   }
 
   /**
    * {@inheritdoc}
    */
   public function getModelSettings(string $model_id, array $generalConfig = []): array {
+    // If it's Claude 4.x or higher, we hide top_p as Anthropic API doesn't
+    // allow both temperature and top_p to be specified together.
+    if (preg_match('/^claude(?:-[a-z]+)*-(4(\.\d+)?|[5-9](\.\d+)?)(?:[.-]|$)/i', $model_id)) {
+      unset($generalConfig['top_p']);
+    }
     return $generalConfig;
   }
 
@@ -157,41 +151,6 @@ class AnthropicProvider extends OpenAiBasedProviderClientBase {
     catch (AiSetupFailureException $e) {
       throw new AiSetupFailureException('Failed to initialize Anthropic client: ' . $e->getMessage(), $e->getCode(), $e);
     }
-  }
-
-  /**
-   * Returns hardcoded models for backward compatibility.
-   *
-   * @param string|null $operation_type
-   *   The operation type.
-   * @param array $capabilities
-   *   Required capabilities.
-   *
-   * @return array
-   *   Array of hardcoded models.
-   */
-  protected function getHardcodedModels(?string $operation_type = NULL, array $capabilities = []): array {
-    // These are the existing hardcoded models.
-    $models = [
-      'claude-opus-4-1-latest' => 'Claude Opus 4.1 (Latest)',
-      'claude-sonnet-4-latest' => 'Claude Sonnet 4 (Latest)',
-      'claude-opus-4-latest' => 'Claude Opus 4 (Latest)',
-      'claude-3-7-sonnet-latest' => 'Claude 3.7 Sonnet (Latest)',
-      'claude-3-5-sonnet-latest' => 'Claude 3.5 Sonnet (Latest)',
-      'claude-3-5-haiku-latest' => 'Claude 3.5 Haiku (Latest)',
-      'claude-3-opus-latest' => 'Claude 3 Opus (Latest)',
-      'claude-3-sonnet-latest' => 'Claude 3 Sonnet (Latest)',
-      'claude-3-haiku-latest' => 'Claude 3 Haiku (Latest)',
-    ];
-
-    // Apply the same filtering logic as before.
-    if (in_array(AiModelCapability::ChatJsonOutput, $capabilities)) {
-      unset($models['claude-opus-4-latest']);
-      unset($models['claude-3-opus-latest']);
-      unset($models['claude-3-haiku-latest']);
-    }
-
-    return $models;
   }
 
   /**

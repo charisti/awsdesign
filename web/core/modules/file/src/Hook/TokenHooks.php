@@ -20,9 +20,9 @@ class TokenHooks {
   use StringTranslationTrait;
 
   public function __construct(
-    private readonly Token $token,
-    private readonly DateFormatterInterface $dateFormatter,
-    private readonly EntityTypeManagerInterface $entityTypeManager,
+    protected readonly Token $token,
+    protected readonly DateFormatterInterface $dateFormatter,
+    protected readonly EntityTypeManagerInterface $entityTypeManager,
   ) {}
 
   /**
@@ -47,7 +47,7 @@ class TokenHooks {
             $replacements[$original] = $file->uuid();
             break;
 
-          // Essential file data
+          // Essential file data.
           case 'name':
             $replacements[$original] = $file->getFilename();
             break;
@@ -88,10 +88,13 @@ class TokenHooks {
             break;
 
           case 'owner':
-            $owner = $file->getOwner();
-            $bubbleable_metadata->addCacheableDependency($owner);
-            $name = $owner->label();
-            $replacements[$original] = $name;
+            // Only replace the token when the file has a valid owner. When the
+            // owner is missing the token is left unreplaced, consistent with
+            // the chained [file:owner:*] tokens handled below.
+            if ($owner = $file->getOwner()) {
+              $bubbleable_metadata->addCacheableDependency($owner);
+              $replacements[$original] = $owner->label();
+            }
             break;
         }
       }

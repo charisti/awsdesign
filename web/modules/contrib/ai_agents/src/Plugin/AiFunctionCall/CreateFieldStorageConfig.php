@@ -115,7 +115,7 @@ class CreateFieldStorageConfig extends FunctionCallBase implements ExecutableFun
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Get the entity id.
     $field_name = $this->getContextValue('field_name');
     $entity_type = $this->getContextValue('entity_type');

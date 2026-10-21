@@ -1185,6 +1185,72 @@ YAML;
   }
 
   /**
+   * Tests that "eca_form_field_set_value" also writes the user input.
+   *
+   * When an Ajax handler limits validation to the very field the action writes
+   * to, the form state keeps that field in its values while the user input
+   * stays stale. The action must therefore also write the value into the user
+   * input so that a rebuilt Ajax form re-reads the updated value.
+   */
+  public function testFormFieldSetValueWritesUserInput(): void {
+    // Create a long text field for the article bundle and show it on the form.
+    FieldStorageConfig::create([
+      'field_name' => 'field_string_long',
+      'type' => 'string_long',
+      'entity_type' => 'node',
+      'cardinality' => 1,
+    ])->save();
+    FieldConfig::create([
+      'field_name' => 'field_string_long',
+      'label' => 'A long string field.',
+      'entity_type' => 'node',
+      'bundle' => 'article',
+    ])->save();
+    $form_display = EntityFormDisplay::load('node.article.default');
+    $form_display->setComponent('field_string_long', ['type' => 'string_textarea']);
+    $form_display->save();
+
+    /** @var \Drupal\eca_form\Plugin\Action\FormFieldSetValue $action */
+    $action = $this->actionManager->createInstance('eca_form_field_set_value', [
+      'field_name' => 'field_string_long.0.value',
+      'field_value' => 'Automatically set value',
+      'use_yaml' => FALSE,
+    ]);
+
+    /** @var \Symfony\Component\EventDispatcher\EventDispatcherInterface $event_dispatcher */
+    $event_dispatcher = \Drupal::service('event_dispatcher');
+    $form_builder = \Drupal::formBuilder();
+
+    $access_result = NULL;
+    $event_dispatcher->addListener(FormEvents::SUBMIT, function (FormSubmit $event) use (&$access_result, $action) {
+      $action->setEvent($event);
+      $access_result = $access_result ?? $action->access(NULL);
+      if ($action->access(NULL)) {
+        $action->execute();
+      }
+    });
+
+    $form_object = \Drupal::entityTypeManager()->getFormObject('node', 'default');
+    $form_object->setEntity(Node::create([
+      'type' => 'article',
+      'title' => 'Original title',
+    ]));
+    $form_state = new FormState();
+    $form_builder->buildForm($form_object, $form_state);
+    $form_state->setValues([
+      'field_string_long' => [['value' => 'Initial value']],
+    ] + $form_state->getValues());
+    $form_state->setUserInput([
+      'field_string_long' => [['value' => 'Initial value']],
+    ] + $form_state->getUserInput());
+    $form_builder->submitForm($form_object, $form_state);
+
+    $this->assertTrue($access_result);
+    $this->assertEquals('Automatically set value', $form_state->getUserInput()['field_string_long'][0]['value']);
+    $this->assertEquals('Automatically set value', $form_state->getValues()['field_string_long'][0]['value']);
+  }
+
+  /**
    * Tests the action plugin "eca_form_get_errors".
    */
   public function testFormGetErrors(): void {

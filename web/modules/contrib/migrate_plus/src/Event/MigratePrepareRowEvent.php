@@ -15,21 +15,6 @@ use Symfony\Contracts\EventDispatcher\Event;
 class MigratePrepareRowEvent extends Event {
 
   /**
-   * The row.
-   */
-  protected Row $row;
-
-  /**
-   * The migrate row.
-   */
-  protected MigrateSourceInterface $source;
-
-  /**
-   * The migration.
-   */
-  protected MigrationInterface $migration;
-
-  /**
    * Constructs a prepare-row event object.
    *
    * @param \Drupal\migrate\Row $row
@@ -39,10 +24,11 @@ class MigratePrepareRowEvent extends Event {
    * @param \Drupal\migrate\Plugin\MigrationInterface $migration
    *   Migration entity.
    */
-  public function __construct(Row $row, MigrateSourceInterface $source, MigrationInterface $migration) {
-    $this->row = $row;
-    $this->source = $source;
-    $this->migration = $migration;
+  public function __construct(
+    protected Row $row,
+    protected MigrateSourceInterface $source,
+    protected MigrationInterface $migration,
+  ) {
   }
 
   /**

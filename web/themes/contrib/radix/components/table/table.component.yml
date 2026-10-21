@@ -12,7 +12,7 @@ props:
       type: array
       title: Column Group
     header:
-      type: array
+      type: [array, 'null']
       title: Header
     footer:
       type: [array, string, 'null']

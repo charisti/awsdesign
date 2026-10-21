@@ -7,12 +7,15 @@ namespace Drupal\Tests\automatic_updates\Unit\VersionPolicy;
 use Drupal\automatic_updates\Validator\VersionPolicy\StableReleaseInstalled;
 use Drupal\Tests\automatic_updates\Traits\VersionPolicyTestTrait;
 use Drupal\Tests\UnitTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
- * @covers \Drupal\automatic_updates\Validator\VersionPolicy\StableReleaseInstalled
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(StableReleaseInstalled::class)]
 class StableReleaseInstalledTest extends UnitTestCase {
 
   use VersionPolicyTestTrait;
@@ -51,9 +54,8 @@ class StableReleaseInstalledTest extends UnitTestCase {
    *   The installed version of Drupal core.
    * @param string[] $expected_errors
    *   The expected error messages, if any.
-   *
-   * @dataProvider providerStableReleaseInstalled
    */
+  #[DataProvider('providerStableReleaseInstalled')]
   public function testStableReleaseInstalled(string $installed_version, array $expected_errors): void {
     $rule = new StableReleaseInstalled();
     $this->assertPolicyErrors($rule, $installed_version, '9.8.1', $expected_errors);

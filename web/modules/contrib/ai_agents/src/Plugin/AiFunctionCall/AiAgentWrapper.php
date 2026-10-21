@@ -144,7 +144,7 @@ class AiAgentWrapper extends FunctionCallBase implements ExecutableFunctionCallI
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Get the contexts.
     $prompt = $this->getContextValue('prompt');
     $files = $this->getContextValue('files');

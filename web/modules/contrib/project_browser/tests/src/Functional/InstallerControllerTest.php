@@ -14,6 +14,7 @@ use Drupal\project_browser\ProjectBrowser\Project;
 use Drupal\Tests\ApiRequestTrait;
 use Drupal\Tests\BrowserTestBase;
 use Drupal\Tests\project_browser\Traits\PackageManagerFixtureUtilityTrait;
+use Drupal\Tests\project_browser\Traits\SynchronizeCsrfTokenSeedTrait;
 use Drupal\package_manager\Event\PostApplyEvent;
 use Drupal\package_manager\Event\PostCreateEvent;
 use Drupal\package_manager\Event\PostRequireEvent;
@@ -28,6 +29,7 @@ use Drupal\project_browser\InstallProgress;
 use GuzzleHttp\RequestOptions;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Psr\Http\Message\ResponseInterface;
 
 /**
@@ -37,10 +39,12 @@ use Psr\Http\Message\ResponseInterface;
  */
 #[CoversClass(InstallerController::class)]
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class InstallerControllerTest extends BrowserTestBase {
 
   use PackageManagerFixtureUtilityTrait;
   use ApiRequestTrait;
+  use SynchronizeCsrfTokenSeedTrait;
 
   /**
    * A sandbox ID.
@@ -77,7 +81,7 @@ final class InstallerControllerTest extends BrowserTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
-    $connection = $this->container->get('database');
+    $connection = \Drupal::service('database');
     $query = $connection->insert('project_browser_projects')->fields([
       'nid',
       'title',
@@ -145,7 +149,7 @@ final class InstallerControllerTest extends BrowserTestBase {
     $query->execute();
     $this->initPackageManager();
     /** @var \Drupal\project_browser\ComposerInstaller\Installer $installer */
-    $installer = $this->container->get(Installer::class);
+    $installer = \Drupal::service(Installer::class);
     $this->installer = $installer;
     $this->drupalLogin($this->drupalCreateUser(['administer modules']));
     $this->config('project_browser.admin_settings')
@@ -157,7 +161,7 @@ final class InstallerControllerTest extends BrowserTestBase {
       ->save();
 
     // Prime the non-volatile cache.
-    $this->container->get(QueryManager::class)->getProjects('project_browser_test_mock');
+    \Drupal::service(QueryManager::class)->getProjects('project_browser_test_mock');
   }
 
   /**
@@ -526,7 +530,7 @@ final class InstallerControllerTest extends BrowserTestBase {
    */
   public function testCanUnlockSandboxWithMissingProjectBrowserLock(): void {
     $this->doStart();
-    $this->container->get(InstallProgress::class)->clear();
+    \Drupal::service(InstallProgress::class)->clear();
     $content = $this->drupalGet('admin/modules/project_browser/install-begin', [
       'query' => [
         'redirect' => Url::fromRoute('project_browser.browse')
@@ -557,20 +561,22 @@ final class InstallerControllerTest extends BrowserTestBase {
   public function testActivate(): void {
     // Data for another source is cached in setUp, so we explicitly pass the
     // query parameter in getProjects() to ensure it uses the correct source.
-    $this->container->get(QueryManager::class)->getProjects('drupal_core', ['source' => 'drupal_core']);
+    \Drupal::service(QueryManager::class)->getProjects('drupal_core', ['source' => 'drupal_core']);
     $assert_session = $this->assertSession();
 
     $this->drupalGet('admin/modules');
     $assert_session->checkboxNotChecked('edit-modules-views-enable');
     $assert_session->checkboxNotChecked('edit-modules-views-ui-enable');
 
+    // Activate is CSRF-protected; include a path-bound token in the query.
     $response = $this->drupalGet(
-      Url::fromRoute('project_browser.activate'),
-      [
+      Url::fromRoute('project_browser.activate', [], [
         'query' => [
-          'projects' => 'drupal_core/views_ui',
+          'projects' => ['drupal_core/views_ui'],
+          'token' => $this->container->get('csrf_token')
+            ->get('admin/modules/project_browser/activate'),
         ],
-      ],
+      ]),
     );
     $assert_session->statusCodeEquals(200);
     $this->assertTrue(json_validate($response));
@@ -589,7 +595,7 @@ final class InstallerControllerTest extends BrowserTestBase {
    *   The install state.
    */
   protected function assertInstallInProgress(string $project_id, ActivationStatus $expected_status): void {
-    $status = $this->container->get('keyvalue')
+    $status = \Drupal::service('keyvalue')
       ->get('project_browser.install_progress')
       ->get(Project::normalizeId($project_id));
 
@@ -622,15 +628,19 @@ final class InstallerControllerTest extends BrowserTestBase {
    */
   public function testUninstallRedirectsToConfirmation(): void {
     $assert_session = $this->assertSession();
+    $csrf_token = $this->container->get('csrf_token');
 
     $this->assertTrue(\Drupal::moduleHandler()->moduleExists('package_manager_test_validation'));
-    $this->drupalGet('/project-browser/uninstall/package_manager_test_validation', [
+    $this->drupalGet(Url::fromRoute('project_browser.uninstall', [
+      'name' => 'package_manager_test_validation',
+    ], [
       'query' => [
         'return_to' => Url::fromRoute('project_browser.browse')
           ->setRouteParameter('source', 'drupal_core')
           ->toString(),
+        'token' => $csrf_token->get('project-browser/uninstall/package_manager_test_validation'),
       ],
-    ]);
+    ]));
 
     $assert_session->pageTextContains(
       'The following modules will be completely uninstalled from your site, and all data from these modules will be lost!'
@@ -643,17 +653,29 @@ final class InstallerControllerTest extends BrowserTestBase {
     // Trying to uninstall a module that throws up a validation error should
     // redirect us back to the return URL (or the front page, if no return URL
     // is specified), with the validation error as a message.
-    $this->drupalGet('/project-browser/uninstall/project_browser_test');
+    $this->drupalGet(Url::fromRoute('project_browser.uninstall', [
+      'name' => 'project_browser_test',
+    ], [
+      'query' => [
+        'token' => $csrf_token->get('project-browser/uninstall/project_browser_test'),
+      ],
+    ]));
     $assert_session->statusCodeEquals(200);
     $assert_session->statusMessageContains("Can't touch this!", 'error');
 
     // Trying to uninstall a module that is depended upon by other modules
     // should also bounce you off.
-    $this->container->get(ModuleInstallerInterface::class)->install([
+    \Drupal::service(ModuleInstallerInterface::class)->install([
       'field_ui',
       'text',
     ]);
-    $this->drupalGet('/project-browser/uninstall/field');
+    $this->drupalGet(Url::fromRoute('project_browser.uninstall', [
+      'name' => 'field',
+    ], [
+      'query' => [
+        'token' => $csrf_token->get('project-browser/uninstall/field'),
+      ],
+    ]));
     $assert_session->statusCodeEquals(200);
     $assert_session->statusMessageContains('Field cannot be uninstalled because the following module(s) depend on it and must be uninstalled first: Field UI, Text', 'error');
   }

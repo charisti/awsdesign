@@ -20,6 +20,15 @@ class SetFieldValue extends FieldUpdateActionBase implements EcaFieldUpdateActio
 
   /**
    * {@inheritdoc}
+   *
+   * This is an ECA-only action and must not be exposed externally.
+   */
+  public static function externallyAvailable(): bool {
+    return FALSE;
+  }
+
+  /**
+   * {@inheritdoc}
    */
   protected function getFieldsToUpdate() {
     $name = $this->tokenService->replace($this->configuration['field_name']);

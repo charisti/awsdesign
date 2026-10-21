@@ -9,8 +9,8 @@ use Drupal\contact\Entity\ContactForm;
 use Drupal\Core\Extension\ModuleInstallerInterface;
 use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Drupal\Core\State\StateInterface;
-use Drupal\field\Entity\FieldConfig;
 use Drupal\Core\Url;
+use Drupal\media\Entity\MediaType;
 use Drupal\project_browser\Controller\InstallerController;
 use PHPUnit\Framework\Attributes\CoversClass;
 use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
@@ -18,6 +18,7 @@ use Drupal\project_browser\InstallProgress;
 use Drupal\project_browser_test\TestActivator;
 use Drupal\Tests\project_browser\Traits\PackageManagerFixtureUtilityTrait;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Provides tests for the Project Browser Installer UI.
@@ -26,6 +27,7 @@ use PHPUnit\Framework\Attributes\Group;
  */
 #[CoversClass(InstallerController::class)]
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class ProjectBrowserInstallerUiTest extends WebDriverTestBase {
 
   use ProjectBrowserUiTestTrait, PackageManagerFixtureUtilityTrait;
@@ -63,7 +65,7 @@ final class ProjectBrowserInstallerUiTest extends WebDriverTestBase {
     $this->initPackageManager();
 
     /** @var \Drupal\project_browser\InstallProgress $install_state */
-    $install_state = $this->container->get(InstallProgress::class);
+    $install_state = \Drupal::service(InstallProgress::class);
     $this->installState = $install_state;
 
     $this->config('project_browser.admin_settings')
@@ -98,7 +100,7 @@ final class ProjectBrowserInstallerUiTest extends WebDriverTestBase {
     // The activator in project_browser_test should have logged the unqualified
     // project ID.
     // @see \Drupal\project_browser_test\TestActivator
-    $this->assertContains('cream_cheese', $this->container->get(StateInterface::class)->get('test activator'));
+    $this->assertContains('cream_cheese', \Drupal::service(StateInterface::class)->get('test activator'));
   }
 
   /**
@@ -176,7 +178,7 @@ final class ProjectBrowserInstallerUiTest extends WebDriverTestBase {
 
     // A checkpoint should have been created. It's not available to the PHPUnit
     // test runner, but project_browser_test records it for us.
-    $checkpoint_name = $this->container->get(StateInterface::class)
+    $checkpoint_name = \Drupal::service(StateInterface::class)
       ->get('project_browser_test.checkpoint_name');
     $this->assertSame('Project Browser checkpoint for Test Recipe', $checkpoint_name);
 
@@ -270,7 +272,7 @@ final class ProjectBrowserInstallerUiTest extends WebDriverTestBase {
    */
   public function testPackageManagerErrorPreventsDownload(): void {
     // @see \Drupal\project_browser_test\TestInstallReadiness
-    $this->container->get(StateInterface::class)
+    \Drupal::service(StateInterface::class)
       ->set('project_browser_test.simulated_result_severity', RequirementSeverity::Error);
 
     $this->drupalGet('admin/modules/browse/project_browser_test_mock');
@@ -287,7 +289,7 @@ final class ProjectBrowserInstallerUiTest extends WebDriverTestBase {
     TestActivator::handle('drupal/cream_cheese');
 
     // @see \Drupal\project_browser_test\TestInstallReadiness
-    $this->container->get(StateInterface::class)
+    \Drupal::service(StateInterface::class)
       ->set('project_browser_test.simulated_result_severity', RequirementSeverity::Warning);
 
     $this->drupalGet('admin/modules/browse/project_browser_test_mock');
@@ -336,7 +338,7 @@ final class ProjectBrowserInstallerUiTest extends WebDriverTestBase {
     // The activator in project_browser_test should have logged the unqualified
     // project IDs.
     // @see \Drupal\project_browser_test\TestActivator
-    $activated = $this->container->get(StateInterface::class)
+    $activated = \Drupal::service(StateInterface::class)
       ->get('test activator');
     $this->assertContains('cream_cheese', $activated);
     $this->assertContains('kangaroo', $activated);
@@ -461,9 +463,8 @@ final class ProjectBrowserInstallerUiTest extends WebDriverTestBase {
    * Tests the drop button actions for a project.
    */
   public function testDropButtonActions(): void {
-    $this->container->get(ModuleInstallerInterface::class)->install([
+    \Drupal::service(ModuleInstallerInterface::class)->install([
       'config_translation',
-      'contact',
       'content_translation',
       'help',
     ]);
@@ -472,13 +473,11 @@ final class ProjectBrowserInstallerUiTest extends WebDriverTestBase {
     $account = $this->drupalCreateUser([
       'administer modules',
       'access help pages',
-      'administer contact forms',
+      'administer languages',
     ]);
     $this->drupalLogin($account);
 
     $this->drupalGet('admin/modules/browse/recipes');
-    $this->svelteInitHelper('css', '.pb-projects-list');
-
     $card = $this->waitForProject('Admin theme');
     $card->pressButton('Install');
     $this->waitForProjectToBeInstalled($card);
@@ -488,27 +487,27 @@ final class ProjectBrowserInstallerUiTest extends WebDriverTestBase {
 
     $this->drupalGet('admin/modules/browse/drupal_core');
     $this->svelteInitHelper('css', '.pb-project.pb-project--list');
-    $this->searchFor('contact');
-    $card = $this->waitForProject('Contact');
-    $card->pressButton('List additional actions');
-    $this->assertChildElementIsVisible($card, 'css', '.dropbutton .secondary-action a');
+    $this->searchFor('translation');
+    $project1 = $this->waitForProject('Content Translation');
+    $project1->pressButton('List additional actions');
+    $this->assertChildElementIsVisible($project1, 'css', '.dropbutton .secondary-action a');
 
     $available_actions = [];
-    foreach ($card->findAll('css', '.dropbutton .dropbutton-action a') as $item) {
+    foreach ($project1->findAll('css', '.dropbutton .dropbutton-action a') as $item) {
       $available_actions[$item->getText()] = $item->getAttribute('href') ?? '';
     }
 
     // Assert expected dropdown actions exist and point to the correct places.
-    $this->assertStringEndsWith('/admin/structure/contact', $available_actions['Configure']);
-    $this->assertStringEndsWith('/admin/help/contact', $available_actions['Help']);
-    $this->assertStringContainsString('/project-browser/uninstall/contact', $available_actions['Uninstall']);
+    $this->assertStringEndsWith('/admin/config/regional/content-language', $available_actions['Configure']);
+    $this->assertStringEndsWith('/admin/help/content_translation', $available_actions['Help']);
+    $this->assertStringContainsString('/project-browser/uninstall/content_translation', $available_actions['Uninstall']);
 
-    // Ensure that dropdown menus are mutually exclusive.
-    $this->searchFor('translation');
-    $project1 = $this->waitForProject('Content Translation');
+    // Ensure that dropdown menus are mutually exclusive: the open dropdown
+    // should close when you click outside of it.
     $project2 = $this->waitForProject('Configuration Translation');
-
-    // Ensure that an open dropdown closes when you click outside of it.
+    $project1->pressButton('List additional actions');
+    // For reasons unclear, we need to click the button twice to proceed here.
+    // Possible bug in ChromeDriver? No idea.
     $project1->pressButton('List additional actions');
     $this->assertChildElementIsVisible($project1, 'css', '.dropbutton .secondary-action a');
     $project2->click();
@@ -537,9 +536,9 @@ final class ProjectBrowserInstallerUiTest extends WebDriverTestBase {
     $this->drupalGet('admin/modules/browse/recipes');
     // Select a recipe that doesn't require input. It's important to choose this
     // one first, to ensure that the fields are grouped correctly in the modal.
-    $this->searchFor('comment');
-    $comments_card = $this->waitForProject('Article comments');
-    $comments_card->pressButton('Select Article comments');
+    $this->searchFor('audio');
+    $audio_card = $this->waitForProject('Audio media');
+    $audio_card->pressButton('Select Audio media');
     // And select two recipes that do.
     $this->searchFor('contact');
     $contact_form_card = $this->waitForProject('Website feedback contact form');
@@ -563,7 +562,7 @@ final class ProjectBrowserInstallerUiTest extends WebDriverTestBase {
       ->getParent()
       ->fillField('New site name', 'What a twist!');
     // There should be no group for the recipe that has no input.
-    $assert_session->elementNotExists('css', 'summary:contains("Article comments")', $modal);
+    $assert_session->elementNotExists('css', 'summary:contains("Audio media")', $modal);
     // Apply the recipes and wait for the modal to vanish.
     $this->getSession()
       ->getPage()
@@ -574,7 +573,7 @@ final class ProjectBrowserInstallerUiTest extends WebDriverTestBase {
     // Confirm the recipes did what they should have done.
     $this->assertSame('What a twist!', $this->config('system.site')->get('name'));
     $this->assertContains('ben@space.net', (array) ContactForm::load('feedback')?->getRecipients());
-    $this->assertInstanceOf(FieldConfig::class, FieldConfig::loadByName('node', 'article', 'comment'));
+    $this->assertInstanceOf(MediaType::class, MediaType::load('audio'));
   }
 
   /**

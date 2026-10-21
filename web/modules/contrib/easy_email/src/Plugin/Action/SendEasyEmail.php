@@ -51,7 +51,7 @@ class SendEasyEmail extends ActionBase implements ContainerFactoryPluginInterfac
   /**
    * {@inheritdoc}
    */
-  public function access($email, AccountInterface $account = NULL, $return_as_object = FALSE) {
+  public function access($email, ?AccountInterface $account = NULL, $return_as_object = FALSE) {
     /** @var \Drupal\node\NodeInterface $node */
     if ($return_as_object) {
       return AccessResult::allowed();

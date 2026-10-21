@@ -13,7 +13,8 @@ use Drupal\language\Entity\ConfigurableLanguage;
 use Drupal\linkit\MatcherInterface;
 use Drupal\linkit\Tests\ProfileCreationTrait;
 use Drupal\Tests\ckeditor5\Traits\CKEditor5TestTrait;
-use Symfony\Component\Validator\ConstraintViolation;
+use Symfony\Component\Validator\ConstraintViolationInterface;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the Linkit extensions to the CKEditor 5 Link plugin.
@@ -21,6 +22,7 @@ use Symfony\Component\Validator\ConstraintViolation;
  * @group linkit
  * @group ckeditor5
  */
+#[RunTestsInSeparateProcesses]
 class LinkitDialogCKEditor5Test extends WebDriverTestBase {
 
   use ProfileCreationTrait;
@@ -100,7 +102,7 @@ class LinkitDialogCKEditor5Test extends WebDriverTestBase {
       ],
     ])->save();
     $this->assertSame([], array_map(
-      function (ConstraintViolation $v) {
+      function (ConstraintViolationInterface $v) {
         return (string) $v->getMessage();
       },
       iterator_to_array(CKEditor5::validatePair(

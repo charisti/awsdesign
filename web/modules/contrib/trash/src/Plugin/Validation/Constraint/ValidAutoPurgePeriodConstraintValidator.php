@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Drupal\trash\Plugin\Validation\Constraint;
 
 use Drupal\Component\Datetime\TimeInterface;
+use Drupal\Core\DependencyInjection\AutowireTrait;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\ConstraintValidator;
 
@@ -15,18 +15,11 @@ use Symfony\Component\Validator\ConstraintValidator;
  */
 class ValidAutoPurgePeriodConstraintValidator extends ConstraintValidator implements ContainerInjectionInterface {
 
+  use AutowireTrait;
+
   public function __construct(
     protected TimeInterface $time,
   ) {}
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function create(ContainerInterface $container): static {
-    return new static(
-      $container->get('datetime.time'),
-    );
-  }
 
   /**
    * {@inheritdoc}

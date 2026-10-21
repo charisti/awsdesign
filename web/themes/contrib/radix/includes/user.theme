@@ -7,16 +7,21 @@
 
 /**
  * Implements template_preprocess_user().
+ *
+ * @phpstan-param array<string, mixed> $variables
  */
-function radix_preprocess_user(&$variables) {
+function radix_preprocess_user(array &$variables): void {
   // Add the view mode to the template.
   $variables['view_mode'] = $variables['elements']['#view_mode'];
 }
 
 /**
  * Implements hook_theme_suggestions_hook_alter().
+ *
+ * @phpstan-param list<string> $suggestions
+ * @phpstan-param array<string, mixed> $variables
  */
-function radix_theme_suggestions_user_alter(array &$suggestions, array $variables) {
+function radix_theme_suggestions_user_alter(array &$suggestions, array $variables): void {
   // Add a suggestion based on the view mode.
   $suggestions[] = $variables['theme_hook_original'] . '__' . $variables['elements']['#view_mode'];
 }

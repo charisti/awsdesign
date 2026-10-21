@@ -2,6 +2,7 @@
 
 namespace Drupal\ai_automators\PluginBaseClasses;
 
+use Drupal\ai\Utility\Textarea;
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeBundleInfo;
@@ -10,6 +11,7 @@ use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\ai\AiProviderPluginManager;
+use Drupal\ai\Guardrail\AiGuardrailHelper;
 use Drupal\ai\Service\AiProviderFormHelper;
 use Drupal\ai\Service\PromptJsonDecoder\PromptJsonDecoderInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -28,6 +30,8 @@ abstract class EntityReference extends RuleBase {
    *   The form helper.
    * @param \Drupal\ai\Service\PromptJsonDecoder\PromptJsonDecoderInterface $promptJsonDecoder
    *   The prompt JSON decoder.
+   * @param \Drupal\ai\Guardrail\AiGuardrailHelper $aiGuardrailHelper
+   *   The AI guardrail helper.
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
    * @param \Drupal\Core\Session\AccountProxyInterface $currentUser
@@ -41,12 +45,13 @@ abstract class EntityReference extends RuleBase {
     AiProviderPluginManager $pluginManager,
     AiProviderFormHelper $formHelper,
     PromptJsonDecoderInterface $promptJsonDecoder,
+    AiGuardrailHelper $aiGuardrailHelper,
     protected EntityTypeManagerInterface $entityTypeManager,
     protected AccountProxyInterface $currentUser,
     protected EntityTypeBundleInfo $entityTypeBundleInfo,
     protected EntityFieldManagerInterface $entityFieldManager,
   ) {
-    parent::__construct($pluginManager, $formHelper, $promptJsonDecoder);
+    parent::__construct($pluginManager, $formHelper, $promptJsonDecoder, $aiGuardrailHelper);
   }
 
   /**
@@ -57,6 +62,7 @@ abstract class EntityReference extends RuleBase {
       $container->get('ai.provider'),
       $container->get('ai.form_helper'),
       $container->get('ai.prompt_json_decode'),
+      $container->get('ai.guardrail_helper'),
       $container->get('entity_type.manager'),
       $container->get('current_user'),
       $container->get('entity_type.bundle.info'),
@@ -83,6 +89,7 @@ abstract class EntityReference extends RuleBase {
     'decimal',
     'float',
     'list_float',
+    'link',
   ];
 
   /**
@@ -166,6 +173,28 @@ abstract class EntityReference extends RuleBase {
             '#description' => $this->t('Describe specifically how this field should be filled out.'),
             '#weight' => 20,
             '#default_value' => $defaultValues['automator_entity_field_generate_' . $field] ?? '',
+            '#states' => [
+              'visible' => [
+                ':input[name="automator_entity_field_enable_' . $field . '"]' => ['checked' => TRUE],
+              ],
+            ],
+            // This property will land into core soon, see
+            // https://www.drupal.org/project/drupal/issues/3202631. It can stay
+            // after this is added to Drupal core.
+            '#normalize_newlines' => TRUE,
+            // Until that the custom value callback is needed. Should be removed
+            // after the issue mentioned above is merged into core and the
+            // minimum supported Drupal version includes `#normalize_newlines`
+            // property.
+            '#value_callback' => [Textarea::class, 'valueCallback'],
+          ];
+
+          $form['ai_automator_fields']['automator_entity_field_use_existing_' . $field] = [
+            '#type' => 'checkbox',
+            '#title' => $info->getLabel() . ': ' . $this->t('Use existing entity'),
+            '#description' => $this->t('Use existing entity if found from the database with this content.'),
+            '#weight' => 20,
+            '#default_value' => $defaultValues['automator_entity_field_use_existing_' . $field] ?? FALSE,
             '#states' => [
               'visible' => [
                 ':input[name="automator_entity_field_enable_' . $field . '"]' => ['checked' => TRUE],
@@ -256,26 +285,52 @@ abstract class EntityReference extends RuleBase {
 
     $targets = [];
     foreach ($values as $parts) {
-      /** @var \Drupal\Core\Entity\ContentEntityInterface $newEntity */
-      $newEntity = $storage->create([
-        $baseFields['owner'] => $this->currentUser->id(),
-        $baseFields['status'] => 1,
-        $baseFields['bundle'] => $target,
-      ]);
+      $useExisting = FALSE;
+      $foundEntityIds = [];
+      // Check if fields are set to use existing entity
+      // and all configured matches are found.
+      $query = $storage->getQuery();
+      $query->condition($baseFields['bundle'], $target);
+      $hasMatchFields = FALSE;
       foreach ($parts as $key => $value) {
-        // Check if formatted field type.
-        if ($this->isFormattedField($key, $newEntity)) {
-          $newEntity->set($key, [
-            'value' => $value,
-            'format' => $textFormat,
-          ]);
-        }
-        else {
-          $newEntity->set($key, $value);
+        if (!empty($automatorConfig['entity_field_use_existing_' . $key])) {
+          $query->condition($key, $value);
+          $hasMatchFields = TRUE;
         }
       }
-      $newEntity->save();
-      $targets[] = $newEntity->id();
+      if ($hasMatchFields) {
+        $query->accessCheck(TRUE);
+        $existing = $query->execute();
+        if (!empty($existing)) {
+          $foundEntityIds = array_values($existing);
+          $useExisting = TRUE;
+        }
+      }
+      if ($useExisting) {
+        $targets = array_merge($targets, $foundEntityIds);
+      }
+      else {
+        /** @var \Drupal\Core\Entity\ContentEntityInterface $newEntity */
+        $newEntity = $storage->create([
+          $baseFields['owner'] => $this->currentUser->id(),
+          $baseFields['status'] => 1,
+          $baseFields['bundle'] => $target,
+        ]);
+        foreach ($parts as $key => $value) {
+          // Check if formatted field type.
+          if ($this->isFormattedField($key, $newEntity)) {
+            $newEntity->set($key, [
+              'value' => $value,
+              'format' => $textFormat,
+            ]);
+          }
+          else {
+            $newEntity->set($key, $value);
+          }
+        }
+        $newEntity->save();
+        $targets[] = $newEntity->id();
+      }
     }
     $entity->set($fieldDefinition->getName(), $targets);
   }

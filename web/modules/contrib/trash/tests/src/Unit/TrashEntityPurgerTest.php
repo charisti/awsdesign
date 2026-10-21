@@ -10,20 +10,23 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\ContentEntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\Query\QueryInterface;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Queue\QueueFactory;
 use Drupal\Core\Queue\QueueInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Tests\UnitTestCase;
 use Drupal\trash\TrashEntityPurger;
 use Drupal\trash\TrashManagerInterface;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\MockObject\MockObject;
+use Psr\Log\LoggerInterface;
 
 /**
  * Unit test for the entity purger.
- *
- * @coversDefaultClass \Drupal\trash\TrashEntityPurger
- * @group trash
  */
+#[CoversClass(TrashEntityPurger::class)]
+#[Group('trash')]
 class TrashEntityPurgerTest extends UnitTestCase {
 
   /**
@@ -69,6 +72,13 @@ class TrashEntityPurgerTest extends UnitTestCase {
   protected Settings|MockObject $settings;
 
   /**
+   * The logger channel factory.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannelFactoryInterface|\PHPUnit\Framework\MockObject\MockObject
+   */
+  protected LoggerChannelFactoryInterface|MockObject $loggerFactory;
+
+  /**
    * The trash purger under test.
    *
    * @var \Drupal\trash\TrashEntityPurger
@@ -90,11 +100,12 @@ class TrashEntityPurgerTest extends UnitTestCase {
     $this->time = $this->createMock(TimeInterface::class);
     $this->queueFactory = $this->createMock(QueueFactory::class);
     $this->settings = new Settings(['entity_update_batch_size' => 50]);
-    $this->purger = new TrashEntityPurger($this->entityTypeManager, $this->trashManager, $this->configFactory, $this->time, $this->queueFactory, $this->settings);
+    $this->loggerFactory = $this->createMock(LoggerChannelFactoryInterface::class);
+    $this->purger = new TrashEntityPurger($this->entityTypeManager, $this->trashManager, $this->configFactory, $this->time, $this->queueFactory, $this->settings, $this->loggerFactory);
   }
 
   /**
-   * @covers ::cronPurge
+   * Tests nothing is queued on cron if disabled.
    */
   public function testNothingIsQueuedOnCronIfDisabled() {
     $config = $this->createMock(Config::class);
@@ -116,7 +127,47 @@ class TrashEntityPurgerTest extends UnitTestCase {
   }
 
   /**
-   * @covers ::cronPurge
+   * Tests that an invalid auto-purge period logs an error, queues nothing.
+   */
+  public function testInvalidPeriodSkipsQueueing() {
+    $config = $this->createMock(Config::class);
+    $config->expects($this->exactly(2))
+      ->method('get')
+      ->with('auto_purge.after')
+      ->willReturn('not a period');
+    $this->configFactory->expects($this->any())
+      ->method('get')
+      ->with('trash.settings')
+      ->willReturn($config);
+    $this->time->expects($this->any())
+      ->method('getCurrentTime')
+      ->willReturn(1_000_000);
+
+    $logger = $this->createMock(LoggerInterface::class);
+    $logger->expects($this->once())
+      ->method('error')
+      ->with(
+        "The 'auto_purge.after' setting (@value) could not be parsed. Auto-purge is skipped for @entity_type_id until it is fixed.",
+        [
+          '@value' => 'not a period',
+          '@entity_type_id' => 'node',
+        ],
+      );
+    $this->loggerFactory->expects($this->once())
+      ->method('get')
+      ->with('trash')
+      ->willReturn($logger);
+
+    $this->queueFactory->expects($this->never())
+      ->method('get');
+    $this->entityTypeManager->expects($this->never())
+      ->method('getStorage');
+
+    $this->purger->populatePurgeQueue('node');
+  }
+
+  /**
+   * Tests entities are queued on cron.
    */
   public function testEntitiesAreQueuedOnCron() {
     $config = $this->createMock(Config::class);
@@ -141,10 +192,15 @@ class TrashEntityPurgerTest extends UnitTestCase {
       ->method('getCurrentTime')
       ->willReturn(1_000_000);
     $queue = $this->createMock(QueueInterface::class);
-    $this->queueFactory->expects($this->exactly(2))
+    // cronPurge() first checks the queue is empty (one get()), then
+    // populatePurgeQueue() fetches it once per entity type (node and media).
+    $this->queueFactory->expects($this->exactly(3))
       ->method('get')
       ->with(TrashEntityPurger::PURGE_QUEUE_NAME)
       ->willReturn($queue);
+    $queue->expects($this->once())
+      ->method('numberOfItems')
+      ->willReturn(0);
 
     $query = $this->createMock(QueryInterface::class);
     $query->expects($this->exactly(2))
@@ -186,10 +242,12 @@ class TrashEntityPurgerTest extends UnitTestCase {
       [
         'batch' => ['23', '1337'],
         'entity_type_id' => 'node',
+        'cutoff' => 1_000_000 - 3_600 * 24,
       ],
       [
         'batch' => ['21'],
         'entity_type_id' => 'media',
+        'cutoff' => 1_000_000 - 3_600 * 24,
       ],
     ];
     $queue->expects($this->exactly(count($items)))

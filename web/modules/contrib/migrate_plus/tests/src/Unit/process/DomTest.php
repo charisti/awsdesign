@@ -8,17 +8,18 @@ use Drupal\Component\Utility\Html;
 use Drupal\migrate\MigrateException;
 use Drupal\migrate_plus\Plugin\migrate\process\Dom;
 use Drupal\Tests\migrate\Unit\process\MigrateProcessTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tests the dom process plugin.
- *
- * @group migrate
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\Dom
  */
+#[CoversClass(Dom::class)]
+#[Group('migrate_plus')]
 final class DomTest extends MigrateProcessTestCase {
 
   /**
-   * @covers ::__construct
+   * Tests empty method.
    */
   public function testConfigMethodEmpty(): void {
     $configuration = [];
@@ -30,7 +31,7 @@ final class DomTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::__construct
+   * Tests invalid method.
    */
   public function testConfigMethodInvalid(): void {
     $configuration = [];
@@ -43,7 +44,7 @@ final class DomTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::__construct
+   * Tests invalid import method.
    */
   public function testInvalidImportMethod(): void {
     $configuration['method'] = 'import';
@@ -54,7 +55,7 @@ final class DomTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::import
+   * Tests non-root import.
    */
   public function testImportNonRoot(): void {
     $configuration = [];
@@ -66,7 +67,7 @@ final class DomTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::import
+   * Tests HTML5 import method.
    */
   public function testImportMethodHtml5(): void {
     $configuration['method'] = 'import';
@@ -78,7 +79,7 @@ final class DomTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::import
+   * Tests XML method import.
    */
   public function testImportMethodXml(): void {
     $configuration['method'] = 'import';
@@ -90,7 +91,7 @@ final class DomTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::import
+   * Tests non-root invalid input.
    */
   public function testImportNonRootInvalidInput(): void {
     $configuration = [];
@@ -103,7 +104,7 @@ final class DomTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::export
+   * Tests non-root export.
    */
   public function testExportNonRoot(): void {
     $configuration = [];
@@ -116,7 +117,7 @@ final class DomTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::export
+   * Tests non-root invalid input.
    */
   public function testExportNonRootInvalidInput(): void {
     $configuration = [];

@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace Drupal\Tests\migrate_plus\Functional;
 
 use Drupal\Core\Url;
-use Drupal\Tests\BrowserTestBase;
 use Drupal\migrate_plus\DataParserPluginManager;
+use Drupal\Tests\BrowserTestBase;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the http data_fetcher from the url plugin.
- *
- * @group migrate_plus
  */
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 final class HttpTest extends BrowserTestBase {
 
   /**
@@ -135,7 +137,6 @@ final class HttpTest extends BrowserTestBase {
    * Test cursor paging.
    */
   public function testCursorPager() {
-
     $url = Url::fromRoute('migrate_plus_http_test.json_third', [], ['absolute' => TRUE]);
 
     $conf = $this->getBaseConfiguration();

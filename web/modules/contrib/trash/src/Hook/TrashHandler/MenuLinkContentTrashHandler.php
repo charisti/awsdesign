@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Drupal\trash\Hook\TrashHandler;
 
 use Drupal\Core\Entity\EntityInterface;
-use Drupal\Core\Menu\MenuLinkManagerInterface;
+use Drupal\Core\Hook\Attribute\Hook;
+use Drupal\menu_link_content\MenuLinkContentInterface;
 use Drupal\trash\Handler\DefaultTrashHandler;
+use Drupal\trash\Trash;
 use Drupal\workspaces\Event\WorkspacePostPublishEvent;
 use Drupal\workspaces\WorkspaceManagerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -17,19 +19,57 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 class MenuLinkContentTrashHandler extends DefaultTrashHandler implements EventSubscriberInterface {
 
   public function __construct(
-    protected MenuLinkManagerInterface $menuLinkManager,
     protected ?WorkspaceManagerInterface $workspaceManager = NULL,
   ) {}
 
   /**
+   * Implements hook_entity_predelete().
+   *
+   * Purges cascade-trashed menu links when their target entity is hard-deleted.
+   *
+   * Core's MenuLinkContentHooks::entityPredelete() finds links via the menu
+   * tree, but cascade-trashed links have already been removed from the tree.
+   * This hook finds them via entity storage instead.
+   */
+  #[Hook('entity_predelete')]
+  public function entityPredelete(EntityInterface $entity): void {
+    if ($this->trashManager->getTrashContext() === 'active') {
+      return;
+    }
+
+    if ($entity->getEntityTypeId() === 'menu_link_content') {
+      return;
+    }
+
+    if (!$this->trashManager->isEntityTypeEnabled('menu_link_content')) {
+      return;
+    }
+
+    $storage = $this->entityTypeManager->getStorage('menu_link_content');
+    $menu_links = $storage->loadByProperties([
+      'link.uri' => 'entity:' . $entity->getEntityTypeId() . '/' . $entity->id(),
+    ]);
+
+    if (!empty($menu_links)) {
+      $storage->delete($menu_links);
+    }
+  }
+
+  /**
    * {@inheritdoc}
    */
-  public function postTrashDelete(EntityInterface $entity): void {
-    parent::postTrashDelete($entity);
+  public function postTrashDelete(EntityInterface $entity, array $langcodes): void {
+    parent::postTrashDelete($entity, $langcodes);
+
+    // The menu_tree entry covers all languages of the link, so it is only
+    // removed once no live translation remains.
+    if (!Trash::entityHasAllTranslationsDeleted($entity)) {
+      return;
+    }
 
     // This needs to happen *after* the menu link is trashed, so its menu_tree
     // entry can be deleted.
-    /** @var \Drupal\menu_link_content\Entity\MenuLinkContent $entity */
+    assert($entity instanceof MenuLinkContentInterface);
     $entity::preDelete($this->entityTypeManager->getStorage('menu_link_content'), [$entity]);
   }
 
@@ -51,8 +91,14 @@ class MenuLinkContentTrashHandler extends DefaultTrashHandler implements EventSu
           ->loadMultipleRevisions(array_keys($menu_link_ids));
 
         foreach ($menu_links as $menu_link) {
-          if (trash_entity_is_deleted($menu_link)) {
-            $this->menuLinkManager->removeDefinition($menu_link->getPluginId(), FALSE);
+          if (Trash::entityIsDeleted($menu_link)) {
+            // The menu link manager's dependency chain can reach trash.manager,
+            // for example through a decorated menu tree storage, so it cannot
+            // be constructor-injected without a container cycle. It also cannot
+            // be stored as a lazy closure property, since that breaks
+            // serializing this handler.
+            // @phpstan-ignore globalDrupalDependencyInjection.useDependencyInjection
+            \Drupal::service('plugin.manager.menu.link')->removeDefinition($menu_link->getPluginId(), FALSE);
           }
         }
       });

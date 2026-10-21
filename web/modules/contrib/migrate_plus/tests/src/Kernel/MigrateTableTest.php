@@ -9,12 +9,15 @@ use Drupal\migrate\MigrateExecutable;
 use Drupal\migrate\Plugin\MigrateIdMapInterface;
 use Drupal\migrate\Row;
 use Drupal\Tests\migrate\Kernel\MigrateTestBase;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests migration destination table.
- *
- * @group migrate
  */
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 class MigrateTableTest extends MigrateTestBase {
 
   public const SOURCE_TABLE_NAME = 'migrate_test_source_table';
@@ -215,6 +218,7 @@ class MigrateTableTest extends MigrateTestBase {
    *
    * @dataProvider tableDestinationMigration
    */
+  #[DataProvider('tableDestinationMigration')]
   public function testTableUpdate(array $definition): void {
     // Make sure migration overwrites the original data for the first row.
     $original_values = [

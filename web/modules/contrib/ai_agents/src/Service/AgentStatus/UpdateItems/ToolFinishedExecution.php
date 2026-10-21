@@ -46,6 +46,13 @@ class ToolFinishedExecution extends StatusBase implements ToolFinishedExecutionI
   protected string $toolFeedbackMessage;
 
   /**
+   * Whether the tool was selected by the agent or run automatically.
+   *
+   * @var bool
+   */
+  protected bool $isAgentDecision;
+
+  /**
    * Modified constructor to include tool name, tool input and tool results.
    *
    * @param float $time
@@ -68,6 +75,9 @@ class ToolFinishedExecution extends StatusBase implements ToolFinishedExecutionI
    *   The feedback message for the tool selected.
    * @param string|null $calling_agent_id
    *   The calling agent id in the hierarchy. This is optional and can be null.
+   * @param bool $is_agent_decision
+   *   Whether the tool was selected by the agent (TRUE) or is a default
+   *   information tool run automatically (FALSE).
    */
   public function __construct(
     float $time,
@@ -80,6 +90,7 @@ class ToolFinishedExecution extends StatusBase implements ToolFinishedExecutionI
     string $tool_results,
     string $tool_feedback_message = '',
     ?string $calling_agent_id = NULL,
+    bool $is_agent_decision = TRUE,
   ) {
     parent::__construct(
       time: $time,
@@ -93,6 +104,17 @@ class ToolFinishedExecution extends StatusBase implements ToolFinishedExecutionI
     $this->toolInput = $tool_input;
     $this->toolId = $tool_id;
     $this->toolFeedbackMessage = $tool_feedback_message;
+    $this->isAgentDecision = $is_agent_decision;
+  }
+
+  /**
+   * Whether the tool was selected by the agent or run automatically.
+   *
+   * @return bool
+   *   TRUE if agent-decided, FALSE if a default information tool.
+   */
+  public function isAgentDecision(): bool {
+    return $this->isAgentDecision;
   }
 
   /**
@@ -183,6 +205,7 @@ class ToolFinishedExecution extends StatusBase implements ToolFinishedExecutionI
       'tool_results' => $this->toolResults,
       'tool_id' => $this->toolId,
       'tool_feedback_message' => $this->toolFeedbackMessage,
+      'is_agent_decision' => $this->isAgentDecision,
     ];
   }
 
@@ -201,6 +224,7 @@ class ToolFinishedExecution extends StatusBase implements ToolFinishedExecutionI
       calling_agent_id: $data['calling_agent_id'] ?? NULL,
       tool_id: $data['tool_id'] ?? '',
       tool_feedback_message: $data['tool_feedback_message'] ?? '',
+      is_agent_decision: $data['is_agent_decision'] ?? TRUE,
     );
   }
 

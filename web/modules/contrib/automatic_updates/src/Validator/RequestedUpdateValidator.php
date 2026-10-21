@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Drupal\automatic_updates\Validator;
 
 use Composer\Semver\Semver;
-use Drupal\automatic_updates\UpdateSandboxManager;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\package_manager\ComposerInspector;
 use Drupal\package_manager\Event\PreApplyEvent;
@@ -25,6 +24,15 @@ final class RequestedUpdateValidator implements EventSubscriberInterface {
 
   use StringTranslationTrait;
 
+  /**
+   * The sandbox managers that this event subscriber cares about.
+   */
+  private const array SUPPORTED_TYPES = [
+    'automatic_updates:attended',
+    'automatic_updates:unattended',
+    'automatic_updates_extensions:attended',
+  ];
+
   public function __construct(
     private readonly ComposerInspector $composerInspector,
     private readonly PathLocator $pathLocator,
@@ -38,7 +46,7 @@ final class RequestedUpdateValidator implements EventSubscriberInterface {
    */
   public function checkRequestedStagedVersion(PreApplyEvent|StatusCheckEvent $event): void {
     $sandbox_manager = $event->sandboxManager;
-    if (!($sandbox_manager instanceof UpdateSandboxManager) || !$sandbox_manager->sandboxDirectoryExists()) {
+    if (!in_array($sandbox_manager->getType(), self::SUPPORTED_TYPES, TRUE) || !$sandbox_manager->sandboxDirectoryExists()) {
       return;
     }
     $requested_package_versions = $sandbox_manager->getPackageVersions();

@@ -6,12 +6,14 @@ namespace Drupal\Tests\layout_builder_restrictions\FunctionalJavascript;
 
 use Drupal\Tests\layout_builder_restrictions\Traits\MoveBlockHelperTrait;
 use Drupal\Tests\node\Traits\ContentTypeCreationTrait;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests moving blocks via the form.
- *
- * @group layout_builder_restrictions
  */
+#[Group('layout_builder_restrictions')]
+#[RunTestsInSeparateProcesses]
 class MoveBlockRestrictionTest extends LayoutBuilderRestrictionsTestBase {
 
   use ContentTypeCreationTrait;

@@ -25,10 +25,19 @@ use Drupal\ai_agents\Service\AgentHelper;
 use Drupal\ai_agents\Task\Task;
 use Drupal\ai_agents\Task\TaskInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\Yaml\Yaml;
+use Drupal\Component\Serialization\Yaml;
 
 /**
  * Helper for worker agents.
+ *
+ * @deprecated in ai_agents:1.3.0 and is removed from ai:2.0.0 and possibly even
+ * earlier in ai_agents.
+ *   Extend \Drupal\my_module\Plugin\NewPluginBase instead.
+ * phpcs:ignore
+ * @see https://git.drupalcode.org/project/ai_agents/-/work_items/3546513
+ *
+ * We do not set this in the constructor because the config agent still uses
+ * them. Follow up deprecation might come.
  */
 abstract class AiAgentBase extends PluginBase implements AiAgentInterface, ContainerFactoryPluginInterface {
 
@@ -795,7 +804,7 @@ abstract class AiAgentBase extends PluginBase implements AiAgentInterface, Conta
     if (!file_exists($file)) {
       throw new \Exception("The action prompt file '$file' does not exist.");
     }
-    $data = Yaml::parse(file_get_contents($file));
+    $data = Yaml::decode(file_get_contents($file));
     // Set introduction.
     $prompt = $data['prompt']['introduction'] . "\n\n";
     // Set formats to use.

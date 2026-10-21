@@ -3,7 +3,6 @@
 namespace Drupal\eca\Drush\Commands;
 
 use Drupal\Core\Entity\EntityStorageException;
-use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\eca\EcaUpdate;
 use Drupal\eca\Service\ExportRecipe;
@@ -21,11 +20,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 final class EcaCommands extends DrushCommands {
 
   /**
-   * ECA config entity storage manager.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Entity\EntityStorageInterface
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected EntityStorageInterface $configStorage;
+  protected EntityTypeManagerInterface $entityTypeManager;
 
   /**
    * Constructs an EcaCommands object.
@@ -37,7 +36,7 @@ final class EcaCommands extends DrushCommands {
     private readonly EcaUpdate $ecaUpdate,
   ) {
     parent::__construct();
-    $this->configStorage = $entityTypeManager->getStorage('eca');
+    $this->entityTypeManager = $entityTypeManager;
   }
 
   /**
@@ -90,7 +89,7 @@ final class EcaCommands extends DrushCommands {
   #[Usage(name: 'eca:reimport', description: 'Update all previously imported ECA files.')]
   public function reimportAll(): void {
     /** @var \Drupal\eca\Entity\Eca $eca */
-    foreach ($this->configStorage->loadMultiple() as $eca) {
+    foreach ($this->entityTypeManager->getStorage('eca')->loadMultiple() as $eca) {
       $modeller = $this->ecaServiceModeller->getModeller($eca->get('modeller'));
       if ($modeller === NULL) {
         $this->logger->error('This modeller plugin ' . $eca->get('modeller') . ' does not exist.');
@@ -141,12 +140,21 @@ final class EcaCommands extends DrushCommands {
   #[Usage(name: 'eca:update', description: 'Update all models if plugins got changed.')]
   public function updateAllModels(): void {
     $this->ecaUpdate->updateAllModels();
-    if ($infos = $this->ecaUpdate->getInfos()) {
+    $infos = $this->ecaUpdate->getInfos();
+    $errors = $this->ecaUpdate->getErrors();
+    $warnings = $this->ecaUpdate->getWarnings();
+    if ($infos) {
       $this->io()->info(implode(PHP_EOL, $infos));
     }
-    if ($errors = $this->ecaUpdate->getErrors()) {
+    if ($errors) {
       $this->io()->error(implode(PHP_EOL, $errors));
     }
+    if ($warnings) {
+      $this->io()->warning(implode(PHP_EOL, $warnings));
+    }
+    $this->io()->info("Models not requiring updates: " . count($infos));
+    $this->io()->info("Models updated: " . count($warnings));
+    $this->io()->info("Errors reported: " . count($errors));
   }
 
   /**
@@ -156,7 +164,7 @@ final class EcaCommands extends DrushCommands {
   #[Usage(name: 'eca:disable', description: 'Disable all models.')]
   public function disableAllModels(): void {
     /** @var \Drupal\eca\Entity\Eca $eca */
-    foreach ($this->configStorage->loadMultiple() as $eca) {
+    foreach ($this->entityTypeManager->getStorage('eca')->loadMultiple() as $eca) {
       $modeller = $this->ecaServiceModeller->getModeller($eca->get('modeller'));
       if ($modeller === NULL) {
         $this->logger->error('This modeller plugin ' . $eca->get('modeller') . ' does not exist.');
@@ -175,7 +183,7 @@ final class EcaCommands extends DrushCommands {
   #[Usage(name: 'eca:enable', description: 'Enable all models.')]
   public function enableAllModels(): void {
     /** @var \Drupal\eca\Entity\Eca $eca */
-    foreach ($this->configStorage->loadMultiple() as $eca) {
+    foreach ($this->entityTypeManager->getStorage('eca')->loadMultiple() as $eca) {
       $modeller = $this->ecaServiceModeller->getModeller($eca->get('modeller'));
       if ($modeller === NULL) {
         $this->logger->error('This modeller plugin ' . $eca->get('modeller') . ' does not exist.');
@@ -194,7 +202,7 @@ final class EcaCommands extends DrushCommands {
   #[Usage(name: 'eca:subscriber:rebuild', description: 'Rebuild the state of subscribed events.')]
   public function rebuildSubscribedEvents(): void {
     /** @var \Drupal\eca\Entity\EcaStorage $storage */
-    $storage = $this->configStorage;
+    $storage = $this->entityTypeManager->getStorage('eca');
     $storage->rebuildSubscribedEvents();
   }
 
@@ -210,7 +218,7 @@ final class EcaCommands extends DrushCommands {
   #[Usage(name: 'eca:model:export MODELID --destination=../recipes/process_abc', description: 'Output the recipe at a custom relative path.')]
   public function exportModel(string $id, array $options = ['namespace' => self::OPT, 'destination' => self::OPT]): void {
     /** @var \Drupal\eca\Entity\Eca|null $eca */
-    $eca = $this->configStorage->load($id);
+    $eca = $this->entityTypeManager->getStorage('eca')->load($id);
     if ($eca === NULL) {
       $this->io()->error('The given ECA model does not exist!');
       return;

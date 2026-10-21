@@ -41,6 +41,13 @@ class LeafletDefaultWidget extends GeofieldDefaultWidget {
   use LeafletSettingsElementsTrait;
 
   /**
+   * The Base Maps definition list.
+   *
+   * @var array
+   */
+  private $baseMaps;
+
+  /**
    * The geoPhpWrapper service.
    *
    * @var \Drupal\leaflet\LeafletService
@@ -160,6 +167,7 @@ class LeafletDefaultWidget extends GeofieldDefaultWidget {
       $wkt_generator,
       $geofield_backend_manager
     );
+    $this->baseMaps = $this->getLeafletMaps();
     $this->leafletService = $leaflet_service;
     $this->moduleHandler = $module_handler;
     $this->link = $link_generator;
@@ -202,7 +210,7 @@ class LeafletDefaultWidget extends GeofieldDefaultWidget {
 
     return array_merge(parent::defaultSettings(), [
       'map' => [
-        'leaflet_map' => $base_layers['OSM Mapnik'] ? 'OSM Mapnik' : array_shift($base_layers),
+        'leaflet_map' => isset($base_layers['openstreetmap']) ? 'openstreetmap' : array_key_first($base_layers),
         'height' => 400,
         'auto_center' => TRUE,
         'map_position' => self::getDefaultSettings()['map_position'],
@@ -292,6 +300,9 @@ class LeafletDefaultWidget extends GeofieldDefaultWidget {
     // Set Replacement Patterns Element.
     $this->setReplacementPatternsElement($form);
 
+    $leaflet_map_options = $this->getLeafletMaps();
+    $leaflet_map_style = array_key_exists($map_settings['leaflet_map'], $leaflet_map_options) ? $map_settings['leaflet_map'] : $default_settings['map']['leaflet_map'];
+
     $form['map'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Map Settings'),
@@ -299,8 +310,8 @@ class LeafletDefaultWidget extends GeofieldDefaultWidget {
     $form['map']['leaflet_map'] = [
       '#title' => $this->t('Leaflet Map'),
       '#type' => 'select',
-      '#options' => ['' => $this->t('-- Empty --')] + $this->getLeafletMaps(),
-      '#default_value' => $map_settings['leaflet_map'] ?? $default_settings['map']['leaflet_map'],
+      '#options' => $this->getLeafletMaps(),
+      '#default_value' => $leaflet_map_style,
       '#required' => TRUE,
     ];
     $form['map']['height'] = [
@@ -468,6 +479,24 @@ class LeafletDefaultWidget extends GeofieldDefaultWidget {
   /**
    * {@inheritdoc}
    */
+  public function settingsSummary() {
+    $summary = parent::settingsSummary();
+    $default_settings = self::defaultSettings();
+    $settings = $this->getSettings();
+    $leaflet_map_options = $this->getLeafletMaps();
+    $summary[] = $this->t('Leaflet Map: @map', [
+      '@map' => array_key_exists($settings['map']['leaflet_map'], $leaflet_map_options) ? $leaflet_map_options[$settings['map']['leaflet_map']] : $this->baseMaps[$default_settings['map']["leaflet_map"]],
+    ]);
+    $summary[] = $this->t('Map height: @height px', [
+      '@height' => $settings['map']['height'],
+    ],
+    );
+    return $summary;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function formElement(
     FieldItemListInterface $items,
     $delta,
@@ -497,8 +526,10 @@ class LeafletDefaultWidget extends GeofieldDefaultWidget {
 
     $user_input = $form_state->getUserInput();
 
-    // Get the base Map info.
-    $map = leaflet_map_get_info($map_settings['leaflet_map'] ?? $default_settings['map']['leaflet_map']);
+    // Set the Leaflet Map style options.
+    $leaflet_map_options = $this->getLeafletMaps();
+    $leaflet_map_style = array_key_exists($map_settings['leaflet_map'], $leaflet_map_options) ? $map_settings['leaflet_map'] : $default_settings['map']["leaflet_map"];
+    $map = leaflet_map_get_info($leaflet_map_style);
 
     // Add a specific map id.
     $map['id'] = Html::getUniqueId("leaflet_map_widget_{$entity_type}_{$bundle}_{$entity_id}_{$field->getName()}");

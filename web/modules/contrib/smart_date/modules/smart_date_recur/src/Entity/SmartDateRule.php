@@ -6,6 +6,8 @@ use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Entity\ContentEntityBase;
 use Drupal\Core\Entity\EntityChangedTrait;
+use Drupal\Core\Entity\Query\QueryException;
+use Drupal\Core\Entity\Sql\SqlEntityStorageInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
@@ -142,10 +144,20 @@ class SmartDateRule extends ContentEntityBase {
     // If a limit has been set, add it to the rule definition.
     $end = $this->get('limit')->getString();
     if (!empty($end)) {
-      $rule .= ';' . $end;
-      if (strpos($end, 'UNTIL') === 0 && strpos($end, 'T', 4) === FALSE) {
-        // Add midnight to specify the end of the last day.
-        $rule .= 'T235959';
+      if (strpos($end, 'UNTIL=') === 0) {
+        // Normalize to RFC 5545 format: strip hyphens (DATE/DATE-TIME require
+        // compact YYYYMMDD, not YYYY-MM-DD).
+        $until_date = str_replace('-', '', substr($end, 6));
+        $tz_string = $this->getTimeZone() ?: date_default_timezone_get();
+        if (!$this->isAllDay($this->get('start')->getString(), $this->get('end')->getString(), $tz_string)
+            && strpos($until_date, 'T') === FALSE) {
+          // Timed events: append end-of-day time. All-day events use DATE-only.
+          $until_date .= 'T235959';
+        }
+        $rule .= ';UNTIL=' . $until_date;
+      }
+      else {
+        $rule .= ';' . $end;
       }
     }
     $this->setRule($rule);
@@ -175,6 +187,10 @@ class SmartDateRule extends ContentEntityBase {
    * Provide a formatted array of instances, with any overrides applied.
    */
   public function getRuleInstances($before = NULL, $after = NULL) {
+    if ($before === NULL && $after === NULL && $this->get('limit')->isEmpty()) {
+      $month_limit = $this->getMonthsLimit($this);
+      $before = strtotime('+' . (int) $month_limit . ' months');
+    }
     $instances = $this->makeRuleInstances($before, $after)->toArray();
     $overrides = $this->getRuleOverrides();
 
@@ -278,10 +294,15 @@ class SmartDateRule extends ContentEntityBase {
 
     $field_name = $this->field_name->getString();
 
-    $result = \Drupal::entityQuery($entity_type)
-      ->accessCheck(FALSE)
-      ->condition($field_name . '.rrule', $rid)
-      ->execute();
+    try {
+      $result = \Drupal::entityQuery($entity_type)
+        ->accessCheck(FALSE)
+        ->condition($field_name . '.rrule', $rid)
+        ->execute();
+    }
+    catch (QueryException $e) {
+      $result = $this->getParentEntityIdsFromFieldTable($entity_type, $field_name, $rid);
+    }
 
     // If there are no parents return FALSE.
     if (empty($result)) {
@@ -301,6 +322,50 @@ class SmartDateRule extends ContentEntityBase {
     $entity = $entity_storage
       ->load($id);
     return $entity;
+  }
+
+  /**
+   * Finds parent entity IDs through the field storage table.
+   *
+   * This is a narrow fallback for SQL field-storage cases where entityQuery()
+   * cannot resolve the rrule column and throws a QueryException.
+   *
+   * @param string $entity_type
+   *   The entity type ID.
+   * @param string $field_name
+   *   The Smart Date field name.
+   * @param int|string $rid
+   *   The recurrence rule ID.
+   *
+   * @return array
+   *   Parent entity IDs.
+   */
+  protected function getParentEntityIdsFromFieldTable($entity_type, $field_name, $rid) {
+    $entity_storage = \Drupal::entityTypeManager()->getStorage($entity_type);
+    $field_definitions = \Drupal::service('entity_field.manager')->getFieldDefinitions($entity_type, $this->bundle->getString());
+    if (!$entity_storage instanceof SqlEntityStorageInterface || !isset($field_definitions[$field_name])) {
+      return [];
+    }
+
+    $table_mapping = $entity_storage->getTableMapping();
+    $field_storage = $field_definitions[$field_name]->getFieldStorageDefinition();
+    if (!$table_mapping->requiresDedicatedTableStorage($field_storage)) {
+      return [];
+    }
+
+    $field_table_name = $table_mapping->getFieldTableName($field_name);
+    $rrule_column = $table_mapping->getFieldColumnName($field_storage, 'rrule');
+    $database = \Drupal::database();
+    if (!$database->schema()->tableExists($field_table_name)
+      || !$database->schema()->fieldExists($field_table_name, $rrule_column)) {
+      return [];
+    }
+
+    $query = $database->select($field_table_name, 'f');
+    $query->fields('f', ['entity_id']);
+    $query->condition('f.' . $rrule_column, $rid);
+    $query->condition('f.deleted', 0);
+    return $query->execute()->fetchCol();
   }
 
   /**
@@ -604,8 +669,9 @@ class SmartDateRule extends ContentEntityBase {
     // Process the limit value, if present.
     $limit = '';
     $limit_separator = NULL;
-    if ($this->limit) {
-      [$limit_type, $limit_val] = explode('=', $this->limit);
+    $limit_value = $this->get('limit')->getString();
+    if ($limit_value) {
+      [$limit_type, $limit_val] = explode('=', $limit_value);
       switch ($limit_type) {
         case 'UNTIL':
           $limit_ts = strtotime($limit_val);
@@ -775,8 +841,11 @@ class SmartDateRule extends ContentEntityBase {
     else {
       [$limit, $limit_val] = explode('=', $end);
       if ($limit == 'UNTIL') {
-        // Add midnight to specify the end of the last day.
-        $limit_val .= 'T235959';
+        $limit_val = str_replace('-', '', $limit_val);
+        $tz_string = $this->getTimeZone() ?: date_default_timezone_get();
+        if (!$this->isAllDay($this->get('start')->getString(), $this->get('end')->getString(), $tz_string)) {
+          $limit_val .= 'T235959';
+        }
       }
       $array['limit'] = $limit;
       $array['limit_val'] = $limit_val;
@@ -933,7 +1002,7 @@ class SmartDateRule extends ContentEntityBase {
       if ($start_datetime->getTimestamp() !== $stop_date->getTimestamp()) {
         $interval = $start_datetime->diff($stop_date);
         if ($interval->invert === 1) {
-          $form_state->setError($element, t('The %stop-title date must come after the %start-title date.', [
+          $form_state->setError($element['repeat-end-date'], t('The %stop-title date must come after the %start-title date.', [
             '%stop-title' => $element['repeat-end-date']['#title'],
             '%start-title' => $element['time_wrapper']['value']['#title'],
           ]));
@@ -972,7 +1041,7 @@ class SmartDateRule extends ContentEntityBase {
     // Daily repeats on a multiple of 7 where BYDAY doesn't include the start
     // day will cause the recurr library to time out, so check for this.
     if ($element['interval']['#value'] && $element['interval']['#value'] % 7 == 0) {
-      $form_state->setError($element, t('This recurrence pattern will yield zero instances.'));
+      $form_state->setError($element['repeat-advanced']['byday'], t('This recurrence pattern will yield zero instances.'));
     }
 
     // Daily repeats where BYDAY doesn't include the start day and the interval
@@ -988,7 +1057,7 @@ class SmartDateRule extends ContentEntityBase {
       }
       $between = $start_time->diff($stop_date, TRUE);
       if ($between->days < $element['interval']['#value']) {
-        $form_state->setError($element, t('This recurrence pattern will yield zero instances.'));
+        $form_state->setError($element['interval'], t('This recurrence pattern will yield zero instances.'));
       }
     }
   }

@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Drupal\automatic_updates\Controller;
 
 use Drupal\automatic_updates\BatchProcessor;
+use Drupal\automatic_updates\Form\UpdaterForm;
 use Drupal\automatic_updates\Validation\StatusChecker;
+use Drupal\automatic_updates\Form\ExtensionsUpdaterForm;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Messenger\MessengerInterface;
-use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Url;
 use Drupal\package_manager\Validator\PendingUpdatesValidator;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -25,19 +25,21 @@ final class UpdateController extends ControllerBase {
 
   public function __construct(
     private readonly PendingUpdatesValidator $pendingUpdatesValidator,
-    private readonly RouteMatchInterface $routeMatch,
     private readonly StatusChecker $statusChecker,
   ) {}
 
   /**
-   * {@inheritdoc}
+   * Displays a page with all available updates.
+   *
+   * @return array
+   *   A render array.
    */
-  public static function create(ContainerInterface $container) {
-    return new static(
-      $container->get(PendingUpdatesValidator::class),
-      $container->get('current_route_match'),
-      $container->get(StatusChecker::class),
-    );
+  public function dashboard(): array {
+    $form_builder = $this->formBuilder();
+    return [
+      $form_builder->getForm(UpdaterForm::class),
+      $form_builder->getForm(ExtensionsUpdaterForm::class),
+    ];
   }
 
   /**

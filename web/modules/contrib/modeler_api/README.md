@@ -1,97 +1,169 @@
-## Introduction
+# Modeler API
 
-The Modeler API provides an API for modules like
-[ECA - Events, Conditions, Actions](https://www.drupal.org/project/eca),
-[Migrate Visualize](https://www.drupal.org/project/migrate_visualize),
-[AI Agents](https://www.drupal.org/project/ai_agents),
-and maybe others. The purpose is to allow those modules to utilize modelers like
-[BPMN.iO](https://www.drupal.org/project/bpmn_io),
-(and maybe others in the future) to build diagrams constructed of their
-components (e.g. plugins) and write them back into module-specific config
-entities.
+The Modeler API is a framework for building visual modelers in Drupal. It
+fully decouples *what is being modeled* (Model Owners) from *how it is
+modeled* (Modelers), so that any visual editor can work with any module's
+configuration entities -- without either side knowing the other exists.
 
-## Modeler API Architecture
+## The problem it solves
 
-<img src="/files/Modeler_api%20diagram.png" alt="Modeler API Diagram" />
+Many Drupal modules manage complex configuration entities that benefit from
+visual editing: automation workflows, AI agent pipelines, migration mappings,
+and more. Building a visual editor for each of these independently is a huge
+duplicated effort. And once built, each editor is locked to its own module.
 
-The modules with complex configuration entities (e.g. ECA, Migrate, AI Agents,
-etc.) are called **Model Owners**.
+The Modeler API eliminates this duplication. A module that owns complex
+configuration (a **Model Owner**) implements one plugin interface. A module
+that provides a visual editor (a **Modeler**) implements another. The Modeler
+API sits between them as the sole mediator, translating between the two
+through a generic component model. Neither side has any knowledge of the
+other.
 
-The modules providing the UI to configure those complex configuration entities
-are called **Modelers**.
+If you have 4 model owners and 3 modelers, you get 12 fully working
+combinations -- with zero glue code.
 
-The **Modeler API** sits right in between the model owners and the modelers. It
-makes sure that each of the model owners can interact with each of the
-modelers. However, the model owners and the modelers don't know each other, not
-even a tiny bit. And that makes this eco-system very strong. Users will even be
-able to edit each of the complex configuration entities (a.k.a. models) with
-each of the modelers without losing any of the important configurations.
+## What the API provides
 
-### Provided infrastructure by Modeler API
+Integrating a new model owner or a new modeler is straightforward because the
+Modeler API handles all the infrastructure that would otherwise need to be
+built from scratch:
 
-Integrating a new model owner or a new modeler into the Modeler API should be
-straightforward as the Modeler API provides plugin interfaces for both sides.
-But there's even more, that model owners gain:
+- **Dynamic routing** -- Up to 18 admin routes per model owner (collection,
+  add, edit, delete, enable, disable, clone, import, export, settings, etc.)
+  plus 3 additional routes per modeler/owner combination, all generated
+  automatically from the plugin definitions.
+- **Granular permissions** -- Up to 11 permissions per model owner (administer,
+  view collection, edit, delete, view, edit metadata, switch context, test,
+  replay, create templates, edit templates) plus 2 per modeler/owner
+  combination. All generated dynamically and enforced on every route.
+- **Admin UI** -- Entity listing page with operations, local tasks, local
+  actions, and menu links, all generated from plugin metadata. No manual menu
+  or route configuration needed.
+- **Save cycle orchestration** -- The central `Api` service manages the
+  complete model save flow: parse raw data from the modeler, extract metadata,
+  reset the model owner's components, add each component back, finalize, and
+  persist. Neither plugin needs to know how the other stores or represents
+  data.
+- **Three storage strategies** -- Raw modeler data (XML, JSON, etc.) can be
+  stored as third-party settings on the config entity, in a separate config
+  entity, or not at all. Configurable per owner/modeler combination, or
+  enforced by the model owner.
+- **Import and export** -- Export any model as a `.tar.gz` archive with all
+  config dependencies resolved, or as a complete Drupal recipe with
+  `composer.json`, `recipe.yml`, config files, and installation instructions.
+  Import from archive, raw modeler file, or single config YAML.
+- **Template system** -- Model owners can mark models as templates. Template
+  tokens (defined in YAML by any module) provide placeholder values that are
+  resolved at runtime. A Preact-based frontend lets users select DOM elements
+  to apply templates to, with the results routed back through model owners.
+- **Context and dependency metadata** -- Any module can contribute
+  YAML-based plugins that curate which components appear in the modeler UI
+  (contexts), restrict valid component orderings (dependencies), or define
+  template token trees -- all without writing PHP.
+- **Canvas themes** -- Every modeler ships a default look and feel. Any module
+  can contribute themes in YAML that point at asset libraries, and a site
+  builder selects one per owner/modeler combination. A theme built for a
+  specific owner or modeler applies automatically as soon as its module is
+  installed, without any configuration. The API attaches the CSS centrally, so
+  every modeler benefits without any change on its side.
+- **Testing and replay** -- Model owners can opt in to in-modeler testing
+  (start/poll async test jobs) and execution replay (load trace data per
+  component), with the API providing the endpoints and UI integration.
+- **Drush commands** -- Bulk update all models, enable/disable all models for
+  an owner, or export a model as a recipe from the command line.
 
-- Routing: Modeler API creates all the required routes on the fly
-- Permissions: Modeler API controls access on all routes
-- UI: Modeler API provides the overview page with operations, settings, etc.
-- Useful feature like import, export, export as recipe, etc.
-- Logging: will provide a logging infrastructure for the model owners
-- Replay: will provide a UI in modelers to replay processing with logged data
-- Storage of raw modeler data
+## Architecture
 
-All this is provided by the Modeler API for all model owners and for all
-modelers, i.e. for the combinations of them. Example: if you have 4 model
-owners and 3 modelers, there will be 12 combinations, that are all managed
-out-of-the-box, free of any manual configuration or setup.
+![Architecture](docs/assets/architecture-glance.svg)
 
-### Plans for more modelers
+The Modeler API exposes two separate plugin interfaces:
 
-The well-known BPMN.iO modeler from the ECA eco-system has been integrated
-into Modeler API as a starting point. We also hope that the Classic Modeler,
-which is fairly simple and form-based, but therefore fully accessible, will
-also be integrated, see [#3522747].
+- **`ModelOwnerInterface`** -- for modules that own configuration entities.
+  The model owner defines what components exist (events, actions, conditions,
+  gateways, etc.), how they map to Drupal plugins, how the config entity is
+  structured, and how models are saved.
+- **`ModelerInterface`** -- for modules that provide a visual editor. The
+  modeler knows how to render a canvas, parse its native format (XML, JSON,
+  etc.) into generic `Component` value objects, and serialize changes back.
 
-More potential modelers are being discussed, too, and with this Modeler API
-the effort is fairly minimal, so that we hope that more developers will show
-up and build more exciting modelers. We're happy to provide guidance, and the
-known ideas include but are not limited to these:
+All data flows through the `Api` service, which translates between the two
+sides using 7 generic component types: start, subprocess, swimlane, element,
+link, gateway, and annotation. The config entity and the raw modeler data
+never touch each other directly.
 
-- [n8n](https://n8n.io): as this is not Open-Source, it can still be similar
-- UML: there are various flavours of UML around, e.g. PlantUML
-- React-based (or other JS-framework) fancy UIs
-- Maybe even Drupal's Experience Builder
+## Plugin system
 
-## Benefits
+The module provides 6 plugin types:
 
-Why are we doing all this?
+| Plugin type        | Discovery                                       | Purpose                                                     |
+|--------------------|-------------------------------------------------|-------------------------------------------------------------|
+| **Model Owner**    | PHP attribute `#[ModelOwner]`                   | Owns config entities, defines components, manages storage   |
+| **Modeler**        | PHP attribute `#[Modeler]`                      | Provides visual editor UI, parses and serializes model data |
+| **Context**        | YAML (`MODULE.modeler_api.contexts.yml`)        | Curates which components appear per use case                |
+| **Dependency**     | YAML (`MODULE.modeler_api.dependencies.yml`)    | Constrains valid component orderings                        |
+| **Template Token** | YAML (`MODULE.modeler_api.template_tokens.yml`) | Defines token trees for model templates                     |
+| **Theme**          | YAML (`MODULE.modeler_api.themes.yml`)          | Styles the canvas per owner/modeler combination             |
 
-<div class="note-version">
+All six plugin types support alter hooks for programmatic modifications by
+other modules.
 
-#### This is great for end-users
+## Known model owners
 
-Using diagraming tools is something users like. It's intuitive and it helps
-breaking complex tasks into pieces.
+- [ECA](https://www.drupal.org/project/eca) (via `eca_ui`) -- Automation
+  workflows with events, actions, conditions, and gateways. Supports status,
+  templates, testing, and execution replay.
+- [AI Agents](https://www.drupal.org/project/ai_agents) -- AI agent
+  configuration with sub-agents and function call tools. Uses enforced
+  storage and the `ComponentWrapperPlugin` for non-plugin components.
 
-Imagine, Drupal end-users can use one and the same UI to manage not only one
-of their complex workflows but all of them. They only learn that UI once, and
-re-use where ever this is being integrated.
+## Known modelers
 
-Another step in flattening the learning curve for new Drupal users.
+- [BPMN.iO](https://www.drupal.org/project/bpmn_io) -- BPMN 2.0 editor
+  using the bpmn.js library. XML format, off-canvas configuration forms, SVG
+  export, minimap, search, copy/paste, and auto-layout.
+- [Workflow Modeler](https://www.drupal.org/project/modeler) -- Lightweight
+  editor using React Flow. JSON format, JSON-based configuration forms,
+  context switching.
 
-</div>
+Any model owner works with any modeler. Users can switch between modelers at
+any time without losing configuration data.
 
-<div class="messages warning">
+## Requirements
 
-#### This is also great for developers
+- Drupal `^11.3`
+- PHP `>=8.3`
+- Optional: `drupal/token` for enhanced template token support
 
-Building the UI for ECA has been an effort. Building something similar for all
-the other use cases where Drupal manages complex configuration is certainly not
-less complex. Building similar UIs more than once is not very smart.
+## Installation
 
-Joining forces and maintaining the Modeler API together, allowing other
-developers focusing on either model owners or modelers, is the best possible
-structure for effective teamwork.
+Install as you would any Drupal module:
 
-</div>
+```
+composer require drupal/modeler_api
+drush en modeler_api
+```
+
+The module does nothing on its own -- you need at least one model owner and
+one modeler. For ECA workflows with the BPMN editor:
+
+```
+composer require drupal/eca drupal/bpmn_io
+drush en eca_ui bpmn_io
+```
+
+## Configuration
+
+After installation, visit **Administration > Configuration > Workflow >
+Modeler API** (`/admin/config/workflow/modeler_api`) to configure which
+theme and storage method to use for each model owner and modeler combination.
+
+## Documentation
+
+Full developer documentation is available at the
+[Modeler API documentation site](https://project.pages.drupalcode.org/modeler_api/),
+covering architecture, all plugin types, the API reference, and step-by-step
+implementation guides.
+
+## Community
+
+[Slack: #modeler-api](https://drupal.slack.com/archives/C08K6KX2EHH)

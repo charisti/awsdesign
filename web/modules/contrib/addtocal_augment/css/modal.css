@@ -1,3 +1,7 @@
+dialog.add-to-calendar[open] {
+  display: inline-block;
+}
+
 dialog.add-to-calendar .addtocal__link {
   margin: 1.5rem;
 }

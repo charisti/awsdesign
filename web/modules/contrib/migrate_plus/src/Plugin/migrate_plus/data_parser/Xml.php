@@ -6,7 +6,9 @@ namespace Drupal\migrate_plus\Plugin\migrate_plus\data_parser;
 
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\migrate\MigrateException;
+use Drupal\migrate_plus\Attribute\DataParser;
 use Drupal\migrate_plus\DataFetcherPluginManager;
 use Drupal\migrate_plus\DataParserPluginBase;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -18,12 +20,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * parsing very large XML sources (e.g. 200MB WordPress dumps), which reduces
  * the memory usage and increases the performance. The disadvantage is that it's
  * not possible to use XPath search across the entire source.
- *
- * @DataParser(
- *   id = "xml",
- *   title = @Translation("XML")
- * )
  */
+#[DataParser(
+  id: 'xml',
+  title: new TranslatableMarkup('XML')
+)]
 class Xml extends DataParserPluginBase implements ContainerFactoryPluginInterface {
 
   use XmlTrait;
@@ -88,7 +89,7 @@ class Xml extends DataParserPluginBase implements ContainerFactoryPluginInterfac
    *
    * @var string|null
    */
-  protected ?string $tempFileName;
+  protected ?string $tempFileName = NULL;
 
   /**
    * The file system service.
@@ -123,7 +124,7 @@ class Xml extends DataParserPluginBase implements ContainerFactoryPluginInterfac
 
     // Parse the element query. First capture group is the element path, second
     // (if present) is the attribute.
-    preg_match_all('|^/([^\[]+)\[?(.*?)]?$|', $configuration['item_selector'], $matches);
+    preg_match_all('|^/([^\[]+)\[?(.*?)]?$|', (string) $configuration['item_selector'], $matches);
     $element_path = $matches[1][0];
     $this->elementsToMatch = explode('/', $element_path);
     $predicate = $matches[2][0];
@@ -138,7 +139,7 @@ class Xml extends DataParserPluginBase implements ContainerFactoryPluginInterfac
       $this->prefixedName = TRUE;
     }
 
-    foreach ($this->fieldSelectors() as $field_name => $xpath) {
+    foreach ($this->fieldSelectors() as $xpath) {
       $prefix = substr($xpath, 0, 3);
       if ($prefix === '../') {
         $this->parentElementsOfInterest[] = str_replace('../', '', $xpath);

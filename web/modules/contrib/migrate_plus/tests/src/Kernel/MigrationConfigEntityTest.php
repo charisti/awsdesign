@@ -10,12 +10,14 @@ use Drupal\migrate\Plugin\migrate\id_map\Sql;
 use Drupal\migrate_plus\Entity\Migration;
 use Drupal\migrate_plus_test\Plugin\migrate\id_map\TestSqlIdMap;
 use Drupal\Tests\migrate\Kernel\MigrateTestBase;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Test migration config entity discovery.
- *
- * @group migrate_plus
  */
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 final class MigrationConfigEntityTest extends MigrateTestBase {
 
   /**

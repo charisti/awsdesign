@@ -6,7 +6,7 @@ namespace Drupal\Tests\automatic_updates\Traits;
 
 use Drupal\automatic_updates\Validation\StatusChecker;
 use Drupal\package_manager\ValidationResult;
-use Drupal\system\SystemManager;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Drupal\Tests\package_manager\Traits\ValidationTestTrait as PackageManagerValidationTestTrait;
 
 /**
@@ -53,14 +53,14 @@ trait ValidationTestTrait {
     }
     $summary = t('Summary @random', ['@random' => $random]);
     switch ($severity) {
-      case SystemManager::REQUIREMENT_ERROR:
+      case RequirementSeverity::Error->value:
         return ValidationResult::createError($messages, $summary);
 
-      case SystemManager::REQUIREMENT_WARNING:
+      case RequirementSeverity::Warning->value:
         return ValidationResult::createWarning($messages, $summary);
 
       default:
-        throw new \InvalidArgumentException("$severity is an invalid value for \$severity; it must be SystemManager::REQUIREMENT_ERROR or SystemManager::REQUIREMENT_WARNING.");
+        throw new \InvalidArgumentException("$severity is an invalid value for \$severity; it must be RequirementSeverity::Error->value or RequirementSeverity::Warning->value.");
     }
   }
 

@@ -17,6 +17,7 @@ use Drupal\ai_agents\PluginInterfaces\AiAgentInterface;
 use Drupal\ai_agents\PluginManager\AiAgentValidationPluginManager;
 use Drupal\ai_agents\Task\TaskInterface;
 use Symfony\Component\Yaml\Yaml;
+use Drupal\Component\Serialization\Yaml as SerializationYaml;
 
 /**
  * The agent helper.
@@ -382,10 +383,10 @@ class AgentHelper {
     $config = $this->configFactory->get('ai_agents.settings')->get($this->agent->getId());
     $id = str_replace('.', '', basename($file));
 
-    $data = Yaml::parse(file_get_contents($file));
+    $data = SerializationYaml::decode(file_get_contents($file));
 
     if (isset($config['yaml_override'][$id])) {
-      $data['prompt'] = Yaml::parse($config['yaml_override'][$id]);
+      $data['prompt'] = SerializationYaml::decode($config['yaml_override'][$id]);
     }
     // @todo add caching.
     return $data;

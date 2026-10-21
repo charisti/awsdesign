@@ -7,27 +7,29 @@ use Drupal\Core\Entity\EntityRepositoryInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Utility\Error;
+use Drupal\filter\Attribute\Filter;
 use Drupal\filter\FilterProcessResult;
 use Drupal\filter\Plugin\FilterBase;
+use Drupal\filter\Plugin\FilterInterface;
 use Drupal\linkit\SubstitutionManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Provides a Linkit filter.
- *
- * @Filter(
- *   id = "linkit",
- *   title = @Translation("Linkit URL converter"),
- *   description = @Translation("Updates links inserted by Linkit to point to entity URL aliases."),
- *   settings = {
- *     "title" = TRUE,
- *     "media_substitution" = "metadata",
- *   },
- *   type = Drupal\filter\Plugin\FilterInterface::TYPE_TRANSFORM_REVERSIBLE
- * )
  */
+#[Filter(
+  id: 'linkit',
+  title: new TranslatableMarkup('Linkit URL converter'),
+  description: new TranslatableMarkup('Updates links inserted by Linkit to point to entity URL aliases.'),
+  settings: [
+    'title' => TRUE,
+    'media_substitution' => 'metadata',
+  ],
+  type: FilterInterface::TYPE_TRANSFORM_REVERSIBLE
+)]
 class LinkitFilter extends FilterBase implements ContainerFactoryPluginInterface {
 
   /**

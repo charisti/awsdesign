@@ -8,8 +8,10 @@
 declare(strict_types=1);
 
 /**
- * Rebuilds the container to account for Package Manager moving to core.
+ * Implements hook_removed_post_updates().
  */
-function automatic_updates_extensions_post_update_rebuild_for_core_package_manager(): void {
-  // Intentionally empty to force a container rebuild.
+function automatic_updates_extensions_removed_post_updates(): array {
+  return [
+    'automatic_updates_extensions_post_update_rebuild_for_core_package_manager' => '4.1.0',
+  ];
 }

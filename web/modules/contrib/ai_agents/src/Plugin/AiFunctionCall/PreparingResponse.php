@@ -22,7 +22,7 @@ class PreparingResponse extends FunctionCallBase implements ExecutableFunctionCa
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     $this->setOutput('Next step: Respond to the user.');
   }
 

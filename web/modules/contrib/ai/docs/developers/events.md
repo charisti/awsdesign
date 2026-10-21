@@ -2,7 +2,7 @@
 
 There are three important events that are currently available in the AI module. One that is triggered before the request is being sent, one that is triggered before the response is given from the AI Provider plugin and one that is triggered after a streaming response is done.
 
-These three makes it possible to change prompts, change responses, log, find bugs etc.
+These three make it possible to change prompts, change responses, log, find bugs etc.
 
 With the PreGenerateResponseEvent that is triggered before the request is sent, you can choose to create an exception to make sure that the request never happens or there is a method called setForcedOutputObject, where you can give an OutputInterface and it will answer with this one without doing the request.
 
@@ -233,3 +233,68 @@ class SetNewProvider implements EventSubscriberInterface {
 }
 
 ```
+
+## Example #5: Provider exception — rewrite the message or failover.
+
+When a provider throws from inside `ProviderProxy::wrapperCall()` (quota exceeded, rate limit, unsafe prompt, bad response, …), the AI module dispatches an `AiExceptionEvent` before it rethrows. A subscriber can:
+
+- Call `$event->setMessage(...)` to rewrite the user-facing message. The exception class is preserved, so existing `catch (AiQuotaException $e)` blocks keep working.
+- Call `$event->setForcedOutputObject($output)` with any `\Drupal\ai\OperationType\OutputInterface` to recover gracefully. The proxy returns that output to the caller instead of throwing — useful for failing over to a backup provider, returning a cached response, or showing a canned apology.
+
+`AiExceptionEvent` extends `AiProviderRequestBaseEvent`, so it exposes the full request context via the same getters as `PreGenerateResponseEvent` / `PostGenerateResponseEvent`: `getProviderId()`, `getOperationType()`, `getModelId()`, `getInput()`, `getConfiguration()`, `getTags()`, `getRequestThreadId()`. The original exception is available as the public readonly `$event->exception`.
+
+```php
+<?php
+
+namespace Drupal\my_failover\EventSubscriber;
+
+use Drupal\ai\AiProviderPluginManager;
+use Drupal\ai\Event\AiExceptionEvent;
+use Drupal\ai\Exception\AiQuotaException;
+use Drupal\ai\Exception\AiRateLimitException;
+use Drupal\ai\OperationType\Chat\ChatInput;
+use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+
+/**
+ * Falls back to a backup provider when the primary one is out of quota.
+ */
+final class FailoverSubscriber implements EventSubscriberInterface {
+
+  public function __construct(
+    private readonly AiProviderPluginManager $aiProvider,
+  ) {}
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function getSubscribedEvents(): array {
+    return [AiExceptionEvent::class => 'onException'];
+  }
+
+  /**
+   * Swap in a backup provider's response on quota/rate-limit failures.
+   */
+  public function onException(AiExceptionEvent $event): void {
+    // Only failover on quota / rate-limit, and only for chat.
+    if (!($event->exception instanceof AiQuotaException
+        || $event->exception instanceof AiRateLimitException)) {
+      return;
+    }
+    if ($event->getOperationType() !== 'chat' || !$event->getInput() instanceof ChatInput) {
+      return;
+    }
+    // Avoid looping if the backup itself threw.
+    if ($event->getProviderId() === 'anthropic') {
+      return;
+    }
+
+    $backup = $this->aiProvider->createInstance('anthropic');
+    $output = $backup->chat($event->getInput(), 'claude-3-5-sonnet-latest', $event->getTags());
+    $event->setForcedOutputObject($output);
+  }
+
+}
+```
+
+If no subscriber sets a forced output, the proxy rethrows `$event->getException()` — so pure message-rewrite subscribers can coexist with failover subscribers, and an installation with no subscribers at all behaves exactly as before.
+

@@ -2,6 +2,7 @@
 
 namespace Drupal\smart_date\Plugin\Field\FieldWidget;
 
+use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemListInterface;
@@ -9,6 +10,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\smart_date\SmartDateDurationConfigTrait;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\Validator\ConstraintViolationInterface;
 
 /**
  * Plugin implementation of the 'smartdate_default' widget.
@@ -138,6 +140,16 @@ class SmartDateDefaultWidget extends SmartDateWidgetBase implements ContainerFac
     ];
 
     return $element;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function errorElement(array $element, ConstraintViolationInterface $violation, array $form, FormStateInterface $form_state) {
+    $property_path_array = explode('.', $violation->getPropertyPath());
+    array_shift($property_path_array);
+    $error_element = NestedArray::getValue($element, $property_path_array);
+    return is_array($error_element) ? $error_element : FALSE;
   }
 
 }

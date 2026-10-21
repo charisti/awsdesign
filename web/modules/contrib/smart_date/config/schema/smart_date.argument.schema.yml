@@ -20,3 +20,9 @@ views.argument.date:
     node_changed:
       type: string
       label: 'Node Update Time'
+    format:
+      type: string
+      label: 'Format String'
+    granularity:
+      type: string
+      label: 'Granularity'

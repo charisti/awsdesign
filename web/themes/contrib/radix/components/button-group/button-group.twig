@@ -30,7 +30,7 @@
 {% set aria_label = aria_label|default('') %}
 {% set toolbar = toolbar ?? false %}
 {% set toolbar_aria_label = toolbar_aria_label|default('') %}
-{% set items = items|default([]) %}
+{% set items = items ?? [] %}
 
 {% set classes = ['btn-group'] %}
 

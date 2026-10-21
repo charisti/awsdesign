@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Drupal\trash\Drush\Commands;
 
 use Consolidation\AnnotatedCommand\Hooks\HookManager;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Site\Settings;
-use Drupal\trash\TrashManagerInterface;
+use Drupal\trash\TrashCliActions;
 use Drush\Attributes as CLI;
 use Drush\Commands\AutowireTrait;
 use Drush\Commands\DrushCommands;
@@ -24,8 +22,7 @@ final class TrashCommands extends DrushCommands {
   use AutowireTrait;
 
   public function __construct(
-    protected EntityTypeManagerInterface $entityTypeManager,
-    protected TrashManagerInterface $trashManager,
+    protected TrashCliActions $cliActions,
   ) {
     parent::__construct();
   }
@@ -38,25 +35,23 @@ final class TrashCommands extends DrushCommands {
   #[CLI\Argument(name: 'entity_ids', description: 'A comma-separated list of entity IDs to restore.')]
   #[CLI\Option(name: 'all', description: 'Restore data for all entity types.')]
   public function restore(?string $entity_type_id = NULL, $entity_ids = NULL, array $options = ['all' => FALSE]): void {
+    if (!$options['all']) {
+      $this->validateEntityTypeId($entity_type_id);
+    }
     $entity_ids = StringUtils::csvToArray($entity_ids);
     $this->getConfirmation('restore', $entity_type_id, $entity_ids, $options);
 
     if ($options['all']) {
-      $entity_type_ids = $this->trashManager->getEnabledEntityTypes();
+      $entity_type_ids = $this->cliActions->getEnabledEntityTypes();
       $entity_ids = NULL;
     }
     else {
       $entity_type_ids = [$entity_type_id];
     }
 
-    $count = $this->performOperation('restore', $entity_type_ids, $entity_ids);
+    $count = $this->cliActions->performOperation($this->io(), 'restore', $entity_type_ids, $entity_ids);
 
-    if ($count > 0) {
-      $this->io()->success(dt('Restored @count trashed entities.', ['@count' => $count]));
-    }
-    else {
-      $this->io()->success(dt('No trashed entities to restore.'));
-    }
+    $this->io()->success($this->cliActions->resultMessage('restore', $count));
   }
 
   /**
@@ -67,25 +62,75 @@ final class TrashCommands extends DrushCommands {
   #[CLI\Argument(name: 'entity_ids', description: 'A comma-separated list of entity IDs to purge.')]
   #[CLI\Option(name: 'all', description: 'Purge data for all entity types.')]
   public function purge(?string $entity_type_id = NULL, $entity_ids = NULL, array $options = ['all' => FALSE]): void {
+    if (!$options['all']) {
+      $this->validateEntityTypeId($entity_type_id);
+    }
     $entity_ids = StringUtils::csvToArray($entity_ids);
     $this->getConfirmation('purge', $entity_type_id, $entity_ids, $options);
 
     if ($options['all']) {
-      $entity_type_ids = $this->trashManager->getEnabledEntityTypes();
+      $entity_type_ids = $this->cliActions->getEnabledEntityTypes();
       $entity_ids = NULL;
     }
     else {
       $entity_type_ids = [$entity_type_id];
     }
 
-    $count = $this->performOperation('purge', $entity_type_ids, $entity_ids);
+    $count = $this->cliActions->performOperation($this->io(), 'purge', $entity_type_ids, $entity_ids);
 
-    if ($count > 0) {
-      $this->io()->success(dt('Purged @count trashed entities.', ['@count' => $count]));
+    $this->io()->success($this->cliActions->resultMessage('purge', $count));
+  }
+
+  /**
+   * Exports the Trash overview page views.
+   *
+   * This allows site builders to customize the default using Views UI.
+   */
+  #[CLI\Command(name: 'trash:export-views', aliases: ['tev'])]
+  #[CLI\Argument(name: 'entity_type_id', description: 'The entity type to export the Trash overview page view for.')]
+  #[CLI\Option(name: 'all', description: 'Export the Trash overview page view for all Trash entity types.')]
+  #[CLI\Option(name: 'overwrite', description: 'Overwrite any existing views.')]
+  public function exportViews(
+    ?string $entity_type_id = NULL,
+    array $options = [
+      'all' => FALSE,
+      'overwrite' => FALSE,
+    ],
+  ): void {
+    $enabled_entity_type_ids = $this->cliActions->getEnabledEntityTypes();
+    if (!$enabled_entity_type_ids) {
+      throw new UserAbortException($this->cliActions->noEntityTypesEnabledMessage());
+    }
+    $exportable_entity_type_ids = $this->cliActions->getExportableEntityTypes();
+    if (!$exportable_entity_type_ids) {
+      throw new UserAbortException($this->cliActions->noExportableEntityTypesMessage());
+    }
+    if ($options['all']) {
+      // Pass every enabled entity type so that the ones without Views
+      // integration are reported as skipped instead of dropped silently.
+      $entity_type_ids = $enabled_entity_type_ids;
+      $confirmation_message = $this->cliActions->exportConfirmationQuestion(TRUE, NULL);
     }
     else {
-      $this->io()->success(dt('No trashed entities to purge.'));
+      // Say why a trash-enabled entity type cannot be exported, instead of
+      // falling through to the selection prompt.
+      if ($entity_type_id !== NULL && in_array($entity_type_id, $enabled_entity_type_ids, TRUE) && !in_array($entity_type_id, $exportable_entity_type_ids, TRUE)) {
+        throw new UserAbortException($this->cliActions->notExportableMessage($entity_type_id));
+      }
+      if (!$entity_type_id || !in_array($entity_type_id, $exportable_entity_type_ids, TRUE)) {
+        if (!($entity_type_id = $this->io()->choice($this->cliActions->selectExportEntityTypeQuestion(), $this->cliActions->getEntityTypeLabels($exportable_entity_type_ids)))) {
+          throw new UserAbortException();
+        }
+      }
+      $entity_type_ids = [$entity_type_id];
+      $confirmation_message = $this->cliActions->exportConfirmationQuestion(FALSE, $entity_type_id);
     }
+
+    if (!$this->io()->confirm($confirmation_message)) {
+      throw new UserAbortException();
+    }
+
+    $this->cliActions->exportViews($this->io(), $entity_type_ids, !empty($options['overwrite']));
   }
 
   /**
@@ -93,20 +138,7 @@ final class TrashCommands extends DrushCommands {
    */
   #[CLI\Hook(type: HookManager::INTERACT, target: 'trash:restore')]
   public function hookInteractRestore(Input $input): void {
-    if (!$input->getArgument('entity_type_id') && !$input->getOption('all')) {
-      $entity_type_ids = $this->trashManager->getEnabledEntityTypes();
-
-      if ($entity_type_ids !== []) {
-        if (!$choice = $this->io()->choice('Select the entity type you want to restore.', array_combine($entity_type_ids, $entity_type_ids))) {
-          throw new UserAbortException();
-        }
-
-        $input->setArgument('entity_type_id', $choice);
-      }
-      else {
-        throw new CommandFailedException(dt('No entity types enabled.'));
-      }
-    }
+    $this->interactEntityType($input, 'restore');
   }
 
   /**
@@ -114,109 +146,52 @@ final class TrashCommands extends DrushCommands {
    */
   #[CLI\Hook(type: HookManager::INTERACT, target: 'trash:purge')]
   public function hookInteractPurge(Input $input): void {
+    $this->interactEntityType($input, 'purge');
+  }
+
+  /**
+   * Prompts for the entity type when it is missing and '--all' is not set.
+   */
+  protected function interactEntityType(Input $input, string $operation): void {
     if (!$input->getArgument('entity_type_id') && !$input->getOption('all')) {
-      $entity_type_ids = $this->trashManager->getEnabledEntityTypes();
+      $entity_type_ids = $this->cliActions->getEnabledEntityTypes();
 
       if ($entity_type_ids !== []) {
-        if (!$choice = $this->io()->choice('Select the entity type you want to purge.', array_combine($entity_type_ids, $entity_type_ids))) {
+        if (!$choice = $this->io()->choice($this->cliActions->selectEntityTypeQuestion($operation), array_combine($entity_type_ids, $entity_type_ids))) {
           throw new UserAbortException();
         }
 
         $input->setArgument('entity_type_id', $choice);
       }
       else {
-        throw new CommandFailedException(dt('No entity types enabled.'));
+        throw new CommandFailedException($this->cliActions->noEntityTypesEnabledMessage());
       }
+    }
+  }
+
+  /**
+   * Validates that the given entity type ID is a Trash-enabled entity type.
+   *
+   * The interact hooks only prompt for (and thereby validate) the entity type
+   * ID when the argument is missing; a value supplied directly on the command
+   * line skips that path and would otherwise fail deeper with a raw exception.
+   *
+   * @throws \Drush\Exceptions\CommandFailedException
+   *   Thrown when the entity type ID is not a Trash-enabled entity type.
+   */
+  protected function validateEntityTypeId(?string $entity_type_id): void {
+    if (!$this->cliActions->isTrashEnabledType($entity_type_id)) {
+      throw new CommandFailedException($this->cliActions->invalidEntityTypeMessage($entity_type_id));
     }
   }
 
   /**
    * Prompts the user to confirm the command arguments.
    */
-  protected function getConfirmation($operation, ?string $entity_type_id = NULL, ?array $entity_ids = NULL, array $options = ['all' => FALSE]): void {
-    if ($options['all']) {
-      if (!$this->io()->confirm(dt('Are you sure you want to @operation all data for all entity types?', [
-        '@operation' => $operation,
-      ]))) {
-        throw new UserAbortException();
-      }
+  protected function getConfirmation(string $operation, ?string $entity_type_id = NULL, ?array $entity_ids = NULL, array $options = ['all' => FALSE]): void {
+    if (!$this->io()->confirm($this->cliActions->confirmationQuestion($operation, $entity_type_id, $entity_ids, (bool) $options['all']))) {
+      throw new UserAbortException();
     }
-    else {
-      if (!$entity_ids) {
-        if (!$this->io()->confirm(dt('Are you sure you want to @operation all data for the @entity_type_id entity type?', [
-          '@operation' => $operation,
-          '@entity_type_id' => $entity_type_id,
-        ]))) {
-          throw new UserAbortException();
-        }
-      }
-      else {
-        if (!$this->io()->confirm(dt('Are you sure you want to @operation @entity_type_id @entity_ids?', [
-          '@operation' => $operation,
-          '@entity_type_id' => $entity_type_id,
-          '@entity_ids' => implode(', ', $entity_ids),
-        ]))) {
-          throw new UserAbortException();
-        }
-      }
-    }
-  }
-
-  /**
-   * Performs a restore or purge operation on the given arguments.
-   *
-   * @param string $operation
-   *   The operation to perform, either 'restore' or 'purge'.
-   * @param array $entity_type_ids
-   *   An array of entity type IDs.
-   * @param array|null $entity_ids
-   *   An array of entity IDs.
-   *
-   * @return int
-   *   Returns the number of entities on which the operation was performed.
-   */
-  protected function performOperation(string $operation, array $entity_type_ids, ?array $entity_ids = NULL): int {
-    assert(in_array($operation, ['restore', 'purge'], TRUE));
-
-    $count = 0;
-    foreach ($entity_type_ids as $entity_type_id) {
-      $storage = $this->entityTypeManager->getStorage($entity_type_id);
-      $query = $storage->getQuery()
-        ->accessCheck(FALSE)
-        ->addMetaData('trash', 'inactive')
-        ->exists('deleted');
-
-      if (count($entity_type_ids) === 1 && $entity_ids) {
-        $entity_type = $this->entityTypeManager->getDefinition($entity_type_id);
-        $query->condition($entity_type->getKey('id'), $entity_ids, 'IN');
-      }
-
-      $ids = $query->execute();
-      if ($ids === []) {
-        continue;
-      }
-
-      $this->io()->progressStart(count($ids));
-      $chunkSize = Settings::get('entity_update_batch_size', 50);
-
-      foreach (array_chunk($ids, $chunkSize) as $chunk) {
-        $this->trashManager->executeInTrashContext('inactive', function () use (&$count, $storage, $chunk, $operation) {
-          $entities = $storage->loadMultiple($chunk);
-          if ($operation === 'restore') {
-            $storage->restoreFromTrash($entities);
-          }
-          elseif ($operation === 'purge') {
-            $storage->delete($entities);
-          }
-          $count += count($entities);
-          $this->io()->progressAdvance(count($chunk));
-        });
-      }
-
-      $this->io()->progressFinish();
-    }
-
-    return $count;
   }
 
 }

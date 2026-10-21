@@ -7,6 +7,7 @@ use Drupal\Core\Access\CsrfTokenGenerator;
 use Drupal\Core\Render\Element;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslationInterface;
+use Drupal\Core\Utility\CallableResolver;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -46,25 +47,28 @@ class FormValidator implements FormValidatorInterface {
   protected $formErrorHandler;
 
   /**
-   * Constructs a new FormValidator.
-   *
-   * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
-   *   The request stack.
-   * @param \Drupal\Core\StringTranslation\TranslationInterface $string_translation
-   *   The string translation service.
-   * @param \Drupal\Core\Access\CsrfTokenGenerator $csrf_token
-   *   The CSRF token generator.
-   * @param \Psr\Log\LoggerInterface $logger
-   *   A logger instance.
-   * @param \Drupal\Core\Form\FormErrorHandlerInterface $form_error_handler
-   *   The form error handler.
+   * The callable resolver.
    */
-  public function __construct(RequestStack $request_stack, TranslationInterface $string_translation, CsrfTokenGenerator $csrf_token, LoggerInterface $logger, FormErrorHandlerInterface $form_error_handler) {
+  protected CallableResolver $callableResolver;
+
+  public function __construct(
+    RequestStack $request_stack,
+    TranslationInterface $string_translation,
+    CsrfTokenGenerator $csrf_token,
+    LoggerInterface $logger,
+    FormErrorHandlerInterface $form_error_handler,
+    ?CallableResolver $callableResolver = NULL,
+  ) {
     $this->requestStack = $request_stack;
     $this->stringTranslation = $string_translation;
     $this->csrfToken = $csrf_token;
     $this->logger = $logger;
     $this->formErrorHandler = $form_error_handler;
+    if (!$callableResolver) {
+      @trigger_error(sprintf('Calling %s() without the $callableResolver param is deprecated in drupal:11.3.0 and is required in drupal:12.0.0. See https://www.drupal.org/node/3548821', __METHOD__), E_USER_DEPRECATED);
+      $callableResolver = \Drupal::service(CallableResolver::class);
+    }
+    $this->callableResolver = $callableResolver;
   }
 
   /**
@@ -79,7 +83,8 @@ class FormValidator implements FormValidatorInterface {
     }
 
     foreach ($handlers as $callback) {
-      call_user_func_array($form_state->prepareCallback($callback), [&$form, &$form_state]);
+      $callable = $this->callableResolver->getCallableFromDefinition($form_state->prepareCallback($callback));
+      $callable($form, $form_state);
     }
   }
 
@@ -98,10 +103,11 @@ class FormValidator implements FormValidatorInterface {
       return;
     }
 
-    // If the session token was set by self::prepareForm(), ensure that it
+    // If the session token was set by
+    // \Drupal\Core\Form\FormBuilderInterface::prepareForm(), ensure that it
     // matches the current user's session. This is duplicate to code in
-    // FormBuilder::doBuildForm() but left to protect any custom form handling
-    // code.
+    // \Drupal\Core\Form\FormBuilderInterface::doBuildForm() but left to protect
+    // any custom form handling code.
     if (isset($form['#token'])) {
       if (!$this->csrfToken->validate($form_state->getValue('form_token'), $form['#token']) || $form_state->hasInvalidToken()) {
         $this->setInvalidTokenError($form_state);
@@ -172,10 +178,10 @@ class FormValidator implements FormValidatorInterface {
           NestedArray::setValue($values, $parents, $button_value);
         }
 
-        // Additionally, self::doBuildForm() places the button value in
-        // $form_state->getValue(BUTTON_NAME). If it's still there, after
-        // validation handlers have run, copy it to $values, but do not override
-        // what may already be in $values.
+        // Additionally, \Drupal\Core\Form\FormBuilderInterface::doBuildForm()
+        // places the button value in $form_state->getValue(BUTTON_NAME).
+        // If it's still there, after validation handlers have run, copy it
+        // to $values, but do not override what may already be in $values.
         $name = $triggering_element['#name'];
         if (!isset($values[$name]) && $form_state->getValue($name) === $button_value) {
           $values[$name] = $button_value;
@@ -279,7 +285,8 @@ class FormValidator implements FormValidatorInterface {
       elseif (isset($elements['#element_validate'])) {
         foreach ($elements['#element_validate'] as $callback) {
           $complete_form = &$form_state->getCompleteForm();
-          call_user_func_array($form_state->prepareCallback($callback), [&$elements, &$form_state, &$complete_form]);
+          $callable = $this->callableResolver->getCallableFromDefinition($form_state->prepareCallback($callback));
+          $callable($elements, $form_state, $complete_form);
         }
       }
 

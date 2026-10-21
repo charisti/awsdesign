@@ -81,13 +81,8 @@
 {% set card_header_attributes = create_attribute() %}
 {% set card_footer_attributes = create_attribute() %}
 {% set card_subtitle_attributes = create_attribute() %}
-{% set card_image_attributes = create_attribute() %}
 {% set card_link_attributes = create_attribute() %}
 {% set card_image_cap = card_image_cap|default('top') %}
-
-{% if card_image_alt %}
-  {% set card_image_attributes = card_image_attributes.setAttribute('alt', card_image_alt ) %}
-{% endif %}
 
 {%
   set card_image_classes = [
@@ -103,17 +98,20 @@
   {% endif %}
 
   {% if card_image_overlays %}
-    {%
-      include 'radix:image' with {
-        src: card_image_src,
-        image_utility_classes: card_image_classes|merge(['card-img'])
-      }
-    %}
-    {%
-      set card_body_classes = [
-        'card-img-overlay'
-      ]
-    %}
+    {% if card_media|render %}
+      {{ card_media }}
+    {% elseif card_image_src %}
+      {%
+        include 'radix:image' with {
+          src: card_image_src,
+          alt: card_image_alt,
+          image_utility_classes: card_image_classes|merge(['card-img'])
+        } only
+      %}
+    {% endif %}
+    {% set card_body_classes = [
+      'card-img-overlay'
+    ]|merge(card_body_utility_classes ?: []) %}
   {% endif %}
 
   {% block slot_card_image_top %}
@@ -124,8 +122,9 @@
         {%
           include 'radix:image' with {
             src: card_image_src,
+            alt: card_image_alt,
             image_utility_classes: card_image_classes
-          }
+          } only
         %}
       {% endif %}
     {% endif %}
@@ -178,8 +177,9 @@
         {%
           include 'radix:image' with {
             src: card_image_src,
+            alt: card_image_alt,
             image_utility_classes: card_image_classes|merge(['card-img-bottom'])
-          }
+          } only
         %}
       {% endif %}
     {% endif %}

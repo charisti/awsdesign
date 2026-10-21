@@ -35,7 +35,6 @@
           const map_container = $(this);
           const geojsonFieldOverlay = leaflet_settings.leaflet_widget.geojsonFieldOverlay;
           if (typeof geojsonFieldOverlay === 'object' && geojsonFieldOverlay.hasOwnProperty('contents')) {
-            const drupalLeafletWidget = new Drupal.Leaflet_Widget(map_container, lMap, leaflet_settings);
             let geojson_style = {};
             try {
               geojson_style = JSON.parse(geojsonFieldOverlay.path);
@@ -65,7 +64,7 @@
             geojsonFieldOverlay.contents.forEach(function (item, index) {
               // Try to fetch valid json GeoJSON content.
               try {
-                self.promises.push(self.processGeoJsonSource(item, geojson_style, lMap, mapid, drupalLeafletWidget, geojsonFieldOverlay));
+                self.promises.push(self.processGeoJsonSource(item, geojson_style, lMap, mapid, geojsonFieldOverlay));
               }
               catch (e) {
                 console.error('Error initiating GeoJSON processing:', e);
@@ -76,7 +75,7 @@
             Promise.all(self.promises ).then(() => {
               // Process the GeoJSON overlay if we have features
               if (self.geoJson.features.length > 0) {
-                self.processGeoJsonOverlay(self.geoJson, geojson_style, lMap, mapid, drupalLeafletWidget, geojsonFieldOverlay);
+                self.processGeoJsonOverlay(self.geoJson, geojson_style, lMap, mapid, geojsonFieldOverlay);
               }
             }).catch(e => {
               console.error('Error initiating Ajax GeoJSON processing:', e);
@@ -88,7 +87,7 @@
       });
     },
 
-    processGeoJsonSource(item, geojson_style, lMap, mapid, drupalLeafletWidget, geojsonFieldOverlay) {
+    processGeoJsonSource(item, geojson_style, lMap, mapid, geojsonFieldOverlay) {
       const self = this;
       const source = item.uri ?? item.value;
 
@@ -125,9 +124,9 @@
     /**
      * Set GeoJSON Overlay and add it to map.
      */
-    processGeoJsonOverlay(geoJsonContent, geojson_style, lMap, mapid, drupalLeafletWidget, geojsonFieldOverlay) {
+    processGeoJsonOverlay(geoJsonContent, geojson_style, lMap, mapid, geojsonFieldOverlay) {
       const LeafletGeoJson = this.setGeoJsonOverlay(geoJsonContent, geojson_style, lMap, mapid);
-      if ($.isEmptyObject(drupalLeafletWidget.get_json_value()) && geojsonFieldOverlay.zoom_to_geojson) {
+      if ($.isEmptyObject(Drupal.Leaflet_Widget[mapid].get_json_value()) && geojsonFieldOverlay.zoom_to_geojson) {
         this.extendGeoJsonBounds(LeafletGeoJson);
         // If geoJsonBounds are properly defined, then fit Leaflet Map
         // bounds and reset the StartZoom and StartCenter.

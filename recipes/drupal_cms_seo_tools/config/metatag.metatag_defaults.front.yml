@@ -18,7 +18,7 @@ tags:
   og_updated_time: '[node:changed:custom:c]'
   og_url: '[current-page:url:absolute]'
   referrer: unsafe-url
-  rights: 'Copyright ©[date:html_year] All rights reserved.'
+  rights: 'Copyright © All rights reserved.'
   shortlink: '[site:url]'
   title: '[node:field_seo_title|node:title] | [site:name]'
   twitter_cards_description: '[node:field_seo_description|node:field_description]'

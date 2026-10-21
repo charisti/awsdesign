@@ -5,16 +5,22 @@ declare(strict_types=1);
 namespace Drupal\Tests\automatic_updates\Kernel\StatusCheck;
 
 use Drupal\automatic_updates\CronUpdateRunner;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\package_manager\ValidationResult;
+use Drupal\package_manager\Validator\PhpExtensionsValidator;
 use Drupal\Tests\automatic_updates\Kernel\AutomaticUpdatesKernelTestBase;
 use Drupal\Tests\package_manager\Traits\PackageManagerBypassTestTrait;
 use ColinODell\PsrTestLogger\TestLogger;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @covers \Drupal\automatic_updates\Validator\PhpExtensionsValidator
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(PhpExtensionsValidator::class)]
+#[RunTestsInSeparateProcesses]
 class PhpExtensionsValidatorTest extends AutomaticUpdatesKernelTestBase {
 
   use PackageManagerBypassTestTrait;
@@ -33,10 +39,10 @@ class PhpExtensionsValidatorTest extends AutomaticUpdatesKernelTestBase {
     // Package Manager meekly warns about reduced performance when Xdebug is
     // enabled; Automatic Updates will actually prevent unattended updates.
     $warning_result = ValidationResult::createWarning([
-      t('Xdebug is enabled, which may have a negative performance impact on Package Manager and any modules that use it.'),
+      new TranslatableMarkup('Xdebug is enabled, which may have a negative performance impact on Package Manager and any modules that use it.'),
     ]);
     $error_result = ValidationResult::createError([
-      t("Unattended updates are not allowed while Xdebug is enabled. You cannot receive updates, including security updates, until it is disabled."),
+      new TranslatableMarkup("Unattended updates are not allowed while Xdebug is enabled. You cannot receive updates, including security updates, until it is disabled."),
     ]);
 
     $config = $this->config('automatic_updates.settings');

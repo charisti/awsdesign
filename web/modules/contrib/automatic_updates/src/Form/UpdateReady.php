@@ -12,11 +12,11 @@ use Drupal\package_manager\Exception\SandboxException;
 use Drupal\package_manager\Exception\SandboxOwnershipException;
 use Drupal\package_manager\ValidationResult;
 use Drupal\Core\Batch\BatchBuilder;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\State\StateInterface;
-use Drupal\system\SystemManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
@@ -137,7 +137,7 @@ final class UpdateReady extends UpdateFormBase {
       $this->displayResults($results, $this->renderer);
       // If any errors occurred, return the form early so the user cannot
       // continue.
-      if (ValidationResult::getOverallSeverity($results) === SystemManager::REQUIREMENT_ERROR) {
+      if (ValidationResult::getOverallSeverity($results) === RequirementSeverity::Error->value) {
         return $form;
       }
     }

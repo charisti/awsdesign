@@ -8,22 +8,25 @@ default:
     - core/jquery
     - core/once
     - core/drupal
+    - core/drupalSettings
     - core/drupal.debounce
     - core/sortable
+    - tagify/tagify
+    - tagify/tagify_polyfils
 
 gin:
   css:
     component:
       css/gin.css: {}
   dependencies:
-    - tagify/tagify
+    - tagify/default
 
 claro:
   css:
     component:
       css/claro.css: {}
   dependencies:
-    - tagify/tagify
+    - tagify/default
 
 tagify:
   remote: https://github.com/yairEO/tagify
@@ -39,12 +42,6 @@ tagify:
     component:
       //cdnjs.cloudflare.com/ajax/libs/tagify/4.35.4/tagify.min.css:
         { type: external, minified: true }
-  dependencies:
-    - core/jquery
-    - core/once
-    - core/drupal
-    - core/drupal.debounce
-    - core/sortable
 
 tagify_polyfils:
   remote: https://github.com/yairEO/tagify
@@ -56,8 +53,3 @@ tagify_polyfils:
   js:
     //cdnjs.cloudflare.com/ajax/libs/tagify/4.35.4/tagify.polyfills.min.js:
       { type: external, minified: true }
-  dependencies:
-    - core/jquery
-    - core/once
-    - core/drupal
-    - core/drupal.debounce

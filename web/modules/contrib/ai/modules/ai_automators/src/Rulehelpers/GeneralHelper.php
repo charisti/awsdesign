@@ -522,7 +522,7 @@ class GeneralHelper {
     $entityValue = $this->token->replace($automatorConfig["{$id}_override"], [
       $this->aiAutomatorFieldConfig->getEntityTokenType($entity->getEntityTypeId()) => $entity,
       'user' => $this->currentUser,
-    ]);
+    ], ['clear' => TRUE]);
     return !$entityValue && $configValue ? $configValue : $entityValue;
   }
 
@@ -560,6 +560,10 @@ class GeneralHelper {
       return NULL;
     }
     $formatsAllowed = $fieldDefinition->getSetting('allowed_formats');
+    // If no formats are allowed, return NULL.
+    if ($formatsAllowed === NULL) {
+      return NULL;
+    }
     // All formats are allowed.
     if (empty($formatsAllowed)) {
       $formatsAllowed = array_keys($allFormats);

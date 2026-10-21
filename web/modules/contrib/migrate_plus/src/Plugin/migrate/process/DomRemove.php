@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\Row;
 
@@ -57,11 +58,8 @@ use Drupal\migrate\Row;
  * @endcode
  *
  * This example will remove "style" attributes from all tags.
- *
- * @MigrateProcessPlugin(
- *   id = "dom_remove"
- * )
  */
+#[MigrateProcess(id: 'dom_remove')]
 class DomRemove extends DomProcessBase {
 
   /**
@@ -69,7 +67,7 @@ class DomRemove extends DomProcessBase {
    */
   public function __construct(array $configuration, $plugin_id, $plugin_definition) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->configuration['mode'] = $this->configuration['mode'] ?? 'element';
+    $this->configuration['mode'] ??= 'element';
     if ($this->configuration['mode'] === 'attribute' && !isset($this->configuration['attribute'])) {
       throw new \InvalidArgumentException('The "attribute" must be set if "mode" is set to "attribute".');
     }

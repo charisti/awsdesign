@@ -30,31 +30,45 @@ class TrashHandlerPass implements CompilerPassInterface {
 
     $enabled_entity_types = $trash_settings['enabled_entity_types'] ?? [];
     $trash_handlers = $container->findTaggedServiceIds('trash_handler');
+    $trash_manager = $container->getDefinition('trash.manager');
 
     foreach ($trash_handlers as $id => $attributes) {
       $entity_type_id = $attributes[0]['entity_type_id'];
+      $is_enabled = isset($enabled_entity_types[$entity_type_id]);
 
-      // Remove trash handlers for entity types that aren't enabled.
-      if (!isset($enabled_entity_types[$entity_type_id])) {
-        $container->removeDefinition($id);
-      }
-      else {
+      if ($is_enabled) {
         // Keep track of entity types without a dedicated trash handler so we
         // can create one for them automatically.
         unset($enabled_entity_types[$entity_type_id]);
+      }
 
-        $container->getDefinition($id)
-          ->addMethodCall('setEntityTypeId', [$entity_type_id])
-          ->setConfigurator(new Reference('trash.handler_configurator'));
+      $container->getDefinition($id)
+        ->addMethodCall('setEntityTypeId', [$entity_type_id])
+        ->setConfigurator(new Reference(TrashHandlerConfigurator::class));
+
+      // Only register the handler with the trash manager when trash is enabled
+      // for its entity type. Registering all of them makes 'trash.manager'
+      // instantiate every handler and everything those handlers depend on,
+      // which isn't ideal because 'trash.manager' is reachable from bootstrap
+      // services like 'path_alias.repository'.
+      //
+      // The handler definitions are still fully configured,
+      // TrashManager::getHandler() just returns NULL for entity types without
+      // a registered handler.
+      if ($is_enabled) {
+        $trash_manager->addMethodCall('addHandler', [new Reference($id), $entity_type_id]);
       }
     }
 
     // Register a trash handler for entity types without a dedicated one.
     foreach (array_keys($enabled_entity_types) as $entity_type_id) {
-      $container->register('trash.default_handler.' . $entity_type_id, DefaultTrashHandler::class)
+      $default_id = 'trash.default_handler.' . $entity_type_id;
+      $container->register($default_id, DefaultTrashHandler::class)
         ->addTag('trash_handler', ['entity_type_id' => $entity_type_id])
         ->addMethodCall('setEntityTypeId', [$entity_type_id])
-        ->setConfigurator(new Reference('trash.handler_configurator'));
+        ->setConfigurator(new Reference(TrashHandlerConfigurator::class));
+
+      $trash_manager->addMethodCall('addHandler', [new Reference($default_id), $entity_type_id]);
     }
 
     // Replace the class of the 'path_alias.repository' service. We have to do

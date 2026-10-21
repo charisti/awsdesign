@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateException;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\ProcessPluginBase;
@@ -11,11 +12,6 @@ use Drupal\migrate\Row;
 
 /**
  * Performs an array_shift() on a source array.
- *
- * @MigrateProcessPlugin(
- *   id = "array_shift",
- *   handle_multiples = TRUE
- * )
  *
  * The "extract" plugin in core can extract array values when indexes are
  * already known. This plugin helps extract the first value in an array by
@@ -31,6 +27,10 @@ use Drupal\migrate\Row;
  *     source: authors
  * @endcode
  */
+#[MigrateProcess(
+  id: 'array_shift',
+  handle_multiples: TRUE,
+)]
 class ArrayShift extends ProcessPluginBase {
 
   /**

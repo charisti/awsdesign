@@ -25,7 +25,7 @@ props:
       title: Views rows attributes
     views_empty_attributes:
       type: Drupal\Core\Template\Attribute
-      title: Views empty attributes 
+      title: Views empty attributes
     views_footer_attributes:
       type: Drupal\Core\Template\Attribute
       title: Views footer attributes
@@ -35,7 +35,7 @@ props:
     views_attachment_after_attributes:
       type: Drupal\Core\Template\Attribute
       title: Views attachment after attributes
-    views_pager_attributes: 
+    views_pager_attributes:
       type: Drupal\Core\Template\Attribute
       title: Views pager attributes
     views_more_attributes:

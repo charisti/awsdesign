@@ -10,6 +10,8 @@ use Drupal\project_browser\ProjectRepository;
 use Drupal\Tests\BrowserTestBase;
 use Drush\TestTraits\DrushTestTrait;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+use PHPUnit\Framework\Attributes\TestWith;
 
 /**
  * Tests clearing stored project data in various ways.
@@ -17,6 +19,7 @@ use PHPUnit\Framework\Attributes\Group;
  * @group project_browser
  */
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class ClearStorageTest extends BrowserTestBase {
 
   use DrushTestTrait;
@@ -72,10 +75,9 @@ final class ClearStorageTest extends BrowserTestBase {
    *
    * @param string $command
    *   The name or alias of the Drush command.
-   *
-   * @testWith ["project-browser:storage-clear"]
-   *   ["pb-sc"]
    */
+  #[TestWith(['project-browser:storage-clear'])]
+  #[TestWith(['pb-sc'])]
   public function testClearCacheWithDrush(string $command): void {
     $this->drush($command);
     $this->assertEmpty($this->keyValue->getAll());

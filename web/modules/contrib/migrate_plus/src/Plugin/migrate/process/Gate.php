@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\ProcessPluginBase;
 use Drupal\migrate\Row;
@@ -25,10 +26,6 @@ use Drupal\migrate\Row;
  * essentially restricted to 'process'.
  *
  * The source is not modified if it passes through the gate.
- *
- * @MigrateProcessPlugin(
- *   id = "gate"
- * )
  *
  * Available configuration keys:
  * - use_as_key: source or destination field to be used as the key to the gate.
@@ -79,6 +76,7 @@ use Drupal\migrate\Row;
  *
  * @codingStandardsIgnoreEnd
  */
+#[MigrateProcess(id: 'gate')]
 class Gate extends ProcessPluginBase {
 
   /**
@@ -112,6 +110,7 @@ class Gate extends ProcessPluginBase {
     $value_can_pass = ($key_is_valid && $key_direction == 'unlock') || (!$key_is_valid && $key_direction == 'lock');
     if (!$value_can_pass) {
       $this->stopPipeline();
+      return NULL;
     }
     return $value;
   }

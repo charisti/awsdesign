@@ -287,7 +287,7 @@ abstract class EcaObject {
     elseif (isset($plugin->configuration)) {
       $config = $plugin->configuration;
     }
-    elseif (isset($this->configuration)) {
+    else {
       $config = $this->configuration;
     }
 

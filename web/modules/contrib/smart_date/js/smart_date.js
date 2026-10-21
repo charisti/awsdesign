@@ -305,7 +305,7 @@
         // Store the numeric value in a property so it can be used programmatically.
         element.dataset.duration = duration;
         // Handle cases where only one non-custom value is allowed.
-        if (element.options.length === 1 && duration !== 'custom') {
+        if (element.options.length === 1 && element.value !== 'custom') {
           if (+duration === 0) {
             // Hide the entire duration wrapper.
             parentNoDisplay(element);

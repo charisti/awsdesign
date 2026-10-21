@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\layout_builder_restrictions\FunctionalJavascript;
 
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+
 /**
  * Demonstrate that blocks can be individually denylisted.
- *
- * @group layout_builder_restrictions
  */
+#[Group('layout_builder_restrictions')]
+#[RunTestsInSeparateProcesses]
 class DenylistedRestrictionsTest extends LayoutBuilderRestrictionsTestBase {
 
   /**
@@ -106,7 +109,7 @@ class DenylistedRestrictionsTest extends LayoutBuilderRestrictionsTestBase {
     // The "body" field is restricted.
     $assert_session->linkNotExists('Body');
     // ... but other 'content' fields aren't.
-    $assert_session->linkExists('Promoted to front page');
+    $assert_session->linkExists('Authored by');
     $assert_session->linkExists('Sticky at top of lists');
     // "Basic" Custom blocks are restricted.
     $assert_session->linkNotExists('Basic Block 1');

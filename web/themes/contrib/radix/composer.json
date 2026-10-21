@@ -18,7 +18,6 @@
   "require-dev": {
     "drush/drush": "^12 || ^13"
   },
-  "require": {},
   "extra": {
     "drush": {
       "services": {

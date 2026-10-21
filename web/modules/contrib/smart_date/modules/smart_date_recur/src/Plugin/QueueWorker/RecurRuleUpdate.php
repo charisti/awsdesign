@@ -80,12 +80,13 @@ class RecurRuleUpdate extends QueueWorkerBase implements ContainerFactoryPluginI
       foreach ($rules as $rrid) {
         $rule = SmartDateRule::load($rrid);
         // @see makeRuleInstances() method for better understanding.
-        $new_instances = $rule->getNewInstances()?->toArray();
-        if (empty($new_instances)) {
+        $new_instances = $rule->getNewInstances();
+        if (!$new_instances) {
           // No instances to add, so no need to process this rule.
           unset($rules[$rrid]);
           continue;
         }
+        $new_instances = $new_instances->toArray();
         $instances = $rule->getStoredInstances();
         $template = end($instances);
         foreach ($new_instances as $new_instance) {

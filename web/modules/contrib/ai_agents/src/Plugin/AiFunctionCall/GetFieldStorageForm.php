@@ -86,7 +86,7 @@ class GetFieldStorageForm extends FunctionCallBase implements ExecutableFunction
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Get the context.
     $field_type = $this->getContextValue('field_type');
 

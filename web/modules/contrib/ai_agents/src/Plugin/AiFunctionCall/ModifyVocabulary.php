@@ -28,7 +28,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
       label: new TranslatableMarkup("Vocabulary ID"),
       description: new TranslatableMarkup("The data name of the vocabulary. Should be unique if its getting created."),
       required: TRUE,
-      constraints: ['Regex' => '/^[a-zA-Z0-9_]+$/'],
+      constraints: ['Regex' => ['pattern' => '/^[a-zA-Z0-9_]+$/']],
     ),
     'name' => new ContextDefinition(
       data_type: 'string',
@@ -97,7 +97,7 @@ class ModifyVocabulary extends FunctionCallBase implements ExecutableFunctionCal
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Check so the user has access to create/edit vocabularies.
     if (!$this->currentUser->hasPermission('administer taxonomy')) {
       throw new \Exception('The current user does not have the right permissions to create/edit vocabularies.');

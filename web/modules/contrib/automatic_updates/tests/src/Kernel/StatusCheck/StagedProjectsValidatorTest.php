@@ -5,17 +5,23 @@ declare(strict_types=1);
 namespace Drupal\Tests\automatic_updates\Kernel\StatusCheck;
 
 use Drupal\automatic_updates\UpdateSandboxManager;
+use Drupal\automatic_updates\Validator\StagedProjectsValidator;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\fixture_manipulator\ActiveFixtureManipulator;
 use Drupal\package_manager\Exception\SandboxEventException;
 use Drupal\package_manager\ValidationResult;
 use Drupal\package_manager\Validator\SupportedReleaseValidator;
 use Drupal\Tests\automatic_updates\Kernel\AutomaticUpdatesKernelTestBase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @covers \Drupal\automatic_updates\Validator\StagedProjectsValidator
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(StagedProjectsValidator::class)]
+#[RunTestsInSeparateProcesses]
 class StagedProjectsValidatorTest extends AutomaticUpdatesKernelTestBase {
 
   /**
@@ -101,10 +107,10 @@ class StagedProjectsValidatorTest extends AutomaticUpdatesKernelTestBase {
       ->removePackage('other/dev-removed', TRUE);
 
     $messages = [
-      t("custom module 'drupal/dev-test-module2' installed."),
-      t("module 'drupal/test-module2' installed."),
+      new TranslatableMarkup("custom module 'drupal/dev-test-module2' installed."),
+      new TranslatableMarkup("module 'drupal/test-module2' installed."),
     ];
-    $error = ValidationResult::createError($messages, t('The update cannot proceed because the following Drupal projects were installed during the update.'));
+    $error = ValidationResult::createError($messages, new TranslatableMarkup('The update cannot proceed because the following Drupal projects were installed during the update.'));
 
     $sandbox_manager = $this->container->get(UpdateSandboxManager::class);
     $sandbox_manager->begin(['drupal' => '9.8.1']);
@@ -174,10 +180,10 @@ class StagedProjectsValidatorTest extends AutomaticUpdatesKernelTestBase {
       ->setCorePackageVersion('9.8.1');
 
     $messages = [
-      t("custom theme 'drupal/dev-test_theme' removed."),
-      t("theme 'drupal/test_theme' removed."),
+      new TranslatableMarkup("custom theme 'drupal/dev-test_theme' removed."),
+      new TranslatableMarkup("theme 'drupal/test_theme' removed."),
     ];
-    $error = ValidationResult::createError($messages, t('The update cannot proceed because the following Drupal projects were removed during the update.'));
+    $error = ValidationResult::createError($messages, new TranslatableMarkup('The update cannot proceed because the following Drupal projects were removed during the update.'));
     $sandbox_manager = $this->container->get(UpdateSandboxManager::class);
     $sandbox_manager->begin(['drupal' => '9.8.1']);
     $sandbox_manager->stage();
@@ -233,10 +239,10 @@ class StagedProjectsValidatorTest extends AutomaticUpdatesKernelTestBase {
       ->setCorePackageVersion('9.8.1');
 
     $messages = [
-      t("module 'drupal/dev-test-module' from 1.3.0 to 1.3.1."),
-      t("module 'drupal/test-module' from 1.3.0 to 1.3.1."),
+      new TranslatableMarkup("module 'drupal/dev-test-module' from 1.3.0 to 1.3.1."),
+      new TranslatableMarkup("module 'drupal/test-module' from 1.3.0 to 1.3.1."),
     ];
-    $error = ValidationResult::createError($messages, t('The update cannot proceed because the following Drupal projects were unexpectedly updated. Only Drupal Core updates are currently supported.'));
+    $error = ValidationResult::createError($messages, new TranslatableMarkup('The update cannot proceed because the following Drupal projects were unexpectedly updated. Only Drupal Core updates are currently supported.'));
     $sandbox_manager = $this->container->get(UpdateSandboxManager::class);
     $sandbox_manager->begin(['drupal' => '9.8.1']);
     $sandbox_manager->stage();

@@ -7,7 +7,7 @@ use Drupal\Tests\BrowserTestBase;
 /**
  * Provides a base class for functional testing of smart_date fields.
  */
-class SmartDateTestBase extends BrowserTestBase {
+abstract class SmartDateTestBase extends BrowserTestBase {
 
   /**
    * Modules to enable.

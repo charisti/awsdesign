@@ -10,6 +10,7 @@ use Drupal\project_browser\Plugin\Block\ProjectBrowserBlock;
 use Drupal\Tests\BrowserTestBase;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the project browser block.
@@ -18,6 +19,7 @@ use PHPUnit\Framework\Attributes\Group;
  */
 #[CoversClass(ProjectBrowserBlock::class)]
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class ProjectBrowserBlockTest extends BrowserTestBase {
 
   /**
@@ -125,7 +127,7 @@ final class ProjectBrowserBlockTest extends BrowserTestBase {
 
     $block->setInPreview(TRUE);
     $build = $block->build();
-    $rendered = (string) $this->container->get(RendererInterface::class)
+    $rendered = (string) \Drupal::service(RendererInterface::class)
       ->renderRoot($build);
     $this->assertStringContainsString('Project Browser is being rendered in preview mode, so not loading projects. This block uses the <em class="placeholder">Project Browser Mock Plugin</em> source.', $rendered);
   }

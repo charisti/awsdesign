@@ -7,12 +7,14 @@ namespace Drupal\Tests\ai_agents\Kernel\Service\AgentStatus;
 use Drupal\Core\Session\SessionManagerInterface;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\ai_agents\Service\AgentStatus\AiAgentStatusPollerService;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests for the AiAgentStatusPollerServiceTest class.
  *
  * @group ai_agents
  */
+#[RunTestsInSeparateProcesses]
 final class AiAgentStatusPollerServiceTest extends KernelTestBase {
 
   /**

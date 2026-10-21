@@ -3,6 +3,7 @@
 namespace Drupal\eca\Service;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\Entity\ConfigEntityTypeInterface;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeBundleInfoInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
@@ -172,6 +173,7 @@ class DependencyCalculation {
   protected function addDependenciesFromFields(array $fields, array &$entity_field_info, Eca $eca, array &$dependencies): void {
     $variables = [];
     foreach ($fields as $name => $field) {
+      $bundle = NULL;
       if (!is_string($field)) {
         if (is_array($field)) {
           $this->addDependenciesFromFields($field, $entity_field_info, $eca, $dependencies);
@@ -179,7 +181,7 @@ class DependencyCalculation {
         continue;
       }
 
-      if (mb_strpos('type', $name) !== FALSE) {
+      if (mb_strpos($name, 'type') !== FALSE) {
         [$field, $bundle] = array_merge(explode(' ', $field, 2), [ContentEntityTypes::ALL]);
       }
       else {
@@ -200,10 +202,8 @@ class DependencyCalculation {
         }
         elseif ($is_entity_type) {
           $entity_type_id = $field;
-          if (isset($bundle) && $bundle !== ContentEntityTypes::ALL && ($bundle_dependency = $this->entityTypeManager->getDefinition($entity_type_id)->getBundleConfigDependency($bundle))) {
-            if (in_array('bundle', self::$enabledCalculations, TRUE)) {
-              $this->addDependency($bundle_dependency['type'], $bundle_dependency['name'], $dependencies);
-            }
+          if ($bundle !== NULL && $bundle !== ContentEntityTypes::ALL && in_array('bundle', self::$enabledCalculations, TRUE) && ($bundle_dependency = $this->getBundleDependency($entity_type_id, $bundle))) {
+            $this->addDependency($bundle_dependency['type'], $bundle_dependency['name'], $dependencies);
           }
         }
       }
@@ -262,6 +262,52 @@ class DependencyCalculation {
         }
       }
     }
+  }
+
+  /**
+   * Determines the dependency for a bundle of the given entity type.
+   *
+   * Unlike EntityType::getBundleConfigDependency(), this method derives the
+   * dependency name of a config-provided bundle from the bundle entity type
+   * definition without loading the bundle config entity. It therefore does
+   * not throw a LogicException when the bundle does not (yet) exist, which
+   * happens e.g. while a recipe or config import creates an ECA config
+   * entity before the bundle config entity it refers to.
+   *
+   * @param string $entity_type_id
+   *   The entity type ID.
+   * @param string $bundle
+   *   The bundle.
+   *
+   * @return array|null
+   *   An array with 'type' and 'name' keys describing the dependency, or
+   *   NULL if no dependency can be determined.
+   */
+  protected function getBundleDependency(string $entity_type_id, string $bundle): ?array {
+    $definition = $this->entityTypeManager->getDefinition($entity_type_id);
+    if ($bundle_entity_type_id = $definition->getBundleEntityType()) {
+      $bundle_definition = $this->entityTypeManager->getDefinition($bundle_entity_type_id);
+      if ($bundle_definition instanceof ConfigEntityTypeInterface) {
+        // This is what EntityType::getBundleConfigDependency() would return,
+        // derived without loading the bundle config entity, so that a bundle
+        // that does not exist yet still resolves to its future config name.
+        return [
+          'type' => 'config',
+          'name' => $bundle_definition->getConfigPrefix() . '.' . $bundle,
+        ];
+      }
+      // The bundle entity type is not a config entity type. Determine the
+      // dependency from the bundle entity itself, but skip the dependency
+      // when the bundle entity does not exist instead of hard-failing.
+      if ($bundle_entity = $this->entityTypeManager->getStorage($bundle_entity_type_id)->load($bundle)) {
+        return [
+          'type' => $bundle_entity->getConfigDependencyKey(),
+          'name' => $bundle_entity->getConfigDependencyName(),
+        ];
+      }
+      return NULL;
+    }
+    return $definition->getBundleConfigDependency($bundle);
   }
 
   /**

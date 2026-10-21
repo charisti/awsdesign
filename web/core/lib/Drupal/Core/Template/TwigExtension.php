@@ -100,7 +100,7 @@ class TwigExtension extends AbstractExtension {
       // This function will receive a renderable array, if an array is detected.
       new TwigFunction('render_var', [$this, 'renderVar']),
       // The URL and path function are defined in close parallel to those found
-      // in \Symfony\Bridge\Twig\Extension\RoutingExtension
+      // in \Symfony\Bridge\Twig\Extension\RoutingExtension.
       new TwigFunction('url', [$this, 'getUrl'], ['is_safe_callback' => [$this, 'isUrlGenerationSafe']]),
       new TwigFunction('path', [$this, 'getPath'], ['is_safe_callback' => [$this, 'isUrlGenerationSafe']]),
       new TwigFunction('link', [$this, 'getLink']),
@@ -116,6 +116,10 @@ class TwigExtension extends AbstractExtension {
    * {@inheritdoc}
    */
   public function getFilters() {
+    $escape_options = [
+      'needs_environment' => TRUE,
+      'is_safe_callback' => [static::class, 'escapeFilterIsSafe'],
+    ];
     return [
       // Translation filters.
       new TwigFilter('t', 't', ['is_safe' => ['html']]),
@@ -127,15 +131,14 @@ class TwigExtension extends AbstractExtension {
       // @see TwigNodeTrans::compileString()
       new TwigFilter('placeholder', [$this, 'escapePlaceholder'], ['is_safe' => ['html'], 'needs_environment' => TRUE]),
 
-      // Replace twig's escape filter with our own.
-      new TwigFilter(
-        'drupal_escape',
-        [$this, 'escapeFilter'],
-        [
-          'needs_environment' => TRUE,
-          'is_safe_callback' => 'twig_escape_filter_is_safe',
-        ]
-      ),
+      // Replace Twig's escape filters with our own MarkupInterface-aware
+      // filter. Filters registered by later extensions override those with
+      // the same name, and this extension is always added after Twig's
+      // EscaperExtension. Twig's auto-escaping always uses the filter
+      // named 'escape'.
+      new TwigFilter('escape', [$this, 'escapeFilter'], $escape_options),
+      new TwigFilter('e', [$this, 'escapeFilter'], $escape_options),
+      new TwigFilter('drupal_escape', [$this, 'escapeFilter'], $escape_options),
 
       // Implements safe joining.
       // @todo Make that the default for |join? Upstream issue:
@@ -403,6 +406,25 @@ class TwigExtension extends AbstractExtension {
   }
 
   /**
+   * Determines which strategies the output of the escape filter is safe for.
+   *
+   * @param \Twig\Node\Node $filter_args
+   *   The arguments passed to the escape filter.
+   *
+   * @return string[]
+   *   The escaping strategies the output is safe for.
+   */
+  public static function escapeFilterIsSafe(Node $filter_args): array {
+    foreach ($filter_args as $arg) {
+      if ($arg instanceof ConstantExpression) {
+        return [$arg->getAttribute('value')];
+      }
+      return [];
+    }
+    return ['html'];
+  }
+
+  /**
    * Overrides twig_escape_filter().
    *
    * Replacement function for Twig's escape filter.
@@ -439,8 +461,15 @@ class TwigExtension extends AbstractExtension {
 
     $this->bubbleArgMetadata($arg);
 
+    // Immediately cast and return MarkupInterface objects to a string to ensure
+    // that when Twig renders via yield, later manipulations to the object will
+    // not affect rendering.
+    if ($autoescape && ($arg instanceof MarkupInterface)) {
+      return (string) $arg;
+    }
+
     // Keep \Twig\Markup objects intact to support autoescaping.
-    if ($autoescape && ($arg instanceof TwigMarkup || $arg instanceof MarkupInterface)) {
+    if ($autoescape && ($arg instanceof TwigMarkup)) {
       return $arg;
     }
 
@@ -470,7 +499,10 @@ class TwigExtension extends AbstractExtension {
     // We have a string or an object converted to a string: Autoescape it!
     if (isset($return)) {
       if ($autoescape && $return instanceof MarkupInterface) {
-        return $return;
+        // Immediately cast and return MarkupInterface objects to a string to
+        // ensure that when Twig renders via yield, later manipulations to the
+        // object will not affect rendering.
+        return (string) $return;
       }
       // Drupal only supports the HTML escaping strategy, so provide a
       // fallback for other strategies.

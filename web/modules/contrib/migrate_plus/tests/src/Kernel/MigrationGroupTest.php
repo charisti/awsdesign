@@ -7,12 +7,14 @@ namespace Drupal\Tests\migrate_plus\Kernel;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\migrate_plus\Entity\Migration;
 use Drupal\migrate_plus\Entity\MigrationGroup;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Test migration groups.
- *
- * @group migrate_plus
  */
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 final class MigrationGroupTest extends KernelTestBase {
 
   /**

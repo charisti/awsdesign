@@ -2,6 +2,8 @@
 
 namespace Drupal\ai\OperationType\Chat;
 
+use Drupal\ai\Guardrail\StreamableGuardrailInterface;
+
 /**
  * For streaming chat message.
  */
@@ -212,5 +214,65 @@ interface StreamedChatMessageIteratorInterface extends \IteratorAggregate {
    *   The metadata.
    */
   public function setMetadata(array $metadata): void;
+
+  /**
+   * Get the max buffer size for streaming chunks.
+   *
+   * We buffer them for security reason to look for malicious injections.
+   *
+   * @return int
+   *   The max buffer size.
+   */
+  public function getMaxBufferSize(): int;
+
+  /**
+   * Set the max buffer size for streaming chunks.
+   *
+   * We buffer them for security reason to look for malicious injections. Too
+   * low number may impact security.
+   *
+   * @param int $size
+   *   The max buffer size.
+   */
+  public function setMaxBufferSize(int $size): void;
+
+  /**
+   * Gets the maximum guardrail buffer size in characters.
+   *
+   * When an active guardrail buffer reaches this size it is force-evaluated
+   * even if the stop regex has not matched, preventing unbounded memory growth.
+   *
+   * @return int
+   *   The max guardrail buffer size.
+   */
+  public function getMaxGuardrailBufferSize(): int;
+
+  /**
+   * Sets the maximum guardrail buffer size in characters.
+   *
+   * @param int $size
+   *   The max guardrail buffer size.
+   */
+  public function setMaxGuardrailBufferSize(int $size): void;
+
+  /**
+   * Registers a streaming guardrail with this iterator.
+   *
+   * The guardrail is evaluated in real-time as chunks flow through the
+   * iterator. Its start/stop regex patterns control when content is buffered,
+   * and processStreamedBuffer() decides what the consumer ultimately receives.
+   *
+   * @param \Drupal\ai\Guardrail\StreamableGuardrailInterface $guardrail
+   *   The streaming guardrail to register.
+   */
+  public function addStreamingGuardrail(StreamableGuardrailInterface $guardrail): void;
+
+  /**
+   * Returns all registered streaming guardrails.
+   *
+   * @return \Drupal\ai\Guardrail\StreamableGuardrailInterface[]
+   *   An array of streaming guardrail instances.
+   */
+  public function getStreamingGuardrails(): array;
 
 }

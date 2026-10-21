@@ -12,11 +12,11 @@ theme: radix_starterkit
 region: navbar_left
 weight: -5
 provider: null
-plugin: "system_menu_block:main"
+plugin: 'system_menu_block:main'
 settings:
-  id: "system_menu_block:main"
-  label: "Main navigation"
-  label_display: "0"
+  id: 'system_menu_block:main'
+  label: 'Main navigation'
+  label_display: '0'
   provider: system
   level: 1
   depth: 2

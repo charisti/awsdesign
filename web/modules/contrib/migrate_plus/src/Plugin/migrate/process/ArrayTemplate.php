@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
 use Drupal\Component\Utility\NestedArray;
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\ProcessPluginBase;
 use Drupal\migrate\Row;
@@ -61,9 +62,8 @@ use Drupal\migrate\Row;
  *         template:
  *           - source:constants/do_not_process_me
  * @endcode
- *
- * @MigrateProcessPlugin(id = "array_template")
  */
+#[MigrateProcess(id: 'array_template')]
 final class ArrayTemplate extends ProcessPluginBase {
 
   /**

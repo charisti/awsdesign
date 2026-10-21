@@ -39,12 +39,27 @@
             Drupal.behaviors.aiAltImage.finishedWorking(that);
           },
           error: function (response) {
-            let messenger = new Drupal.Message();
+            let errorMessage = '';
             if ('responseJSON' in response && 'error' in response.responseJSON) {
-              messenger.add('Error: ' + response.responseJSON.error, { type: 'warning' });
+              errorMessage = 'Error: ' + response.responseJSON.error;
             }
             else {
-              messenger.add(Drupal.t('We could not create an Alt Text, please try again later.'), { type: 'warning' });
+              errorMessage = Drupal.t('We could not create an Alt Text, please try again later.');
+            }
+
+            let modalContainer = $(that).parents('.ui-dialog-content').first();
+            if (modalContainer.length) {
+              let messagesWrapper = modalContainer.find('[data-drupal-messages]').first();
+              if (!messagesWrapper.length) {
+                messagesWrapper = $('<div data-drupal-messages></div>');
+                modalContainer.prepend(messagesWrapper);
+              }
+              let messenger = new Drupal.Message(messagesWrapper[0]);
+              messenger.add(errorMessage, { type: 'warning' });
+            }
+            else {
+              let messenger = new Drupal.Message();
+              messenger.add(errorMessage, { type: 'warning' });
             }
             Drupal.behaviors.aiAltImage.finishedWorking(that);
           }

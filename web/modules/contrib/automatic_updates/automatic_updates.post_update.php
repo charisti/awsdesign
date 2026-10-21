@@ -17,6 +17,14 @@ function automatic_updates_post_update_rebuild_for_core_package_manager(): void 
 }
 
 /**
+ * Rebuilds the container to sync with changes to routing and local tasks.
+ */
+function automatic_updates_post_update_rebuild_routes(): void {
+  // Intentionally empty to force a container rebuild. This would not be
+  // necessary on Drupal 11.3, but 11.2 is still supported.
+}
+
+/**
  * Implements hook_removed_post_updates().
  */
 function automatic_updates_removed_post_updates(): array {

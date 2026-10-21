@@ -28,3 +28,7 @@
   .tagify__tag-entity-id {
   background: rgb(0, 62, 204, 0.15);
 }
+
+.tagify__dropdown__itemsGroup .dropdown_group {
+  color: #003eccff;
+}

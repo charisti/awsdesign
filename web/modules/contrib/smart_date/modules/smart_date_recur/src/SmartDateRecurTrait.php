@@ -4,6 +4,7 @@ namespace Drupal\smart_date_recur;
 
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\smart_date\SmartDateTrait;
+use Drupal\smart_date_recur\Entity\SmartDateRule;
 
 /**
  * Provides friendly methods for smart date range.
@@ -224,6 +225,21 @@ trait SmartDateRecurTrait {
    * Retrieve the months_limit value from the field definition.
    */
   public function getMonthsLimit($field_def) {
+    // When passed a rule entity (e.g. from the Manage Instances page or cron),
+    // the third-party settings live on the field config, not the rule itself.
+    // Resolve the limit from the rule's field configuration so the configured
+    // value is honored instead of silently falling back to the default.
+    if ($field_def instanceof SmartDateRule) {
+      $entity_type = $field_def->get('entity_type')->getString();
+      $bundle = $field_def->get('bundle')->getString();
+      $field_name = $field_def->get('field_name')->getString();
+      if ($entity_type && $bundle && $field_name) {
+        $field_definitions = \Drupal::service('entity_field.manager')->getFieldDefinitions($entity_type, $bundle);
+        if (isset($field_definitions[$field_name])) {
+          $field_def = $field_definitions[$field_name];
+        }
+      }
+    }
     $month_limit = $this->getThirdPartyFallback($field_def, 'month_limit', 12);
     return $month_limit;
   }

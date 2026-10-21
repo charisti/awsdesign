@@ -7,12 +7,14 @@ namespace Drupal\Tests\layout_builder_restrictions_by_region\FunctionalJavascrip
 use Drupal\FunctionalJavascriptTests\WebDriverTestBase;
 use Drupal\Tests\layout_builder_restrictions\Traits\MoveBlockHelperTrait;
 use Drupal\Tests\node\Traits\ContentTypeCreationTrait;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests moving blocks via the form.
- *
- * @group layout_builder_restrictions_by_region
  */
+#[Group('layout_builder_restrictions_by_region')]
+#[RunTestsInSeparateProcesses]
 class MoveBlockCategoryRestrictionTest extends WebDriverTestBase {
 
   use ContentTypeCreationTrait;

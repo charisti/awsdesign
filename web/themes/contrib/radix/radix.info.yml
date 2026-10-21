@@ -4,8 +4,7 @@ base theme: false
 description: Responsive base theme for Drupal.
 screenshot: screenshot.png
 alt text: An image showing Radix Drupal theme logo.
-core_version_requirement: ^10.3 || ^11
-# version: '6.0'
+core_version_requirement: ^10.3 || ^11 || ^12
 
 regions:
   navbar_branding: Navbar branding
@@ -16,7 +15,41 @@ regions:
   page_bottom: Page bottom
   footer: Footer
 
-# Information added by Drupal.org packaging script on 2025-05-08
-version: '6.0.2'
+libraries-extend:
+  core/drupal.ajax:
+    - radix/drupal.ajax
+  core/drupal.checkbox:
+    - radix/drupal.checkbox
+  # Style core (jQuery UI) dialogs consistently for anonymous and authenticated
+  # users. CSS only; the experimental JS overrides below stay opt-in.
+  # @see https://www.drupal.org/project/radix/issues/3546407
+  core/drupal.dialog:
+    - radix/dialog
+  #   - radix/drupal.dialog
+  # core/drupal.dialog.ajax:
+  #   - radix/drupal.dialog.ajax
+  core/drupal.message:
+    - radix/drupal.message
+  core/drupal.progress:
+    - radix/drupal.progress
+
+# Suppress admin-theme dialog CSS that can leak onto the front end and override
+# Radix's own. The core jQuery UI base dialog.css is kept for its structure.
+libraries-override:
+  claro/claro.drupal.dialog:
+    css:
+      theme:
+        css/components/dialog.css: false
+  gin/dialog:
+    css:
+      theme:
+        dist/css/components/dialog.css: false
+  gin/gin_dialog:
+    css:
+      theme:
+        dist/css/theme/dialog.css: false
+
+# Information added by Drupal.org packaging script on 2026-09-17
+version: '6.0.9'
 project: 'radix'
-datestamp: 1746711574
+datestamp: 1789652915

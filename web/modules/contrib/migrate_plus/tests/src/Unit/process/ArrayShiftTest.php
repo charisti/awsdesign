@@ -7,13 +7,15 @@ namespace Drupal\Tests\migrate_plus\Unit\process;
 use Drupal\migrate\MigrateException;
 use Drupal\migrate_plus\Plugin\migrate\process\ArrayShift;
 use Drupal\Tests\migrate\Unit\process\MigrateProcessTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tests the array shift process plugin.
- *
- * @group migrate
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\ArrayShift
  */
+#[CoversClass(ArrayShift::class)]
+#[Group('migrate_plus')]
 final class ArrayShiftTest extends MigrateProcessTestCase {
 
   /**
@@ -57,6 +59,7 @@ final class ArrayShiftTest extends MigrateProcessTestCase {
    *
    * @dataProvider arrayShiftDataProvider
    */
+  #[DataProvider('arrayShiftDataProvider')]
   public function testArrayShift(array $input, mixed $expected_output): void {
     $output = $this->plugin->transform($input, $this->migrateExecutable, $this->row, 'destinationProperty');
     $this->assertSame($output, $expected_output);

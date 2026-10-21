@@ -141,7 +141,7 @@ class AiAgentExplorerForm extends FormBase {
     $form['wrapper']['markdown'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Markdown to HTML'),
-      '#description' => $this->t('Convert markdown to HTML (requires league/html-to-markdown package.'),
+      '#description' => $this->t('Convert markdown to HTML (requires league/html-to-markdown package).'),
       '#default_value' => TRUE,
     ];
 

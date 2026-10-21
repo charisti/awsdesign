@@ -12,7 +12,7 @@ props:
       type: string
       description: The type of the element.
     name:
-      type: string
+      type: ['string', 'integer']
       description: The name of the element.
     label:
       type: string

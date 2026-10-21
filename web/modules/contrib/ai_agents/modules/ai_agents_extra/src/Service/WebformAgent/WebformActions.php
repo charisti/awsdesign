@@ -9,6 +9,7 @@ use Drupal\ai_agents\PluginInterfaces\AiAgentInterface;
 use Drupal\ai_agents\Service\AgentHelper;
 use Drupal\webform\Plugin\WebformElementManager;
 use Symfony\Component\Yaml\Yaml;
+use Drupal\Component\Serialization\Yaml as SerializationYaml;
 
 /**
  * All the actions to take on a webform.
@@ -69,7 +70,7 @@ class WebformActions {
   ) {
     $this->agentHelper = $agentHelper;
     $this->entityTypeManager = $entityTypeManager;
-    $this->exampleYaml = Yaml::parse(file_get_contents($extensionPathResolver->getPath('module', 'ai_agents') . '/resources/webform_example.yml'));
+    $this->exampleYaml = SerializationYaml::decode(file_get_contents($extensionPathResolver->getPath('module', 'ai_agents') . '/resources/webform_example.yml'));
   }
 
   /**
@@ -188,7 +189,7 @@ class WebformActions {
       'YAML' => $this->baseYaml['elements'],
     ]);
     if (!empty($result[0]['keys'])) {
-      $elements = Yaml::parse($this->baseYaml['elements']);
+      $elements = SerializationYaml::decode($this->baseYaml['elements']);
       $keys = explode(',', $data[0]['keys']);
       foreach ($keys as $key) {
         unset($elements[$key]);
@@ -213,7 +214,7 @@ class WebformActions {
     ]);
 
     $newElements = [];
-    $this->baseYaml['elements'] = Yaml::parse($this->baseYaml['elements']);
+    $this->baseYaml['elements'] = SerializationYaml::decode($this->baseYaml['elements']);
     if (!empty($data)) {
       if (!isset($data[0])) {
         $data = [$data];
@@ -330,7 +331,7 @@ class WebformActions {
     ]);
     if (!empty($data)) {
       // The elements are YAML inside YAML and needs to be parsed again.
-      $this->baseYaml['elements'] = Yaml::parse($this->baseYaml['elements']);
+      $this->baseYaml['elements'] = SerializationYaml::decode($this->baseYaml['elements']);
       if (!isset($data[0])) {
         $data = [$data];
       }
@@ -362,7 +363,7 @@ class WebformActions {
     ]);
     if (!empty($data)) {
       // The elements are YAML inside YAML and needs to be parsed again.
-      $this->baseYaml['elements'] = Yaml::parse($this->baseYaml['elements']);
+      $this->baseYaml['elements'] = SerializationYaml::decode($this->baseYaml['elements']);
       if (!isset($data[0])) {
         $data = [$data];
       }

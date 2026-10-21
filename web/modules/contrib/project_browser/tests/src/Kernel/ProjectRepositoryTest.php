@@ -11,6 +11,7 @@ use Drupal\project_browser\ProjectBrowser\Project;
 use Drupal\project_browser\ProjectRepository;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Symfony\Component\DependencyInjection\Reference;
 
 /**
@@ -18,6 +19,7 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 #[CoversClass(ProjectRepository::class)]
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class ProjectRepositoryTest extends KernelTestBase {
 
   /**
@@ -48,9 +50,9 @@ final class ProjectRepositoryTest extends KernelTestBase {
       ->method('invalidateTags')
       ->with(['project_browser:test']);
 
-    $this->container->get(CacheTagsInvalidatorInterface::class)
+    \Drupal::service(CacheTagsInvalidatorInterface::class)
       ->addInvalidator($mock_invalidator);
-    $this->container->get(ProjectRepository::class)->clear('test');
+    \Drupal::service(ProjectRepository::class)->clear('test');
   }
 
   /**
@@ -65,7 +67,7 @@ final class ProjectRepositoryTest extends KernelTestBase {
       title: 'Test',
       packageName: 'drupal/test',
     );
-    $repository = $this->container->get(ProjectRepository::class);
+    $repository = \Drupal::service(ProjectRepository::class);
     $repository->store('test', $project);
     $project_again = $repository->get('test/' . $project->id);
     $this->assertNotSame($project, $project_again);

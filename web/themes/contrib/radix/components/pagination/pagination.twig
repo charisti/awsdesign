@@ -60,8 +60,9 @@
 
       {# Add an ellipsis if there are further previous pages. #}
       {% if ellipses.previous and show_ellipsis %}
-        <li class="page-item pager__item pager__item--ellipsis disabled" role="presentation">
-          <span class="page-link">&hellip;</span>
+        <li class="page-item pager__item pager__item--ellipsis disabled">
+          <span class="page-link" aria-hidden="true">&hellip;</span>
+          <span class="visually-hidden">{{ 'More pages'|t }}</span>
         </li>
       {% endif %}
 
@@ -92,8 +93,9 @@
 
       {# Add an ellipsis if there are further next pages. #}
       {% if ellipses.next and show_ellipsis %}
-        <li class="page-item pager__item pager__item--ellipsis disabled" role="presentation">
-          <span class="page-link">&hellip;</span>
+        <li class="page-item pager__item pager__item--ellipsis disabled">
+          <span class="page-link" aria-hidden="true">&hellip;</span>
+          <span class="visually-hidden">{{ 'More pages'|t }}</span>
         </li>
       {% endif %}
 

@@ -10,6 +10,7 @@ use Drupal\project_browser\QueryManager;
 use Drupal\project_browser_test\Plugin\ProjectBrowserSource\ProjectBrowserTestMock;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the query manager service.
@@ -18,6 +19,7 @@ use PHPUnit\Framework\Attributes\Group;
  */
 #[CoversClass(QueryManager::class)]
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class QueryManagerTest extends KernelTestBase {
 
   /**
@@ -44,10 +46,10 @@ final class QueryManagerTest extends KernelTestBase {
     $cache_backend->expects($this->once())
       ->method('set')
       ->withAnyParameters();
-    $this->container->set('cache.project_browser', $cache_backend);
+    \Drupal::getContainer()->set('cache.project_browser', $cache_backend);
 
     /** @var \Drupal\project_browser\QueryManager $query_manager */
-    $query_manager = $this->container->get(QueryManager::class);
+    $query_manager = \Drupal::service(QueryManager::class);
     $query_manager->getProjects('project_browser_test_mock', ['error' => FALSE]);
 
     ProjectBrowserTestMock::$resultsError = 'Nope!';

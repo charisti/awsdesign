@@ -1,0 +1,8 @@
+{
+    "name": "drupal/simple_search_form",
+    "description": "Implements search form block for redirecting to a path with a parameter.",
+    "license": "GPL-2.0-or-later",
+    "require-dev": {
+        "drupal/search_api": "^1"
+    }
+}

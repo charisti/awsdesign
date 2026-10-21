@@ -1,15 +1,28 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\Tests\trash\Kernel;
 
+use Drupal\trash\Hook\TrashEntityHooks;
 use Drupal\trash_test\Entity\TrashTestEntity;
+use PHPUnit\Framework\Attributes\CoversMethod;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests entity query integration for Trash.
- *
- * @group trash
  */
+#[CoversMethod(TrashEntityHooks::class, 'entityQueryAlter')]
+#[CoversMethod(TrashEntityHooks::class, 'queryAlter')]
+#[Group('trash')]
+#[RunTestsInSeparateProcesses]
 class EntityQueryTest extends TrashKernelTestBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected bool $installNode = FALSE;
 
   /**
    * Tests that deleted entities are excluded from entity query results.
@@ -47,6 +60,20 @@ class EntityQueryTest extends TrashKernelTestBase {
       return $entity_storage->getAggregateQuery()->accessCheck(FALSE)->groupBy('id')->execute();
     });
     $this->assertCount(5, $result);
+
+    // Check that we can also manually set the trash context on the query.
+    $result = $entity_storage->getQuery()->accessCheck(FALSE)->addMetaData('trash', 'ignore')->execute();
+    $this->assertCount(5, $result);
+
+    // An explicit 'deleted' condition inside a nested condition group must
+    // also opt the query out of the default trash filtering.
+    $query = $entity_storage->getQuery()->accessCheck(FALSE);
+    $query->condition($query->andConditionGroup()->exists('deleted'));
+    $this->assertCount(3, $query->execute());
+
+    // Same for a condition using a property path on the 'deleted' field.
+    $result = $entity_storage->getQuery()->accessCheck(FALSE)->condition('deleted.value', 0, '>')->execute();
+    $this->assertCount(3, $result);
   }
 
   /**
@@ -110,6 +137,29 @@ class EntityQueryTest extends TrashKernelTestBase {
         ->execute();
     });
     $this->assertCount(3, $result);
+  }
+
+  /**
+   * Tests load-query filtering when the preferred join alias is taken.
+   */
+  public function testLoadQueryJoinAliasCollision(): void {
+    $live = TrashTestEntity::create(['label' => 'live']);
+    $live->save();
+    $deleted = TrashTestEntity::create(['label' => 'deleted']);
+    $deleted->save();
+    $deleted->delete();
+
+    // Mimic SqlContentEntityStorage::buildQuery(), but claim the
+    // 'revision_data' join alias before the trash query alter runs: the
+    // deleted IS NULL condition must follow the alias the alter actually
+    // gets, not the one it asked for.
+    $query = \Drupal::database()->select('trash_test', 'base');
+    $query->join('trash_test_revision', 'revision', '[revision].[revision] = [base].[revision]');
+    $query->leftJoin('trash_test', 'revision_data', '[revision_data].[id] = [base].[id]');
+    $query->addField('base', 'id');
+    $query->addTag('trash_test_entity_load_multiple');
+
+    $this->assertEquals([$live->id()], $query->execute()->fetchCol());
   }
 
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\migrate_example\Plugin\migrate\source;
 
 use Drupal\Core\Database\Query\SelectInterface;
+use Drupal\migrate\Attribute\MigrateSource;
 use Drupal\migrate\Plugin\migrate\source\SqlBase;
 use Drupal\migrate\Row;
 
@@ -15,6 +16,7 @@ use Drupal\migrate\Row;
  *   id = "beer_user"
  * )
  */
+#[MigrateSource(id: 'beer_user')]
 final class BeerUser extends SqlBase {
 
   /**

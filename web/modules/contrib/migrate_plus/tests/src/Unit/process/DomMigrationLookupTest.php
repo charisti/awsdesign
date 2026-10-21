@@ -12,13 +12,15 @@ use Drupal\migrate\Plugin\MigrateProcessInterface;
 use Drupal\migrate\Plugin\MigrationInterface;
 use Drupal\migrate_plus\Plugin\migrate\process\DomMigrationLookup;
 use Drupal\Tests\migrate\Unit\process\MigrateProcessTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tests the dom_migration_lookup process plugin.
- *
- * @group migrate
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\DomMigrationLookup
  */
+#[CoversClass(DomMigrationLookup::class)]
+#[Group('migrate_plus')]
 final class DomMigrationLookupTest extends MigrateProcessTestCase {
 
   /**
@@ -105,10 +107,11 @@ final class DomMigrationLookupTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::__construct
+   * Tests config validation.
    *
    * @dataProvider providerTestConfigValidation
    */
+  #[DataProvider('providerTestConfigValidation')]
   public function testConfigValidation(array $config_overrides, string $message): void {
     $configuration = $config_overrides + $this->exampleConfiguration;
     $value = '<p>A simple paragraph.</p>';
@@ -141,7 +144,7 @@ final class DomMigrationLookupTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::transform
+   * Tests invalid input.
    */
   public function testTransformInvalidInput(): void {
     $value = 'string';
@@ -152,10 +155,11 @@ final class DomMigrationLookupTest extends MigrateProcessTestCase {
   }
 
   /**
-   * @covers ::transform
+   * Tests valid input.
    *
    * @dataProvider providerTestTransform
    */
+  #[DataProvider('providerTestTransform')]
   public function testTransform($config_overrides, $input_string, $output_string): void {
     $configuration = $config_overrides + $this->exampleConfiguration;
     $value = Html::load($input_string);

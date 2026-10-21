@@ -11,6 +11,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Plugin\PluginFormInterface;
+use Drupal\Core\Utility\Token;
 use Drupal\geocoder\Traits\ConfigurableProviderTrait;
 use Geocoder\Collection;
 use Geocoder\Query\GeocodeQuery;
@@ -40,6 +41,13 @@ abstract class ConfigurableProviderUsingHandlerWithAdapterBase extends ProviderU
   protected $throttle;
 
   /**
+   * The token service.
+   *
+   * @var \Drupal\Core\Utility\Token
+   */
+  protected $token;
+
+  /**
    * Constructs a new configurable geocoder provider using handlers.
    *
    * @param array $configuration
@@ -60,8 +68,10 @@ abstract class ConfigurableProviderUsingHandlerWithAdapterBase extends ProviderU
    *   The HTTP adapter.
    * @param \Drupal\geocoder\GeocoderThrottleInterface $throttle
    *   The Geocoder Throttle service.
+   * @param \Drupal\Core\Utility\Token $token
+   *   The token service.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config_factory, CacheBackendInterface $cache_backend, LanguageManagerInterface $language_manager, TypedConfigManagerInterface $typed_config_manager, ClientInterface $http_adapter, GeocoderThrottleInterface $throttle) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, ConfigFactoryInterface $config_factory, CacheBackendInterface $cache_backend, LanguageManagerInterface $language_manager, TypedConfigManagerInterface $typed_config_manager, ClientInterface $http_adapter, GeocoderThrottleInterface $throttle, Token $token) {
     try {
       // The typedConfigManager property needs to be set before the constructor,
       // to prevent its possible exception, and allow the
@@ -70,6 +80,7 @@ abstract class ConfigurableProviderUsingHandlerWithAdapterBase extends ProviderU
       parent::__construct($configuration, $plugin_id, $plugin_definition, $config_factory, $cache_backend, $language_manager, $http_adapter);
       $this->setConfiguration($configuration);
       $this->throttle = $throttle;
+      $this->token = $token;
     }
     catch (InvalidPluginDefinitionException $e) {
       $this->getLogger('geocoder')->error($e->getMessage());
@@ -89,8 +100,51 @@ abstract class ConfigurableProviderUsingHandlerWithAdapterBase extends ProviderU
       $container->get('language_manager'),
       $container->get('config.typed'),
       $container->get('geocoder.http_adapter'),
-      $container->get('geocoder.throttle')
+      $container->get('geocoder.throttle'),
+      $container->get('token'),
     );
+  }
+
+  /**
+   * Set Token Replacements data.
+   *
+   * @return array
+   *   The Token Replacements array data.
+   */
+  protected function getTokensData(): array {
+    return [
+      'geocoder' => [
+        'site_uuid' => $this->configFactory->get('system.site')->get('uuid'),
+      ],
+    ];
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * Apply token replacements to arguments of Configurable Providers.
+   */
+  protected function getArguments(): array {
+    $arguments = parent::getArguments();
+    $token_data = $this->getTokensData();
+
+    foreach ($arguments as $key => $argument) {
+      if (isset($argument) && is_string($argument) && $argument !== '') {
+        // Use 'clear' to avoid passing unresolved token strings to external
+        // APIs when a token context is not available.
+        $arguments[$key] = $this->token->replace($argument, $token_data, ['clear' => TRUE]);
+      }
+    }
+    return $arguments;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function getLocale(): string {
+    $locale = parent::getLocale();
+    $token_data = $this->getTokensData();
+    return $this->token->replace($locale, $token_data, ['clear' => TRUE]);
   }
 
   /**

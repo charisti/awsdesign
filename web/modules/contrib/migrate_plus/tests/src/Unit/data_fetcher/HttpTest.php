@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\migrate_plus\Unit\data_fetcher;
 
-use PHPUnit\Framework\MockObject\MockObject;
-use Drupal\migrate_plus\AuthenticationPluginInterface;
 use Drupal\migrate\MigrateException;
+use Drupal\migrate_plus\AuthenticationPluginInterface;
 use Drupal\migrate_plus\DataFetcherPluginBase;
 use Drupal\migrate_plus\Plugin\migrate_plus\authentication\Basic;
 use Drupal\migrate_plus\Plugin\migrate_plus\data_fetcher\Http;
@@ -15,17 +14,15 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\MockObject\MockObject;
 
 /**
- * @file
- * PHPUnit tests for the Migrate Plus Http 'data fetcher' plugin.
+ * Test the http data fetcher plugin.
  */
-
-/**
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate_plus\data_fetcher\Http
- *
- * @group migrate_plus
- */
+#[CoversClass(Http::class)]
+#[Group('migrate_plus')]
 final class HttpTest extends MigrateTestCase {
 
   /**
@@ -213,9 +210,6 @@ final class TestHttp extends Http {
     // variable via \Drupal which we don't want to do), but keep the call to its
     // parent class constructor. @see https://bugs.php.net/bug.php?id=42016
     DataFetcherPluginBase::__construct($configuration, $plugin_id, $plugin_definition);
-
-    // This is what the parent class is doing, that we need to override.
-    $this->httpClient = NULL;
   }
 
   /**

@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Plugin\migrate_plus\data_parser;
 
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\migrate_plus\Attribute\DataParser;
+
 /**
  * Get a subitem set inside JSON data for migration.
- *
- * @DataParser(
- *   id = "json_subitem",
- *   title = @Translation("JSON subitem")
- * )
  */
+#[DataParser(
+  id: 'json_subitem',
+  title: new TranslatableMarkup('JSON subitem')
+)]
 class JsonSubitem extends Json {
 
   /**

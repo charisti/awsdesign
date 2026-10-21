@@ -5,6 +5,7 @@ namespace Drupal\modeler_api\Plugin\ModelerApiModelOwner;
 use Drupal\Component\Plugin\PluginInspectionInterface;
 use Drupal\Core\Config\Entity\ConfigEntityInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\modeler_api\Component;
 use Drupal\modeler_api\Plugin\ModelerApiModeler\ModelerInterface;
 use Symfony\Component\HttpFoundation\Response;
@@ -31,6 +32,26 @@ interface ModelOwnerInterface extends PluginInspectionInterface, ContainerFactor
    *   The plugin description.
    */
   public function description(): string;
+
+  /**
+   * A list of component labels for the supported types.
+   *
+   * @return array
+   *   List of component labels key by component types start, element, link,
+   *   gateway, and subprocess.
+   */
+  public function componentLabels(): array;
+
+  /**
+   * A list of plural component labels for the supported types.
+   *
+   * Used for grouping headings in the component panel and quick-add popups.
+   *
+   * @return array
+   *   List of plural component labels keyed by component types start, element,
+   *   link, gateway, and subprocess.
+   */
+  public function componentLabelsPlural(): array;
 
   /**
    * Provides a callback for validating the unique model ID.
@@ -126,11 +147,17 @@ interface ModelOwnerInterface extends PluginInspectionInterface, ContainerFactor
    *
    * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
    *   The model.
+   * @param string|null $id
+   *   (optional) The ID for the cloned model. If NULL, a new ID will be
+   *   generated automatically.
+   * @param string|null $label
+   *   (optional) The label for the cloned model. If NULL, the label will be
+   *   derived from the original model with a "(clone)" suffix.
    *
    * @return \Drupal\Core\Config\Entity\ConfigEntityInterface
    *   The cloned model.
    */
-  public function clone(ConfigEntityInterface $model): ConfigEntityInterface;
+  public function clone(ConfigEntityInterface $model, ?string $id = NULL, ?string $label = NULL): ConfigEntityInterface;
 
   /**
    * Exports the model.
@@ -213,6 +240,29 @@ interface ModelOwnerInterface extends PluginInspectionInterface, ContainerFactor
   public function getVersion(ConfigEntityInterface $model): string;
 
   /**
+   * Set template setting of the model.
+   *
+   * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
+   *   The model.
+   * @param bool $template
+   *   The template setting.
+   *
+   * @return $this
+   */
+  public function setTemplate(ConfigEntityInterface $model, bool $template): ModelOwnerInterface;
+
+  /**
+   * Get template setting from the model.
+   *
+   * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
+   *   The model.
+   *
+   * @return bool
+   *   The template setting.
+   */
+  public function getTemplate(ConfigEntityInterface $model): bool;
+
+  /**
    * Set storage of the model.
    *
    * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
@@ -257,6 +307,161 @@ interface ModelOwnerInterface extends PluginInspectionInterface, ContainerFactor
    *   The documentation.
    */
   public function getDocumentation(ConfigEntityInterface $model): string;
+
+  /**
+   * Set the summary of the model.
+   *
+   * The summary is the one-line description of the model, as opposed to the
+   * long-form documentation. It is what a recipe exported from this model
+   * uses as its description.
+   *
+   * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
+   *   The model.
+   * @param string $summary
+   *   The summary.
+   *
+   * @return $this
+   */
+  public function setSummary(ConfigEntityInterface $model, string $summary): ModelOwnerInterface;
+
+  /**
+   * Get the summary from the model.
+   *
+   * An empty string means that the model does not express a summary. Consumers
+   * that need one anyway derive it from the documentation.
+   *
+   * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
+   *   The model.
+   *
+   * @return string
+   *   The summary, or an empty string if the model does not express one.
+   *
+   * @see \Drupal\modeler_api\ExportRecipe::summaryFromDocumentation()
+   */
+  public function getSummary(ConfigEntityInterface $model): string;
+
+  /**
+   * Set the recipes that a recipe exported from the model includes.
+   *
+   * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
+   *   The model.
+   * @param array $recipes
+   *   The list of recipe names or paths, e.g. "core/recipes/article_tags".
+   *
+   * @return $this
+   */
+  public function setRecipes(ConfigEntityInterface $model, array $recipes): ModelOwnerInterface;
+
+  /**
+   * Get the recipes that a recipe exported from the model includes.
+   *
+   * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
+   *   The model.
+   *
+   * @return array
+   *   The list of recipe names or paths.
+   */
+  public function getRecipes(ConfigEntityInterface $model): array;
+
+  /**
+   * Set the config actions that a recipe exported from the model applies.
+   *
+   * These are merged beside the config actions that the export derives from
+   * the model's own dependencies, which are the user role actions.
+   *
+   * This is a list rather than a map keyed by config name, because a config
+   * name always contains dots and Drupal rejects a dot in any config array
+   * key, at any depth. The exporter turns the list back into the name-keyed
+   * map that the recipe file format uses. For the same reason, the actions
+   * themselves must not use a dotted key anywhere inside their payload.
+   *
+   * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
+   *   The model.
+   * @param array $configActions
+   *   The config actions as a list of maps, each with a "config" key holding
+   *   the config name and an "actions" key holding the actions for it.
+   *
+   * @return $this
+   *
+   * @see \Drupal\Core\Config\ConfigBase::validateKeys()
+   * @see \Drupal\modeler_api\ExportRecipe::configActionsByName()
+   */
+  public function setConfigActions(ConfigEntityInterface $model, array $configActions): ModelOwnerInterface;
+
+  /**
+   * Get the config actions that a recipe exported from the model applies.
+   *
+   * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
+   *   The model.
+   *
+   * @return array
+   *   The config actions as a list of maps, each with a "config" key holding
+   *   the config name and an "actions" key holding the actions for it.
+   */
+  public function getConfigActions(ConfigEntityInterface $model): array;
+
+  /**
+   * Set additional config object names to export with the model.
+   *
+   * These are names only, never config data: the export reads each object out
+   * of active configuration, exactly as it does for the model's own
+   * dependencies. Storing the data instead would duplicate foreign
+   * configuration into the model with nothing to keep the copy in sync.
+   *
+   * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
+   *   The model.
+   * @param array $exportConfig
+   *   The list of config object names.
+   *
+   * @return $this
+   */
+  public function setExportConfig(ConfigEntityInterface $model, array $exportConfig): ModelOwnerInterface;
+
+  /**
+   * Get additional config object names to export with the model.
+   *
+   * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
+   *   The model.
+   *
+   * @return array
+   *   The list of config object names.
+   */
+  public function getExportConfig(ConfigEntityInterface $model): array;
+
+  /**
+   * Set additional modules that a recipe exported from the model requires.
+   *
+   * These are modules the model genuinely needs but that Drupal's dependency
+   * calculation cannot see, because the module contributes something
+   * discoverable rather than something referenced. A module shipping a YAML
+   * file that another module's deriver reads is the typical case: the plugin
+   * is provided by the reading module, so only that module is computed, while
+   * the model is inert without the module that supplied the file.
+   *
+   * They are merged with the computed dependencies rather than replacing
+   * them, and reach both the composer requirements and the recipe's install
+   * list, because getting the code onto the site and enabling it are two
+   * different things.
+   *
+   * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
+   *   The model.
+   * @param array $modules
+   *   The list of module names.
+   *
+   * @return $this
+   */
+  public function setModules(ConfigEntityInterface $model, array $modules): ModelOwnerInterface;
+
+  /**
+   * Get additional modules that a recipe exported from the model requires.
+   *
+   * @param \Drupal\Core\Config\Entity\ConfigEntityInterface $model
+   *   The model.
+   *
+   * @return array
+   *   The list of module names.
+   */
+  public function getModules(ConfigEntityInterface $model): array;
 
   /**
    * Set Tags of the model.
@@ -463,6 +668,54 @@ interface ModelOwnerInterface extends PluginInspectionInterface, ContainerFactor
   public function supportedOwnerComponentTypes(): array;
 
   /**
+   * Returns cardinality constraints for component types.
+   *
+   * Model owners can declare minimum and maximum counts for each component
+   * type. These constraints are enforced both server-side during save and
+   * client-side before the save request is sent.
+   *
+   * Example return value:
+   * @code
+   * [
+   *   Api::COMPONENT_TYPE_START   => ['min' => 1, 'max' => 1, 'successors' => ['min' => 1, 'max' => 1]],
+   *   Api::COMPONENT_TYPE_ELEMENT => [
+   *     'min' => 1,
+   *     'max' => 1,
+   *     'successors' => [
+   *       'max' => 10,
+   *       // Opt-in: when two or more successors of the same component share
+   *       // the same target, every one of them must carry a non-empty
+   *       // conditionId. Defaults to FALSE when omitted.
+   *       'requireConditionWhenParallel' => TRUE,
+   *       // Opt-in: when TRUE, the modeler permits condition reuse — multiple
+   *       // successor edges that share the same non-empty conditionId and the
+   *       // same target are rendered as one shared condition node. Defaults to
+   *       // FALSE when omitted.
+   *       'allowConditionReuse' => TRUE,
+   *     ],
+   *   ],
+   *   Api::COMPONENT_TYPE_GATEWAY => ['successors' => ['min' => 1, 'max' => 1]],
+   * ]
+   * @endcode
+   *
+   * @return array<int, array{min?: int, max?: int, successors?: array{min?: int, max?: int, requireConditionWhenParallel?: bool, allowConditionReuse?: bool}}>
+   *   An associative array keyed by component type constant. Each value is
+   *   an array with optional 'min' and 'max' keys for component count, and
+   *   an optional 'successors' key with its own 'min'/'max' for the number
+   *   of outgoing connections per component of that type, plus an optional
+   *   'requireConditionWhenParallel' flag (default FALSE). When the flag is
+   *   TRUE, any group of two or more successors of the same component that
+   *   share the same target must each carry a non-empty conditionId. The
+   *   'successors' key also accepts an optional 'allowConditionReuse' flag
+   *   (default FALSE). When TRUE, the modeler permits condition reuse —
+   *   multiple successor edges that share the same non-empty conditionId and
+   *   the same target are treated as a single reused condition (rendered as
+   *   one shared condition node in the modeler). Defaults to FALSE. An empty
+   *   array means no constraints (the default).
+   */
+  public function modelConstraints(): array;
+
+  /**
    * Provides a list of available plugins for a given type.
    *
    * @param int $type
@@ -472,6 +725,14 @@ interface ModelOwnerInterface extends PluginInspectionInterface, ContainerFactor
    *   The list of plugins.
    */
   public function availableOwnerComponents(int $type): array;
+
+  /**
+   * Provides a list of favorite plugin IDs grouped by type.
+   *
+   * @return array|array[]
+   *   The list of favorite plugins grouped by type.
+   */
+  public function favoriteOwnerComponents(): array;
 
   /**
    * Provides an ID of an owner component for a given type.
@@ -565,6 +826,20 @@ interface ModelOwnerInterface extends PluginInspectionInterface, ContainerFactor
    *   otherwise.
    */
   public function skipConfigurationValidation(int $type, string $id): bool;
+
+  /**
+   * Derives the config schema key for a plugin.
+   *
+   * This is used by the modeler for YAML schema discovery on textarea fields.
+   *
+   * @param \Drupal\Component\Plugin\PluginInspectionInterface $plugin
+   *   The plugin instance.
+   *
+   * @return string
+   *   The config schema key prefix (e.g. 'eca.event.plugin.eca_base:eca_tool'),
+   *   or an empty string if no schema key is available.
+   */
+  public function getPluginSchemaKey(PluginInspectionInterface $plugin): string;
 
   /**
    * Provides the optional base URL to the offsite documentation.
@@ -712,5 +987,128 @@ interface ModelOwnerInterface extends PluginInspectionInterface, ContainerFactor
    *   TRUE, if the model supports status, FALSE otherwise.
    */
   public function supportsStatus(): bool;
+
+  /**
+   * Determines if the model supports templates.
+   *
+   * @return bool
+   *   TRUE, if the model supports templates, FALSE otherwise.
+   */
+  public function supportsTemplate(): bool;
+
+  /**
+   * Applies the template to a model, creates a new one if it doesn't exist.
+   *
+   * @param string $templateId
+   *   The ID of the template entity.
+   * @param string $componentId
+   *   The component ID within the template.
+   * @param string $target
+   *   The target element.
+   * @param array $hiddenConfig
+   *   The hidden config.
+   * @param array $config
+   *   The config for the applied template.
+   */
+  public function applyTemplate(string $templateId, string $componentId, string $target, array $hiddenConfig = [], array $config = []): void;
+
+  /**
+   * Determines if the model supports replay data.
+   *
+   * @return bool
+   *   TRUE, if the model supports replay data, FALSE otherwise.
+   */
+  public function supportsReplayData(): bool;
+
+  /**
+   * Provides replay data for a given hash.
+   *
+   * The returned array MAY contain deduplication/reference markers (for
+   * example "@ref"/"@prev") that the modeler frontend expands lazily at
+   * display time. The marker format is owned by the model owner; the Modeler
+   * API passes the array through verbatim and never expands or transforms it.
+   *
+   * @param string $hash
+   *   The hash representing the replay data.
+   *
+   * @return array
+   *   An array with all the replay data.
+   */
+  public function getReplayData(string $hash): array;
+
+  /**
+   * Provides replay data for a given component in a model.
+   *
+   * The returned array MAY contain deduplication/reference markers (for
+   * example "@ref"/"@prev") that the modeler frontend expands lazily at
+   * display time. The marker format is owned by the model owner; the Modeler
+   * API passes the array through verbatim and never expands or transforms it.
+   *
+   * @param string $modelId
+   *   The model ID.
+   * @param string $componentId
+   *   The component ID.
+   *
+   * @return array
+   *   An array with all the replay data.
+   */
+  public function getReplayDataByComponent(string $modelId, string $componentId): array;
+
+  /**
+   * Determines if the model supports testing.
+   *
+   * @return bool
+   *   TRUE, if the model supports testing, FALSE otherwise.
+   */
+  public function supportsTesting(): bool;
+
+  /**
+   * Starts a test job for the given model and component.
+   *
+   * @param string $modelId
+   *   The model ID.
+   * @param string $componentId
+   *   The component ID.
+   *
+   * @return string|\Drupal\Core\StringTranslation\TranslatableMarkup
+   *   The job ID as a string, or an error message as a translatable string if
+   *   the job could not be started.
+   */
+  public function startTestJob(string $modelId, string $componentId): string|TranslatableMarkup;
+
+  /**
+   * Polls the status of a test job.
+   *
+   * When the job finished successfully, the returned replay-data array MAY
+   * contain deduplication/reference markers (for example "@ref"/"@prev") that
+   * the modeler frontend expands lazily at display time. The marker format is
+   * owned by the model owner; the Modeler API passes the array through
+   * verbatim and never expands or transforms it.
+   *
+   * @param string $jobId
+   *   The job ID.
+   *
+   * @return array|\Drupal\Core\StringTranslation\TranslatableMarkup|null
+   *   Returns NULL if the job is still running, an array with the replay data
+   *   if the job finished successfully, or an error message as a translatable
+   *   string if the job failed.
+   */
+  public function pollTestJob(string $jobId): array|null|TranslatableMarkup;
+
+  /**
+   * Cancels a running test job and cleans up associated resources.
+   *
+   * Called when the user cancels a test in the modeler UI. This allows the
+   * model owner to clean up any state that was set up for the test job (e.g.
+   * reset debug mode if it was automatically enabled).
+   *
+   * @param string $jobId
+   *   The job ID.
+   *
+   * @return \Drupal\Core\StringTranslation\TranslatableMarkup|null
+   *   NULL on success, or an error message as a translatable string if the
+   *   cancellation failed.
+   */
+  public function cancelTestJob(string $jobId): null|TranslatableMarkup;
 
 }

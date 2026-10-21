@@ -10,14 +10,18 @@ use Drupal\KernelTests\KernelTestBase;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\Plugin\MigratePluginManagerInterface;
 use Drupal\migrate\Row;
+use Drupal\migrate_plus\Plugin\migrate\process\FileBlob;
 use Drupal\Tests\user\Traits\UserCreationTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the file_blob plugin.
- *
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\FileBlob
- * @group migrate_plus
  */
+#[CoversClass(FileBlob::class)]
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 final class FileBlobTest extends KernelTestBase {
 
   use UserCreationTrait;
@@ -34,22 +38,22 @@ final class FileBlobTest extends KernelTestBase {
   /**
    * The process plugin manager.
    */
-  protected ?MigratePluginManagerInterface $pluginManager;
+  protected ?MigratePluginManagerInterface $pluginManager = NULL;
 
   /**
    * The blob representation of a cat image.
    */
-  protected ?string $blob;
+  protected ?string $blob = NULL;
 
   /**
    * The destination filename.
    */
-  protected ?string $filename;
+  protected ?string $filename = NULL;
 
   /**
    * The sha1sum of the blob.
    */
-  protected ?string $sha1sum;
+  protected ?string $sha1sum = NULL;
 
   /**
    * The filesystem interface.
@@ -199,8 +203,6 @@ EOT;
 
   /**
    * Tests file creation.
-   *
-   * @covers ::transform
    */
   public function testFileCreation(): void {
     /** @var \Drupal\migrate\MigrateExecutableInterface $executable */
@@ -208,13 +210,13 @@ EOT;
 
     // Delete the target directory in case it already exists
     // to make sure target directories are automatically created.
-    if (is_dir(dirname($this->filename))) {
-      rmdir(dirname($this->filename));
+    if (is_dir(dirname((string) $this->filename))) {
+      rmdir(dirname((string) $this->filename));
     }
 
     // Run the plugin.
     $row = new Row([], []);
-    $value = [$this->filename, base64_decode($this->blob, TRUE)];
+    $value = [$this->filename, base64_decode((string) $this->blob, TRUE)];
     /** @var \Drupal\migrate_plus\Plugin\migrate\process\FileBlob $file_blob */
     $file_blob = $this->pluginManager->createInstance('file_blob');
     $file = $file_blob->transform($value, $executable, $row, 'destination_property');

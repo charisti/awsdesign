@@ -80,7 +80,6 @@ class TagifyWidget extends WidgetPluginBase {
     $build['#attributes']['class'][] = 'js-facets-tagify';
     $build['#attributes']['class'][] = 'js-facets-widget';
     $build['#attributes']['class'][] = 'hidden';
-    $build['#attached']['library'][] = 'tagify/tagify';
     $build['#attached']['library'][] = 'tagify_facets/drupal.tagify_facets.tagify-widget';
     $build['#attached']['drupalSettings']['tagify']['tagify_facets_widget']['match_operator'] = $this->getConfiguration()['match_operator'];
     $build['#attached']['drupalSettings']['tagify']['tagify_facets_widget']['placeholder'] = $this->getConfiguration()['placeholder'];

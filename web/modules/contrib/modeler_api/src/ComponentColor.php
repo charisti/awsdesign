@@ -5,7 +5,7 @@ namespace Drupal\modeler_api;
 /**
  * Contains a component colors.
  */
-class ComponentColor {
+readonly class ComponentColor {
 
   /**
    * Instantiates a new component successor.

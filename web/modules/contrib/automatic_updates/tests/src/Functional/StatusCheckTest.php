@@ -10,20 +10,25 @@ use Drupal\automatic_updates\StatusCheckMailer;
 use Drupal\automatic_updates\Validation\StatusChecker;
 use Drupal\automatic_updates_test\EventSubscriber\TestSubscriber1;
 use Drupal\automatic_updates_test_status_checker\EventSubscriber\TestSubscriber2;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
 use Drupal\package_manager\Event\StatusCheckEvent;
 use Drupal\package_manager\ValidationResult;
 use Drupal\package_manager_test_validation\EventSubscriber\TestSubscriber;
-use Drupal\system\SystemManager;
 use Drupal\Tests\automatic_updates\Traits\ValidationTestTrait;
 use Drupal\Tests\Traits\Core\CronRunTrait;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests status checks.
  *
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[RunTestsInSeparateProcesses]
 class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
 
   use CronRunTrait;
@@ -89,9 +94,8 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
 
   /**
    * Tests status checks are displayed after Automatic Updates is installed.
-   *
-   * @dataProvider providerTestModuleFormInstallDisplay
    */
+  #[DataProvider('providerTestModuleFormInstallDisplay')]
   public function testModuleFormInstallDisplay(int $results_severity): void {
     // Uninstall Automatic Updates as it is installed in TestBase setup().
     $this->container->get('module_installer')->uninstall(['automatic_updates']);
@@ -118,10 +122,10 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
   public static function providerTestModuleFormInstallDisplay(): array {
     return [
       'Error' => [
-        SystemManager::REQUIREMENT_ERROR,
+        RequirementSeverity::Error->value,
       ],
       'Warning' => [
-        SystemManager::REQUIREMENT_WARNING,
+        RequirementSeverity::Warning->value,
       ],
     ];
   }
@@ -165,7 +169,7 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
     $this->drupalGet('admin/reports/status');
     $this->assertNoErrors(TRUE);
     /** @var \Drupal\package_manager\ValidationResult[] $expected_results */
-    $expected_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $expected_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($expected_results, StatusCheckEvent::class);
 
     // Run the status checks.
@@ -188,8 +192,8 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
     $this->drupalGet('/admin/reports/status');
 
     $expected_results = [
-      'error' => $this->createValidationResult(SystemManager::REQUIREMENT_ERROR),
-      'warning' => $this->createValidationResult(SystemManager::REQUIREMENT_WARNING),
+      'error' => $this->createValidationResult(RequirementSeverity::Error->value),
+      'warning' => $this->createValidationResult(RequirementSeverity::Warning->value),
     ];
     TestSubscriber1::setTestResult($expected_results, StatusCheckEvent::class);
     $page->clickLink('Rerun readiness checks');
@@ -199,14 +203,16 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
 
     // If there's a result with only one message, but no summary, ensure that
     // message is displayed.
-    $result = ValidationResult::createError([t('A lone message, with no summary.')]);
+    $result = ValidationResult::createError([
+      new TranslatableMarkup('A lone message, with no summary.'),
+    ]);
     TestSubscriber1::setTestResult([$result], StatusCheckEvent::class);
     $page->clickLink('Rerun readiness checks');
     $this->assertErrors([$result], TRUE);
 
     $expected_results = [
-      'error' => $this->createValidationResult(SystemManager::REQUIREMENT_ERROR, 2),
-      'warning' => $this->createValidationResult(SystemManager::REQUIREMENT_WARNING, 2),
+      'error' => $this->createValidationResult(RequirementSeverity::Error->value, 2),
+      'warning' => $this->createValidationResult(RequirementSeverity::Warning->value, 2),
     ];
     TestSubscriber1::setTestResult($expected_results, StatusCheckEvent::class);
     $page->clickLink('Rerun readiness checks');
@@ -215,7 +221,7 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
     $this->assertErrors([$expected_results['error']], TRUE);
     $this->assertWarnings([$expected_results['warning']], TRUE);
 
-    $expected_results = [$this->createValidationResult(SystemManager::REQUIREMENT_WARNING, 2)];
+    $expected_results = [$this->createValidationResult(RequirementSeverity::Warning->value, 2)];
     TestSubscriber1::setTestResult($expected_results, StatusCheckEvent::class);
     $page->clickLink('Rerun readiness checks');
     $assert->pageTextContainsOnce('Update readiness checks');
@@ -223,7 +229,7 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
     // errors.
     $this->assertWarnings($expected_results, TRUE);
 
-    $expected_results = [$this->createValidationResult(SystemManager::REQUIREMENT_WARNING)];
+    $expected_results = [$this->createValidationResult(RequirementSeverity::Warning->value)];
     TestSubscriber1::setTestResult($expected_results, StatusCheckEvent::class);
     $page->clickLink('Rerun readiness checks');
     $assert->pageTextContainsOnce('Update readiness checks');
@@ -253,9 +259,8 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
    *
    * @param string $admin_route
    *   The admin route to check.
-   *
-   * @dataProvider providerAdminRoutes
    */
+  #[DataProvider('providerAdminRoutes')]
   public function testStatusChecksOnAdminPages(string $admin_route): void {
     $assert = $this->assertSession();
 
@@ -271,7 +276,7 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
 
     // Confirm a user without the permission to run status checks does not have
     // a link to run the checks when the checks need to be run again.
-    $expected_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $expected_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($expected_results, StatusCheckEvent::class);
     /** @var \Drupal\Core\KeyValueStore\KeyValueStoreInterface $key_value */
     $key_value = $this->container->get('keyvalue.expirable')->get('automatic_updates');
@@ -291,27 +296,27 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
     $assert->pageTextContainsOnce((string) $expected_results[0]->summary);
 
     $expected_results = [
-      '1 error' => $this->createValidationResult(SystemManager::REQUIREMENT_ERROR),
-      '1 warning' => $this->createValidationResult(SystemManager::REQUIREMENT_WARNING),
+      '1 error' => $this->createValidationResult(RequirementSeverity::Error->value),
+      '1 warning' => $this->createValidationResult(RequirementSeverity::Warning->value),
     ];
     TestSubscriber1::setTestResult($expected_results, StatusCheckEvent::class);
     $this->runStatusChecks();
     $this->drupalGet(Url::fromRoute($admin_route));
     $assert->pageTextContainsOnce(static::$errorsExplanation);
     // Confirm on admin pages that the summary will be displayed.
-    $this->assertSame(SystemManager::REQUIREMENT_ERROR, $expected_results['1 error']->severity);
+    $this->assertSame(RequirementSeverity::Error->value, $expected_results['1 error']->severity);
     $assert->pageTextContainsOnce((string) $expected_results['1 error']->summary);
     $assert->pageTextNotContains($expected_results['1 error']->messages[0]->render());
     // Warnings are not displayed on admin pages if there are any errors.
-    $this->assertSame(SystemManager::REQUIREMENT_WARNING, $expected_results['1 warning']->severity);
+    $this->assertSame(RequirementSeverity::Warning->value, $expected_results['1 warning']->severity);
     $assert->pageTextNotContains($expected_results['1 warning']->messages[0]->render());
     $assert->pageTextNotContains($expected_results['1 warning']->summary->render());
 
     // Confirm the status check event is not dispatched on every admin page
     // load.
     $unexpected_results = [
-      '2 errors' => $this->createValidationResult(SystemManager::REQUIREMENT_ERROR, 2),
-      '2 warnings' => $this->createValidationResult(SystemManager::REQUIREMENT_WARNING, 2),
+      '2 errors' => $this->createValidationResult(RequirementSeverity::Error->value, 2),
+      '2 warnings' => $this->createValidationResult(RequirementSeverity::Warning->value, 2),
     ];
     TestSubscriber1::setTestResult($unexpected_results, StatusCheckEvent::class);
     $this->drupalGet(Url::fromRoute($admin_route));
@@ -327,38 +332,38 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
     $this->drupalGet(Url::fromRoute($admin_route));
     // Confirm on admin pages only the error summary will be displayed if there
     // is more than 1 error.
-    $this->assertSame(SystemManager::REQUIREMENT_ERROR, $expected_results['2 errors']->severity);
+    $this->assertSame(RequirementSeverity::Error->value, $expected_results['2 errors']->severity);
     $assert->pageTextNotContains($expected_results['2 errors']->messages[0]->render());
     $assert->pageTextNotContains($expected_results['2 errors']->messages[1]->render());
     $assert->pageTextContainsOnce($expected_results['2 errors']->summary->render());
     $assert->pageTextContainsOnce(static::$errorsExplanation);
     // Warnings are not displayed on admin pages if there are any errors.
-    $this->assertSame(SystemManager::REQUIREMENT_WARNING, $expected_results['2 warnings']->severity);
+    $this->assertSame(RequirementSeverity::Warning->value, $expected_results['2 warnings']->severity);
     $assert->pageTextNotContains($expected_results['2 warnings']->messages[0]->render());
     $assert->pageTextNotContains($expected_results['2 warnings']->messages[1]->render());
     $assert->pageTextNotContains($expected_results['2 warnings']->summary->render());
 
-    $expected_results = [$this->createValidationResult(SystemManager::REQUIREMENT_WARNING, 2)];
+    $expected_results = [$this->createValidationResult(RequirementSeverity::Warning->value, 2)];
     TestSubscriber1::setTestResult($expected_results, StatusCheckEvent::class);
     $this->runStatusChecks();
     $this->drupalGet(Url::fromRoute($admin_route));
     // Confirm that the warnings summary is displayed on admin pages if there
     // are no errors.
     $assert->pageTextNotContains(static::$errorsExplanation);
-    $this->assertSame(SystemManager::REQUIREMENT_WARNING, $expected_results[0]->severity);
+    $this->assertSame(RequirementSeverity::Warning->value, $expected_results[0]->severity);
     $assert->pageTextNotContains($expected_results[0]->messages[0]->render());
     $assert->pageTextNotContains($expected_results[0]->messages[1]->render());
     $assert->pageTextContainsOnce(static::$warningsExplanation);
     $assert->pageTextContainsOnce($expected_results[0]->summary->render());
 
-    $expected_results = [$this->createValidationResult(SystemManager::REQUIREMENT_WARNING)];
+    $expected_results = [$this->createValidationResult(RequirementSeverity::Warning->value)];
     TestSubscriber1::setTestResult($expected_results, StatusCheckEvent::class);
     $this->runStatusChecks();
     $this->drupalGet(Url::fromRoute($admin_route));
     $assert->pageTextNotContains(static::$errorsExplanation);
     // Confirm that a single warning is displayed and not the summary on admin
     // pages if there is only 1 warning and there are no errors.
-    $this->assertSame(SystemManager::REQUIREMENT_WARNING, $expected_results[0]->severity);
+    $this->assertSame(RequirementSeverity::Warning->value, $expected_results[0]->severity);
     $assert->pageTextContainsOnce(static::$warningsExplanation);
     $assert->pageTextContainsOnce((string) $expected_results[0]->summary->render());
     $assert->pageTextNotContains($expected_results[0]->messages[0]->render());
@@ -375,7 +380,7 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
   }
 
   /**
-   * Tests installing a module with a checker before installing Automatic Updates.
+   * Tests installing a module with a checker before installing AU.
    */
   public function testStatusCheckAfterInstall(): void {
     $assert = $this->assertSession();
@@ -395,7 +400,7 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
     $this->drupalGet('admin/reports/status');
     $this->assertNoErrors(TRUE);
 
-    $expected_results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $expected_results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber2::setTestResult($expected_results, StatusCheckEvent::class);
     $this->container->get('module_installer')->install(['automatic_updates_test_status_checker']);
     $this->drupalGet('admin/structure');
@@ -405,8 +410,8 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
     // module does not provide any validators.
     $previous_results = $expected_results;
     $expected_results = [
-      '2 errors' => $this->createValidationResult(SystemManager::REQUIREMENT_ERROR, 2),
-      '2 warnings' => $this->createValidationResult(SystemManager::REQUIREMENT_WARNING, 2),
+      '2 errors' => $this->createValidationResult(RequirementSeverity::Error->value, 2),
+      '2 warnings' => $this->createValidationResult(RequirementSeverity::Warning->value, 2),
     ];
     TestSubscriber2::setTestResult($expected_results, StatusCheckEvent::class);
     $this->container->get('module_installer')->install(['help']);
@@ -426,9 +431,9 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
     $assert = $this->assertSession();
     $this->drupalLogin($this->checkerRunnerUser);
 
-    $expected_results_1 = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $expected_results_1 = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($expected_results_1, StatusCheckEvent::class);
-    $expected_results_2 = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $expected_results_2 = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber2::setTestResult($expected_results_2, StatusCheckEvent::class);
     $this->container->get('module_installer')->install([
       'automatic_updates',
@@ -471,7 +476,7 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
 
     // Flag a validation error, whose summary will be displayed in the messages
     // area.
-    $results = [$this->createValidationResult(SystemManager::REQUIREMENT_ERROR)];
+    $results = [$this->createValidationResult(RequirementSeverity::Error->value)];
     TestSubscriber1::setTestResult($results, StatusCheckEvent::class);
     $message = $results[0]->summary;
 
@@ -521,7 +526,7 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
 
     // Flag a validation error, whose summary will be displayed in the messages
     // area.
-    $result = $this->createValidationResult(SystemManager::REQUIREMENT_ERROR);
+    $result = $this->createValidationResult(RequirementSeverity::Error->value);
     TestSubscriber1::setTestResult([$result], StatusCheckEvent::class);
     $message = $result->summary;
 
@@ -584,7 +589,7 @@ class StatusCheckTest extends AutomaticUpdatesFunctionalTestBase {
 
     // Flag a validation error, whose summary will be displayed in the messages
     // area.
-    $result = $this->createValidationResult(SystemManager::REQUIREMENT_ERROR);
+    $result = $this->createValidationResult(RequirementSeverity::Error->value);
     TestSubscriber1::setTestResult([$result], StatusCheckEvent::class);
 
     $this->drupalGet('/admin/reports/status');

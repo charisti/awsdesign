@@ -147,11 +147,12 @@ class SmartDateFieldItemList extends DateTimeFieldItemList {
    *   Whether or not the string matches the expected format.
    */
   protected static function validateDate($value) {
-    // If a simple date string, pass validation.
-    if (preg_match('|\d{4}-\d{2}-\d{2}|', $value)) {
-      return TRUE;
-    }
-    return FALSE;
+    $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+    $errors = \DateTimeImmutable::getLastErrors();
+    $has_errors = $errors !== FALSE && ($errors['warning_count'] > 0 || $errors['error_count'] > 0);
+    return $date !== FALSE
+      && !$has_errors
+      && $date->format('Y-m-d') === $value;
   }
 
   /**

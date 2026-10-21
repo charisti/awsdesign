@@ -14,6 +14,7 @@ use Drupal\project_browser\ComposerInstaller\Installer;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the PackageNotInstalledValidator class.
@@ -22,6 +23,7 @@ use PHPUnit\Framework\Attributes\Group;
  */
 #[CoversClass(PackageNotInstalledValidator::class)]
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class PackageNotInstalledValidatorTest extends PackageManagerKernelTestBase {
 
   /**
@@ -95,7 +97,7 @@ final class PackageNotInstalledValidatorTest extends PackageManagerKernelTestBas
       ->removePackage('drupal/new_module')
       ->commitChanges();
     /** @var \Drupal\project_browser\ComposerInstaller\Installer $installer */
-    $installer = $this->container->get(Installer::class);
+    $installer = \Drupal::service(Installer::class);
     try {
       $installer->create();
       $installer->require($packages);

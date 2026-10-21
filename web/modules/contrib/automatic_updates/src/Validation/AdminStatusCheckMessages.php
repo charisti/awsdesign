@@ -7,6 +7,7 @@ namespace Drupal\automatic_updates\Validation;
 use Drupal\automatic_updates\CronUpdateRunner;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Messenger\MessengerTrait;
 use Drupal\Core\Render\RendererInterface;
@@ -18,7 +19,6 @@ use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\Url;
 use Drupal\package_manager\ValidationResult;
-use Drupal\system\SystemManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -87,8 +87,8 @@ final class AdminStatusCheckMessages implements ContainerInjectionInterface {
     else {
       // Display errors, if there are any. If there aren't, then display
       // warnings, if there are any.
-      if (!$this->displayResultsForSeverity(SystemManager::REQUIREMENT_ERROR)) {
-        $this->displayResultsForSeverity(SystemManager::REQUIREMENT_WARNING);
+      if (!$this->displayResultsForSeverity(RequirementSeverity::Error->value)) {
+        $this->displayResultsForSeverity(RequirementSeverity::Warning->value);
       }
     }
   }
@@ -146,7 +146,7 @@ final class AdminStatusCheckMessages implements ContainerInjectionInterface {
     // First message: severity.
     $overall_severity = ValidationResult::getOverallSeverity($results);
     $message = $this->getFailureMessageForSeverity($overall_severity);
-    $message_type = $overall_severity === SystemManager::REQUIREMENT_ERROR ? MessengerInterface::TYPE_ERROR : MessengerInterface::TYPE_WARNING;
+    $message_type = $overall_severity === RequirementSeverity::Error->value ? MessengerInterface::TYPE_ERROR : MessengerInterface::TYPE_WARNING;
     $this->messenger()->addMessage($message, $message_type);
 
     // Optional second message: more details (for users with sufficient
@@ -175,7 +175,7 @@ final class AdminStatusCheckMessages implements ContainerInjectionInterface {
   private function displayResults(array $results, MessengerInterface $messenger, RendererInterface $renderer): void {
     $severity = ValidationResult::getOverallSeverity($results);
 
-    if ($severity === SystemManager::REQUIREMENT_OK) {
+    if ($severity === RequirementSeverity::OK->value) {
       return;
     }
 
@@ -195,7 +195,7 @@ final class AdminStatusCheckMessages implements ContainerInjectionInterface {
     ];
     $message = $renderer->renderRoot($build);
 
-    if ($severity === SystemManager::REQUIREMENT_ERROR) {
+    if ($severity === RequirementSeverity::Error->value) {
       $messenger->addError($message);
     }
     else {

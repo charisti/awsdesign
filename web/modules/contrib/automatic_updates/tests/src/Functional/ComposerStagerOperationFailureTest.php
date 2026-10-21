@@ -4,17 +4,23 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\automatic_updates\Functional;
 
+use Drupal\automatic_updates\Form\UpdaterForm;
 use Drupal\package_manager_bypass\LoggingBeginner;
 use Drupal\package_manager_bypass\LoggingCommitter;
 use Drupal\package_manager_bypass\NoOpStager;
 use PhpTuf\ComposerStager\API\Exception\InvalidArgumentException;
 use PhpTuf\ComposerStager\API\Exception\LogicException;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @covers \Drupal\automatic_updates\Form\UpdaterForm
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(UpdaterForm::class)]
+#[RunTestsInSeparateProcesses]
 class ComposerStagerOperationFailureTest extends UpdaterFormTestBase {
 
   /**
@@ -24,9 +30,8 @@ class ComposerStagerOperationFailureTest extends UpdaterFormTestBase {
    *   The exception class.
    * @param string $service_class
    *   The Composer Stager service which should throw an exception.
-   *
-   * @dataProvider providerComposerOperationFailure
    */
+  #[DataProvider('providerComposerOperationFailure')]
   public function testComposerOperationFailure(string $exception_class, string $service_class): void {
     $this->getStageFixtureManipulator()->setCorePackageVersion('9.8.1');
 

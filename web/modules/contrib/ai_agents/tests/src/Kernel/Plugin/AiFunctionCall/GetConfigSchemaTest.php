@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Drupal\Tests\ai_agents\Kernel\Plugin\AiFunctionCall;
 
 use Drupal\KernelTests\KernelTestBase;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests for the GetConfigSchemaTest class.
  *
  * @group ai_agents
  */
+#[RunTestsInSeparateProcesses]
 final class GetConfigSchemaTest extends KernelTestBase {
 
   /**

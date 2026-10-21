@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Drupal\automatic_updates\Form;
 
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\package_manager\StatusCheckTrait;
 use Drupal\package_manager\ValidationResult;
-use Drupal\system\SystemManager;
 
 /**
  * Base class for update forms provided by Automatic Updates.
@@ -32,7 +32,7 @@ abstract class UpdateFormBase extends FormBase {
   protected function displayResults(array $results, RendererInterface $renderer): void {
     $severity = ValidationResult::getOverallSeverity($results);
 
-    if ($severity === SystemManager::REQUIREMENT_OK) {
+    if ($severity === RequirementSeverity::OK->value) {
       return;
     }
 
@@ -41,7 +41,7 @@ abstract class UpdateFormBase extends FormBase {
     $build = [
       '#theme' => 'item_list__automatic_updates_validation_results',
     ];
-    if ($severity === SystemManager::REQUIREMENT_ERROR) {
+    if ($severity === RequirementSeverity::Error->value) {
       $build['#prefix'] = $this->t('Your site cannot be automatically updated until further action is performed.');
     }
     foreach ($results as $result) {
@@ -63,7 +63,7 @@ abstract class UpdateFormBase extends FormBase {
     }
     $message = $renderer->renderRoot($build);
 
-    if ($severity === SystemManager::REQUIREMENT_ERROR) {
+    if ($severity === RequirementSeverity::Error->value) {
       $this->messenger()->addError($message);
     }
     else {

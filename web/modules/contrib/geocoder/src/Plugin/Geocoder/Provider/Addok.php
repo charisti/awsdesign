@@ -12,7 +12,7 @@ use Drupal\geocoder\ConfigurableProviderUsingHandlerWithAdapterBase;
  *   name = "Addok",
  *   handler = "\Geocoder\Provider\Addok\Addok",
  *   arguments = {
- *     "rootUrl" = "https://api-adresse.data.gouv.fr"
+ *     "rootUrl" = "https://data.geopf.fr/geocodage"
  *   }
  * )
  */

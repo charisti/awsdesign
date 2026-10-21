@@ -36,6 +36,9 @@ abstract class RenderElementActionBase extends RenderActionBase {
   public function execute(): void {
     $build = [];
     $this->doBuild($build);
+    if (empty($build)) {
+      return;
+    }
     if ($this->configuration['weight'] !== '') {
       $weight = trim((string) $this->tokenService->replaceClear($this->configuration['weight']));
       if ($weight !== '' && is_numeric($weight)) {

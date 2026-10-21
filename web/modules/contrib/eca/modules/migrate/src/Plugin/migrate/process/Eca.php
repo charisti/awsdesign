@@ -19,6 +19,13 @@ use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
  *
  * Available configuration keys:
  * - source: The input value.
+ * - multiple: (optional) Whether the returned value is a list of separate
+ *   values rather than a single (possibly composite) value. When set to TRUE,
+ *   subsequent process plugins in the pipeline that do not handle multiples
+ *   themselves are applied to each element individually. Defaults to FALSE.
+ *   Note that this only affects downstream plugins; when the eca plugin is the
+ *   last step in the pipeline, the whole returned value is written to the
+ *   destination regardless of this setting.
  *
  * Examples:
  *
@@ -27,6 +34,20 @@ use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
  *     new_text_field:
  *       plugin: eca
  *       source: some_text_field
+ * @endcode
+ *
+ * An example applying a per-element transformation to a multi-value result:
+ *
+ * @code
+ *   process:
+ *     field_tags:
+ *       -
+ *         plugin: eca
+ *         source: raw_tags
+ *         multiple: true
+ *       -
+ *         plugin: callback
+ *         callable: trim
  * @endcode
  *
  * If the ECA model can not be triggered, then the plugin will
@@ -95,7 +116,20 @@ class Eca extends ProcessPluginBase implements ContainerFactoryPluginInterface {
       $destination_property,
     );
 
-    return ($event) ? $event->getValue() : $value;
+    return $event ? $event->getValue() : $value;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function multiple() {
+    // Reflect the author-declared "multiple" config key as-is: the returned
+    // value is only treated as a list of separate values when the migration
+    // explicitly opts in. The value itself is never reshaped to match this
+    // flag, so declaring "multiple: true" while the ECA model returns a scalar
+    // is a misconfiguration that the pipeline surfaces as a MigrateException
+    // ("received instead of an array") rather than being silently coerced.
+    return !empty($this->configuration['multiple']);
   }
 
 }

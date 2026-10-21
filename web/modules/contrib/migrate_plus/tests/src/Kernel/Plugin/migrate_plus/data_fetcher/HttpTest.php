@@ -6,12 +6,15 @@ namespace Drupal\Tests\migrate_plus\Kernel\Plugin\migrate_plus\data_fetcher;
 
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\migrate_plus\Plugin\migrate_plus\data_fetcher\Http;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the http data_fetcher plugin.
- *
- * @group migrate_plus
  */
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 final class HttpTest extends KernelTestBase {
 
   /**
@@ -24,6 +27,7 @@ final class HttpTest extends KernelTestBase {
    *
    * @dataProvider headerDataProvider
    */
+  #[DataProvider('headerDataProvider')]
   public function testHttpHeaders(array $definition, array $expected, array $preSeed = []): void {
     $http = new Http($definition, 'http', [], $this->container->get('http_client'), $this->container->get('plugin.manager.migrate_plus.authentication'));
     $this->assertEquals($expected, $http->getRequestHeaders());

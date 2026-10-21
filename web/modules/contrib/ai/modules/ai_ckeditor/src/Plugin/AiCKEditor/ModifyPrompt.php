@@ -2,6 +2,7 @@
 
 namespace Drupal\ai_ckeditor\Plugin\AiCKEditor;
 
+use Drupal\ai\Utility\Textarea;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
@@ -33,9 +34,7 @@ final class ModifyPrompt extends AiCKEditorPluginBase {
    * {@inheritdoc}
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state): array {
-    $options = $this->aiProviderManager->getSimpleProviderModelOptions('chat');
-    array_shift($options);
-    array_splice($options, 0, 1);
+    $options = $this->aiProviderManager->getSimpleProviderModelOptions('chat', FALSE);
     $form['provider'] = [
       '#type' => 'select',
       '#title' => $this->t('AI provider'),
@@ -48,15 +47,33 @@ final class ModifyPrompt extends AiCKEditorPluginBase {
     $prompts_config = $this->getConfigFactory()->get('ai_ckeditor.settings');
     $prompt_template = $prompts_config->get('prompts.modify_prompt');
     $form['prompt'] = [
-      '#type' => 'textarea',
+      '#type' => 'ai_prompt',
       '#title' => $this->t('Prompt template'),
+      '#prompt_types' => ['ai_ckeditor_modify'],
       '#default_value' => $prompt_template ?? '',
-      '#description' => $this->t('This template will be used for the "Modify with a prompt" feature. The {{ modify_prompt }} placeholder will be replaced with the user-provided instructions.'),
+      '#parents' => [
+        'editor',
+        'settings',
+        'plugins',
+        'ai_ckeditor_ai',
+        'plugins',
+        'ai_ckeditor_modify_prompt',
+        'prompt',
+      ],
+      '#description' => $this->t('This template will be used for the "Modify with a prompt" feature. The {modifyPrompt} variable will be replaced with the user-provided instructions.'),
       '#states' => [
         'required' => [
           ':input[name="editor[settings][plugins][ai_ckeditor_ai][plugins][ai_ckeditor_modify_prompt][enabled]"]' => ['checked' => TRUE],
         ],
       ],
+      // This property will land into core soon, see
+      // https://www.drupal.org/project/drupal/issues/3202631. It can stay
+      // after this is added to Drupal core.
+      '#normalize_newlines' => TRUE,
+      // Until that the custom value callback is needed. Should be removed
+      // after the issue mentioned above is merged into core and the minimum
+      // supported Drupal version includes `#normalize_newlines` property.
+      '#value_callback' => [Textarea::class, 'valueCallback'],
     ];
 
     return $form;
@@ -76,7 +93,7 @@ final class ModifyPrompt extends AiCKEditorPluginBase {
    * {@inheritdoc}
    */
   public function buildCkEditorModalForm(array $form, FormStateInterface $form_state, array $settings = []): array {
-    $form = parent::buildCkEditorModalForm($form, $form_state);
+    $form = parent::buildCkEditorModalForm($form, $form_state, $settings);
 
     // Only add 'Your instructions' if selected text is available.
     $storage = $form_state->getStorage();
@@ -102,6 +119,13 @@ final class ModifyPrompt extends AiCKEditorPluginBase {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  protected function getNoSelectedTextMessage(): TranslatableMarkup {
+    return $this->t('You must select some text before you can modify it.');
+  }
+
+  /**
    * Generate text callback.
    *
    * @param array $form
@@ -117,16 +141,16 @@ final class ModifyPrompt extends AiCKEditorPluginBase {
 
     try {
       $prompts_config = $this->getConfigFactory()->get('ai_ckeditor.settings');
-      $prompt_template = $prompts_config->get('prompts.modify_prompt');
-
-      // Replace the placeholder with the user-provided instructions.
-      $prompt = str_replace('{{ modify_prompt }}', $values['plugin_config']['modify_prompt'], $prompt_template);
-
-      // Add the selected text.
-      $prompt .= "\n" . $values['plugin_config']['selected_text'];
+      $promptId = $prompts_config->get('prompts.modify_prompt');
+      $promptText = $this->getConfigFactory()->get('ai.ai_prompt.' . $promptId)?->get('prompt') ?? '';
+      // Replace the placeholders.
+      $promptText = strtr($promptText, [
+        '{modifyPrompt}' => $values['plugin_config']['modify_prompt'],
+        '{inputText}' => $values['plugin_config']['selected_text'],
+      ]);
 
       $response = new AjaxResponse();
-      $response->addCommand(new AiRequestCommand($prompt, $values['editor_id'], $this->pluginDefinition['id'], 'ai-ckeditor-response'));
+      $response->addCommand(new AiRequestCommand($promptText, $values['editor_id'], $this->pluginDefinition['id'], 'ai-ckeditor-response'));
       return $response;
     }
     catch (\Exception $e) {

@@ -4,20 +4,19 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_example_advanced_setup\Plugin\rest\resource;
 
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\rest\Attribute\RestResource;
 use Drupal\rest\Plugin\ResourceBase;
 use Drupal\rest\ResourceResponse;
 
 /**
  * Represents positions as resources.
- *
- * @RestResource(
- *   id = "migrate_example_advanced_position",
- *   label = @Translation("Advanced migration example - Position data"),
- *   uri_paths = {
- *     "canonical" = "/migrate_example_advanced_position"
- *   }
- * )
  */
+#[RestResource(
+  id: 'migrate_example_advanced_position',
+  label: new TranslatableMarkup('Advanced migration example - Position data'),
+  uri_paths: ['canonical' => '/migrate_example_advanced_position'],
+)]
 final class PositionResource extends ResourceBase {
 
   /**

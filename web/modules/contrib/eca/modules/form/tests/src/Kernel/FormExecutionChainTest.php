@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\Tests\eca_content\Kernel;
+namespace Drupal\Tests\eca_form\Kernel;
 
 use Drupal\Core\Form\FormState;
 use Drupal\KernelTests\KernelTestBase;

@@ -57,6 +57,9 @@ class ListBuilder extends DraggableListBuilder {
     if ($this->owner->supportsStatus()) {
       $header['status'] = $this->t('Enabled');
     }
+    if ($this->owner->supportsTemplate()) {
+      $header['template'] = $this->t('Template');
+    }
     return $header + parent::buildHeader();
   }
 
@@ -82,6 +85,14 @@ class ListBuilder extends DraggableListBuilder {
     if ($this->owner->supportsStatus()) {
       $row['status'] = [
         '#markup' => $this->owner->getStatus($model) ? $this->t('yes') : $this->t('no'),
+        '#wrapper_attributes' => [
+          'data-drupal-selector' => 'models-table-filter-text-source',
+        ],
+      ];
+    }
+    if ($this->owner->supportsTemplate()) {
+      $row['template'] = [
+        '#markup' => $this->owner->getTemplate($model) ? $this->t('yes') : $this->t('no'),
         '#wrapper_attributes' => [
           'data-drupal-selector' => 'models-table-filter-text-source',
         ],

@@ -75,8 +75,10 @@
   ]|merge(suffix_utility_classes ?: [])
 %}
 
-{% set fieldset_content_classes = fieldset_content_utility_classes|default(['mb-3']) %}
-{% set disabled_attr = (disabled is defined and disabled) ? 'disabled' : null %}
+{% set fieldset_content_classes = fieldset_content_utility_classes ?? ['mb-3'] %}
+{% if disabled is defined and disabled %}
+  {% set attributes = attributes.setAttribute('disabled', 'disabled') %}
+{% endif %}
 
 {% set fieldset_content_attributes = fieldset_content_attributes ?: create_attribute() %}
 {% set fieldset_legend_title_attributes = fieldset_legend_title_attributes ?: create_attribute() %}
@@ -84,7 +86,7 @@
 {% set fieldset_suffix_attributes = fieldset_suffix_attributes ?: create_attribute() %}
 
 
-<fieldset {{ attributes.addClass(fieldset_classes).setAttribute(disabled_attr, disabled_attr) }}>
+<fieldset {{ attributes.addClass(fieldset_classes) }}>
   {% if title_display != 'none' %}
     <legend {{ legend.attributes.addClass(legend_classes) }}>
       <label {{ fieldset_legend_title_attributes.addClass(legend_title_classes) }}>{{ legend.title }}</label>

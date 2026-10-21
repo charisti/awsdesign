@@ -12,7 +12,7 @@ use Drupal\KernelTests\KernelTestBase;
 /**
  * Base class for Tagify kernel tests.
  */
-class TagifyKernelTestBase extends KernelTestBase {
+abstract class TagifyKernelTestBase extends KernelTestBase {
   /**
    * {@inheritdoc}
    */

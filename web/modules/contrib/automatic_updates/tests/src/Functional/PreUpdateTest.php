@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\automatic_updates\Functional;
 
+use Drupal\automatic_updates\Form\UpdaterForm;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\package_manager\Event\StatusCheckEvent;
 use Drupal\package_manager\ValidationResult;
 use Drupal\automatic_updates_test\EventSubscriber\TestSubscriber1;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * @covers \Drupal\automatic_updates\Form\UpdaterForm
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(UpdaterForm::class)]
+#[RunTestsInSeparateProcesses]
 class PreUpdateTest extends UpdaterFormTestBase {
 
   /**
@@ -21,7 +27,7 @@ class PreUpdateTest extends UpdaterFormTestBase {
   public function testStatusCheckFailureWhenNoUpdateExists() {
     $assert_session = $this->assertSession();
     $this->mockActiveCoreVersion('9.8.1');
-    $message = t("You've not experienced Shakespeare until you have read him in the original Klingon.");
+    $message = new TranslatableMarkup("You've not experienced Shakespeare until you have read him in the original Klingon.");
     $result = ValidationResult::createError([$message]);
     TestSubscriber1::setTestResult([$result], StatusCheckEvent::class);
     $this->checkForUpdates();

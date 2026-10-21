@@ -806,6 +806,31 @@
   };
 
   /**
+   * Return Geometry Construction Base Options.
+   *
+   * @param feature
+   *   The feature definition.
+   *
+   * @returns {*}
+   */
+  Drupal.Leaflet.prototype.create_geometry_base_options = function(feature) {
+    // Assign the marker title value depending if a Marker simple title or a
+    // Leaflet tooltip was set.
+    let marker_title = '';
+    if (feature.title) {
+      marker_title = feature.title.replace(/<[^>]*>/g, '').trim()
+    }
+    return {
+      // Title only set in case of a Marker simple title.
+      title: marker_title ?? "",
+      className: feature.icon && feature.icon.className ? feature.icon.className.replaceAll(",", "") : '',
+      // Alt property always set matching Simple Title or Feature Tooltip.
+      alt: feature.tooltip && feature.tooltip.value ? new DOMParser().parseFromString(feature.tooltip.value, 'text/html').body.textContent.trim() : marker_title,
+      group_label: feature.group_label ?? '',
+    };
+  }
+
+  /**
    * Leaflet Point (Marker) creator.
    *
    * @param feature
@@ -816,25 +841,8 @@
   Drupal.Leaflet.prototype.create_point = function(feature) {
 
     const latLng = new L.LatLng(feature.lat, feature.lon);
-    let lMarker;
-    // Assign the marker title value depending if a Marker simple title or a
-    // Leaflet tooltip was set.
-    let marker_title = '';
-    if (feature.title) {
-      marker_title = feature.title.replace(/<[^>]*>/g, '').trim()
-    }
-    else if (feature.tooltip && feature.tooltip.value) {
-      marker_title = feature.tooltip.value.replace(/<[^>]*>/g, '').trim();
-    }
-    let options = {
-      // Define the title (as mouse hover tooltip) only in case the Leaflet Tooltip is not defined.
-      title: feature.title ? marker_title : "",
-      className: feature.className ? feature.className.replaceAll(",", "") : '',
-      alt: marker_title,
-      group_label: feature.group_label ?? '',
-    };
-
-    lMarker = new L.Marker(latLng, options);
+    let options = this.create_geometry_base_options(feature);
+    let lMarker = new L.Marker(latLng, options);
 
     if (feature.icon) {
       if (feature.icon.iconType && feature.icon.iconType === 'html' && feature.icon.html) {
@@ -843,7 +851,8 @@
       }
       else if (feature.icon.iconType && feature.icon.iconType === 'circle_marker') {
         try {
-          options = feature.icon.circle_marker_options ? JSON.parse(feature.icon.circle_marker_options) : {};
+          // Extend the options with circle marker specific properties,
+          Object.assign(options , feature.icon.circle_marker_options ? JSON.parse(feature.icon.circle_marker_options) : {})
           options.radius = options.radius ? parseInt(options['radius']) : 10;
         }
         catch (e) {
@@ -884,24 +893,8 @@
       let latlng = new L.LatLng(polyline.points[i].lat, polyline.points[i].lon);
       latlngs.push(latlng);
     }
-    return clusterable ? new L.PolylineClusterable(latlngs) : new L.Polyline(latlngs);
-  };
-
-  /**
-   *  Leaflet Collection creator.
-   *
-   * @param collection
-   *   The collection definition.
-   *
-   * @returns {*}
-   */
-  Drupal.Leaflet.prototype.create_collection = function(collection) {
-    let layers = new L.featureGroup();
-    for (let x = 0; x < collection.component.length; x++) {
-      let feature = { ...collection, ...collection.component[x]};
-      layers.addLayer(this.create_feature(feature));
-    }
-    return layers;
+    const options = this.create_geometry_base_options(polyline);
+    return clusterable ? new L.PolylineClusterable(latlngs, options) : new L.Polyline(latlngs, options);
   };
 
   /**
@@ -916,7 +909,8 @@
    */
   Drupal.Leaflet.prototype.create_polygon = function(polygon, clusterable = false) {
     const coordinates = polygon.points ?? [];
-    return clusterable ? new L.PolygonClusterable(coordinates) : new L.Polygon(coordinates);
+    const options = this.create_geometry_base_options(polygon);
+    return clusterable ? new L.PolygonClusterable(coordinates, options) : new L.Polygon(coordinates, options);
   };
 
   /**
@@ -931,7 +925,8 @@
    */
   Drupal.Leaflet.prototype.create_multipolygon = function(multipolygon, clusterable = false) {
     const coordinates = multipolygon.points ?? [];
-    return clusterable ? new L.PolygonClusterable(coordinates) : new L.Polygon(coordinates);
+    const options = this.create_geometry_base_options(multipolygon);
+    return clusterable ? new L.PolygonClusterable(coordinates, options) : new L.Polygon(coordinates, options);
   };
 
   /**
@@ -955,12 +950,30 @@
       }
       polygons.push(latlngs);
     }
+    const options = this.create_geometry_base_options(multipoly);
     if (multipoly.multipolyline) {
-      return clusterable ? new L.PolylineClusterable(polygons) : new L.Polyline(polygons);
+      return clusterable ? new L.PolylineClusterable(polygons, options) : new L.Polyline(polygons, options);
     }
     else {
-      return clusterable ? new L.PolygonClusterable(polygons) : new L.Polygon(polygons);
+      return clusterable ? new L.PolygonClusterable(polygons, options) : new L.Polygon(polygons, options);
     }
+  };
+
+  /**
+   *  Leaflet Collection creator.
+   *
+   * @param collection
+   *   The collection definition.
+   *
+   * @returns {*}
+   */
+  Drupal.Leaflet.prototype.create_collection = function(collection) {
+    let layers = new L.featureGroup();
+    for (let x = 0; x < collection.component.length; x++) {
+      let feature = { ...collection, ...collection.component[x]};
+      layers.addLayer(this.create_feature(feature));
+    }
+    return layers;
   };
 
   /**

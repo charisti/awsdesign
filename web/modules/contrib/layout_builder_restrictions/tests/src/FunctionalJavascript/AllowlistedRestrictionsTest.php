@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\layout_builder_restrictions\FunctionalJavascript;
 
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+
 /**
  * Demonstrate that blocks can be individually restricted.
- *
- * @group layout_builder_restrictions
  */
+#[Group('layout_builder_restrictions')]
+#[RunTestsInSeparateProcesses]
 class AllowlistedRestrictionsTest extends LayoutBuilderRestrictionsTestBase {
 
   /**
@@ -54,6 +57,7 @@ class AllowlistedRestrictionsTest extends LayoutBuilderRestrictionsTestBase {
 
     // Establish that the 'body' field is no longer present.
     $this->navigateToNodeSettingsTray($node_id);
+
     $assert_session->linkNotExists('Body');
     $assert_session->linkNotExists('Basic Block 1');
     $assert_session->linkNotExists('Basic Block 2');
@@ -104,7 +108,7 @@ class AllowlistedRestrictionsTest extends LayoutBuilderRestrictionsTestBase {
     $this->navigateToNodeSettingsTray($node_id);
     $assert_session->linkExists('Body');
     // ... but other 'content' fields aren't.
-    $assert_session->linkNotExists('Promoted to front page');
+    $assert_session->linkNotExists('Authored by');
     $assert_session->linkNotExists('Sticky at top of lists');
     // "Basic" Custom blocks are allowed.
     $assert_session->linkExists('Basic Block 1');

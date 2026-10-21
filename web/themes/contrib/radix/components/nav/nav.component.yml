@@ -31,27 +31,53 @@ props:
         - ''
         - fill
         - justify
+    is_dropdown:
+      type: boolean
+      name: Is Dropdown
+      description: "When true (default), expanded items with children render as Bootstrap dropdowns. When false, children render inline as a nested vertical list (useful for sidebars and secondary navigation). Children only appear when the item is expanded; enable 'Expand all menu items' on the menu block to always show them."
+      default: true
+    dropdown_direction:
+      type: string
+      name: Dropdown Direction
+      description: "Direction in which nested submenus open when is_dropdown is true. Leave empty to open below (default); use 'dropend' to open to the right or 'dropstart' to open to the left."
+      enum:
+        - ''
+        - dropend
+        - dropstart
     nav_utility_classes:
-      type: array
+      type: ['array', 'null']
       name: Utility Classes
       items:
         type: string
       description: "Additional utility classes that can be added to the nav component. These classes should be defined in your theme's CSS."
     nav_item_utility_classes:
-      type: array
+      type: ['array', 'null']
       name: Item Utility Classes
       items:
         type: string
       description: "Additional utility classes that can be added to the nav item component. These classes should be defined in your theme's CSS."
     nav_link_utility_classes:
-      type: array
+      type: ['array', 'null']
       name: Link Utility Classes
       items:
         type: string
       description: "Additional utility classes that can be added to the nav link component. These classes should be defined in your theme's CSS."
+    heading_level:
+      type: string
+      name: Heading level
+      description: 'Tag used by the links heading.'
+    heading_utility_classes:
+      type: ['array', 'null']
+      name: Heading Utility Classes
+      items:
+        type: string
+      description: "Additional utility classes that can be added to the nav heading component. These classes should be defined in your theme's CSS."
     attributes:
       type: Drupal\Core\Template\Attribute
 slots:
+  nav_heading:
+    name: Nav heading
+    description: Navigation heading.
   nav_items:
     name: Nav Items
     description: Navigation items.

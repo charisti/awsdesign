@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\drupal_cms_helper;
 
 use Drupal\Core\Database\Connection;
+use Drupal\Core\DefaultContent\Exporter;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\DependencyInjection\ServiceProviderBase;
 use PhpTuf\ComposerStager\API\Process\Service\ComposerProcessRunnerInterface;
@@ -43,6 +44,12 @@ final class DrupalCmsHelperServiceProvider extends ServiceProviderBase {
           new Reference('.inner'),
           new Reference(Connection::class),
         ]);
+    }
+
+    if (!$container->hasDefinition(Exporter::class)) {
+      $container->register(Exporter::class)
+        ->setClass(Exporter::class)
+        ->setAutowired(TRUE);
     }
   }
 

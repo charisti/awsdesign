@@ -8,6 +8,8 @@ use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Plugin\PluginFormInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\date_augmenter\Attribute\DateAugmenter;
 use Drupal\date_augmenter\DateAugmenter\DateAugmenterPluginBase;
 use Drupal\date_augmenter\Plugin\PluginFormTrait;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -22,6 +24,12 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *   weight = 0
  * )
  */
+#[DateAugmenter(
+  id: "addtocal",
+  label: new TranslatableMarkup("Add to Calendar Links"),
+  description: new TranslatableMarkup("Adds links to add an events dates to a user's preferred calendar."),
+  weight: 0,
+)]
 class AddToCal extends DateAugmenterPluginBase implements PluginFormInterface, ContainerFactoryPluginInterface {
 
   use PluginFormTrait;
@@ -221,7 +229,7 @@ class AddToCal extends DateAugmenterPluginBase implements PluginFormInterface, C
     }
     $location = NULL;
     if (!empty($config['location'])) {
-      $location = $this->parseField($config['location'], $entity, TRUE);
+      $location = $this->parseField($config['location'], $entity, TRUE, FALSE, TRUE);
     }
     $uuid = $entity->uuid() ?? Html::getUniqueId($label);
 
@@ -314,11 +322,13 @@ class AddToCal extends DateAugmenterPluginBase implements PluginFormInterface, C
    *   Whether or not to clean up the output.
    * @param bool $retain_spacing
    *   Whether or not to strip whitespace.
+   * @param bool $addslashes
+   *   Whether or not to escape control characters.
    *
    * @return string
    *   The manipulated value, prepared for use in a link href.
    */
-  public function parseField($field_value, $entity, $strip_markup = FALSE, $retain_spacing = FALSE) {
+  public function parseField($field_value, $entity, $strip_markup = FALSE, $retain_spacing = FALSE, $addslashes = FALSE) {
     /* @phpstan-ignore-next-line */
     if (\Drupal::hasService('token') && $entity) {
       /* @phpstan-ignore-next-line */
@@ -331,6 +341,9 @@ class AddToCal extends DateAugmenterPluginBase implements PluginFormInterface, C
     if ($strip_markup) {
       // Strip tags. Requires decoding entities, which will be re-encoded later.
       $field_value = strip_tags(html_entity_decode($field_value));
+    }
+    if ($addslashes) {
+      $field_value = str_replace(",", "\\,", $field_value);
     }
     if (!$retain_spacing) {
       // Strip line breaks.
@@ -384,7 +397,7 @@ class AddToCal extends DateAugmenterPluginBase implements PluginFormInterface, C
     $form['label'] = [
       '#title' => $this->t('Links label'),
       '#type' => 'textfield',
-      '#default_value' => $settings['label'],
+      '#default_value' => $settings['label'] ?? 'Add to Calendar',
       '#description' => $this->t('Text to prefix the actual add links.'),
     ];
 

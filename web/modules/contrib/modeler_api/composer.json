@@ -6,5 +6,9 @@
   "support": {
     "issues": "https://drupal.org/project/issues/modeler_api",
     "source": "https://drupal.org/project/modeler_api"
+  },
+  "require": {
+    "php": ">=8.3",
+    "drupal/core": "^11.3 || ^12.0"
   }
 }

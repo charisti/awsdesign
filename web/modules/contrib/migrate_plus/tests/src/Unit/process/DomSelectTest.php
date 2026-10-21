@@ -7,20 +7,23 @@ namespace Drupal\Tests\migrate_plus\Unit\process;
 use Drupal\Component\Utility\Html;
 use Drupal\migrate_plus\Plugin\migrate\process\DomSelect;
 use Drupal\Tests\migrate\Unit\process\MigrateProcessTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tests the dom_select process plugin.
- *
- * @group migrate
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\DomSelect
  */
+#[CoversClass(DomSelect::class)]
+#[Group('migrate_plus')]
 final class DomSelectTest extends MigrateProcessTestCase {
 
   /**
-   * @covers ::transform
+   * Tests valid input.
    *
    * @dataProvider providerTestTransform
    */
+  #[DataProvider('providerTestTransform')]
   public function testTransform(string $input_string, array $configuration, array $output_array): void {
     $value = Html::load($input_string);
     $elements = (new DomSelect($configuration, 'dom_select', []))

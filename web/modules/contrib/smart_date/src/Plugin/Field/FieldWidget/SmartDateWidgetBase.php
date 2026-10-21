@@ -3,18 +3,19 @@
 namespace Drupal\smart_date\Plugin\Field\FieldWidget;
 
 use Drupal\Component\Utility\Html;
+use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Entity\EntityFormInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\Field\FieldConfigInterface;
-use Drupal\Core\Field\FieldFilteredMarkup;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\FieldStorageDefinitionInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 use Drupal\datetime\Plugin\Field\FieldWidget\DateTimeWidgetBase;
 use Drupal\datetime_range\Plugin\Field\FieldWidget\DateRangeWidgetBase;
+use Drupal\smart_date\Plugin\Field\FieldType\SmartDateFieldItemList;
 use Drupal\smart_date\Plugin\Field\FieldType\SmartDateListItemBase;
 use Drupal\smart_date\SmartDatePluginTrait;
 use Drupal\smart_date_recur\Entity\SmartDateRule;
@@ -22,7 +23,7 @@ use Drupal\smart_date_recur\Entity\SmartDateRule;
 /**
  * Base class for the 'smartdate_*' widgets.
  */
-class SmartDateWidgetBase extends DateTimeWidgetBase {
+abstract class SmartDateWidgetBase extends DateTimeWidgetBase {
 
   use SmartDatePluginTrait;
 
@@ -106,6 +107,10 @@ class SmartDateWidgetBase extends DateTimeWidgetBase {
 
     $field_def = $this->fieldDefinition;
     $field_type = $field_def->getType();
+    $field_name = $field_def->getName();
+    $field_parents = $element['#field_parents'] ?? ($form['#parents'] ?? []);
+    $field_state = static::getWidgetState($field_parents, $field_name, $form_state) ?? [];
+    $deleted_rrules = $field_state['deleted_rrules'] ?? [];
     $allow_recurring = FALSE;
     if ($field_type == 'smartdate') {
       if ($field_def instanceof FieldConfigInterface) {
@@ -120,6 +125,10 @@ class SmartDateWidgetBase extends DateTimeWidgetBase {
 
       // @todo more elegant way to handle hiding recurring instances?
       if ($allow_recurring && $items[$delta]->rrule) {
+        if (!empty($deleted_rrules[$items[$delta]->rrule])) {
+          $element['#access'] = FALSE;
+          return $element;
+        }
         $rrule = SmartDateRule::load($items[$delta]->rrule);
         // @todo log nonexistent rrule values?
         if ($rrule) {
@@ -139,8 +148,8 @@ class SmartDateWidgetBase extends DateTimeWidgetBase {
       }
       $defaults = $this->fieldDefinition->getDefaultValueLiteral()[0];
       $timezone = $items[$delta]->timezone ?? date_default_timezone_get();
-      $values['start'] = !empty($items[$delta]->value) ? DrupalDateTime::createFromTimestamp($items[$delta]->value, $timezone) : '';
-      $values['end'] = !empty($items[$delta]->end_value) ? DrupalDateTime::createFromTimestamp($items[$delta]->end_value, $timezone) : '';
+      $values['start'] = !empty($items[$delta]->value) && is_numeric($items[$delta]->value) ? DrupalDateTime::createFromTimestamp($items[$delta]->value, $timezone) : '';
+      $values['end'] = !empty($items[$delta]->end_value) && is_numeric($items[$delta]->end_value) ? DrupalDateTime::createFromTimestamp($items[$delta]->end_value, $timezone) : '';
       $values['duration'] = $items[$delta]->duration ?? $defaults['default_duration'];
       $values['timezone'] = $items[$delta]->timezone ?? '';
     }
@@ -399,19 +408,41 @@ class SmartDateWidgetBase extends DateTimeWidgetBase {
       // @phpstan-ignore-next-line
       $month_limit = \Drupal::service('smart_date_recur.manager')->getMonthsLimit($field_def);
 
-      // If form is inline form get entity from it.
-      $entity = NULL;
-      if (!empty($form['#type']) && $form['#type'] == 'inline_entity_form') {
-        $entity = $form['#entity'] ?? NULL;
-      }
-
-      if (!($entity instanceof EntityInterface)) {
-        $entity = $form_state->getformObject()->getEntity();
-      }
-
-      $entity_type = $entity->getEntityTypeId();
-      $bundle = $entity->bundle();
       $field_name = $field_def->getName();
+
+      // Determine the entity type and bundle that actually host this field.
+      // When the field is nested inside Paragraphs (or other inline/nested
+      // entities), the form's root entity (e.g. the host node) is NOT the
+      // field's host. Relying on it caused recurrence rules to be stored
+      // against the wrong entity type, breaking retrieval. Derive the host
+      // from the field definition instead, which always targets the real
+      // entity type and bundle the field is attached to.
+      $entity_type = NULL;
+      $bundle = NULL;
+      if (method_exists($field_def, 'getTargetEntityTypeId')) {
+        $entity_type = $field_def->getTargetEntityTypeId();
+      }
+      if (method_exists($field_def, 'getTargetBundle')) {
+        $bundle = $field_def->getTargetBundle();
+      }
+
+      // Fallback for base/custom field definitions that don't expose targets.
+      if (empty($entity_type) || empty($bundle)) {
+        $entity = NULL;
+        if (!empty($form['#type']) && $form['#type'] == 'inline_entity_form') {
+          $entity = $form['#entity'] ?? NULL;
+        }
+        if (!($entity instanceof EntityInterface)) {
+          $entity = $form_state->getformObject()->getEntity();
+        }
+        if (empty($entity_type)) {
+          $entity_type = $entity->getEntityTypeId();
+        }
+        if (empty($bundle)) {
+          $bundle = $entity->bundle();
+        }
+      }
+
       smart_date_recur_generate_rows($values, $entity_type, $bundle, $field_name, $month_limit);
     }
 
@@ -479,9 +510,55 @@ class SmartDateWidgetBase extends DateTimeWidgetBase {
       if ($start_time->getTimestamp() !== $end_time->getTimestamp()) {
         $interval = $start_time->diff($end_time);
         if ($interval->invert === 1) {
-          $form_state->setError($element, t('The @title end date cannot be before the start date', ['@title' => $element['#title']]));
+          if (isset($element['time_wrapper']['end_value']) && empty($element['end_value'])) {
+            $end_element = $element['time_wrapper']['end_value'];
+          }
+          else {
+            $end_element = $element['end_value'] ?? $element;
+          }
+          $form_state->setError($end_element, t('The @title end date cannot be before the start date', ['@title' => $element['#title']]));
         }
       }
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function deleteSubmit(&$form, FormStateInterface $form_state) {
+    $button = $form_state->getTriggeringElement();
+    $delta = (int) ($button['#delta'] ?? -1);
+    $array_parents = array_slice($button['#array_parents'] ?? [], 0, -4);
+    $parent_element = NestedArray::getValue($form, array_merge($array_parents, ['widget'])) ?? [];
+
+    if (!$parent_element) {
+      parent::deleteSubmit($form, $form_state);
+      return;
+    }
+
+    $field_name = $parent_element['#field_name'] ?? NULL;
+    $parents = $parent_element['#field_parents'] ?? [];
+    $field_parents = $parent_element['#parents'] ?? NULL;
+    $rrule_to_remove = $button['#rrule'] ?? NULL;
+
+    if (!$rrule_to_remove && $field_parents) {
+      $user_input = $form_state->getUserInput();
+      $exists = FALSE;
+      $field_input = NestedArray::getValue($user_input, $field_parents, $exists);
+      if ($exists && isset($field_input[$delta]['rrule']) && $field_input[$delta]['rrule']) {
+        $rrule_to_remove = $field_input[$delta]['rrule'];
+      }
+    }
+
+    parent::deleteSubmit($form, $form_state);
+
+    if ($field_name && $rrule_to_remove) {
+      $field_state = static::getWidgetState($parents, $field_name, $form_state) ?? [];
+      if (empty($field_state['deleted_rrules'])) {
+        $field_state['deleted_rrules'] = [];
+      }
+      $field_state['deleted_rrules'][$rrule_to_remove] = TRUE;
+      static::setWidgetState($parents, $field_name, $form_state, $field_state);
     }
   }
 
@@ -494,11 +571,10 @@ class SmartDateWidgetBase extends DateTimeWidgetBase {
    * - table display and drag-n-drop value reordering.
    */
   protected function formMultipleElements(FieldItemListInterface $items, array &$form, FormStateInterface $form_state) {
-    $field_name = $this->fieldDefinition
-      ->getName();
-    $cardinality = $this->fieldDefinition
-      ->getFieldStorageDefinition()
-      ->getCardinality();
+    $field_name = $this->fieldDefinition->getName();
+    $cardinality = $this->fieldDefinition->getFieldStorageDefinition()->getCardinality();
+    $is_multiple = $this->fieldDefinition->getFieldStorageDefinition()->isMultiple();
+    $is_unlimited_not_programmed = FALSE;
     $parents = $form['#parents'];
 
     // Determine the number of widgets to display.
@@ -506,47 +582,49 @@ class SmartDateWidgetBase extends DateTimeWidgetBase {
       case FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED:
         $field_state = static::getWidgetState($parents, $field_name, $form_state);
         $max = $field_state['items_count'];
-        $is_multiple = TRUE;
+        $is_unlimited_not_programmed = !$form_state->isProgrammed();
         break;
 
       default:
         $max = $cardinality - 1;
-        $is_multiple = $cardinality > 1;
         break;
-
     }
 
-    // If configured and a default value set, suppress the extra input.
-    $field_default = $this->fieldDefinition->getDefaultValueLiteral();
-    $default_date_type = $field_default[0]['default_date_type'] ?? '';
-    if ($max > 0 && !$this->getSetting('show_extra') && $default_date_type) {
+    // If configured, suppress the extra empty input row.
+    if ($max > 0 && !$this->getSetting('show_extra')) {
       $max -= 1;
     }
 
-    $title = $this->fieldDefinition
-      ->getLabel();
-    // @phpstan-ignore-next-line
-    $description = FieldFilteredMarkup::create(\Drupal::token()
-      ->replace($this->fieldDefinition
-        ->getDescription()));
-    $elements = [];
-    for ($delta = 0; $delta <= $max; $delta++) {
+    $title = $this->fieldDefinition->getLabel();
+    $description = $this->getFilteredDescription();
+    $id_prefix = implode('-', array_merge($parents, [$field_name]));
+    $wrapper_id = Html::getUniqueId($id_prefix . '-add-more-wrapper');
 
-      // Add a new empty item if it doesn't exist yet at this delta.
+    $elements = [];
+
+    for ($delta = 0; $delta <= $max; $delta++) {
+      // Add a new item if it doesn't exist yet at this delta, pre-populated
+      // with the field's configured default value when one is set.
       if (!isset($items[$delta])) {
-        $items
-          ->appendItem();
+        $default_value = [];
+        if ($this->fieldDefinition->getType() === 'smartdate') {
+          $literal = $this->fieldDefinition->getDefaultValueLiteral();
+          if (!empty($literal[0]['default_date_type'])) {
+            $default_value = SmartDateFieldItemList::processDefaultValue(
+              $literal,
+              $items->getEntity(),
+              $this->fieldDefinition
+            );
+          }
+        }
+        $items->appendItem($default_value[0] ?? []);
       }
 
       // For multiple fields, title and description are handled by the wrapping
       // table.
       if ($is_multiple) {
         $element = [
-          '#title' => $this
-            ->t('@title (value @number)', [
-              '@title' => $title,
-              '@number' => $delta + 1,
-            ]),
+          '#title' => $this->t('@title (value @number)', ['@title' => $title, '@number' => $delta + 1]),
           '#title_display' => 'invisible',
           '#description' => '',
         ];
@@ -558,86 +636,88 @@ class SmartDateWidgetBase extends DateTimeWidgetBase {
           '#description' => $description,
         ];
       }
-      $element = $this
-        ->formSingleElement($items, $delta, $element, $form, $form_state);
-      if ($element && (!isset($element['#access']) || $element['#access'] !== FALSE)) {
+      $element = $this->formSingleElement($items, $delta, $element, $form, $form_state);
 
+      if ($element && (!isset($element['#access']) || $element['#access'] !== FALSE)) {
         // Input field for the delta (drag-n-drop reordering).
         if ($is_multiple) {
-
           // We name the element '_weight' to avoid clashing with elements
           // defined by widget.
           $element['_weight'] = [
             '#type' => 'weight',
-            '#title' => $this
-              ->t('Weight for row @number', [
-                '@number' => $delta + 1,
-              ]),
+            '#title' => $this->t('Weight for row @number', ['@number' => $delta + 1]),
             '#title_display' => 'invisible',
             // Note: this 'delta' is the FAPI #type 'weight' element's property.
             '#delta' => $max,
             '#default_value' => $items[$delta]->_weight ?: $delta,
             '#weight' => 100,
           ];
+
+          // Add 'remove' button, if not working with a programmed form.
+          if ($is_unlimited_not_programmed) {
+            $remove_button = [
+              '#delta' => $delta,
+              '#name' => str_replace('-', '_', $id_prefix) . "_{$delta}_remove_button",
+              '#type' => 'submit',
+              '#value' => $this->t('Remove'),
+              '#validate' => [],
+              '#submit' => [[static::class, 'deleteSubmit']],
+              '#limit_validation_errors' => [],
+              '#ajax' => [
+                'callback' => [static::class, 'deleteAjax'],
+                'wrapper' => $wrapper_id,
+                'effect' => 'fade',
+              ],
+            ];
+            if (!empty($items[$delta]->rrule)) {
+              $remove_button['#rrule'] = $items[$delta]->rrule;
+            }
+
+            $element['_actions'] = [
+              'delete' => $remove_button,
+              '#weight' => 101,
+            ];
+          }
         }
+
         $elements[$delta] = $element;
       }
     }
-    if ($elements) {
-      $elements += [
-        '#theme' => 'field_multiple_value_form',
-        '#field_name' => $field_name,
-        '#cardinality' => $cardinality,
-        '#cardinality_multiple' => $this->fieldDefinition
-          ->getFieldStorageDefinition()
-          ->isMultiple(),
-        '#required' => $this->fieldDefinition
-          ->isRequired(),
-        '#title' => $title,
-        '#description' => $description,
-        '#max_delta' => $max,
-      ];
+    $elements += [
+      '#theme' => 'field_multiple_value_form',
+      '#field_name' => $field_name,
+      '#cardinality' => $cardinality,
+      '#cardinality_multiple' => $is_multiple,
+      '#required' => $this->fieldDefinition->isRequired(),
+      '#title' => $title,
+      '#description' => $description,
+      '#max_delta' => $max,
+    ];
 
-      // Add 'add more' button, if not working with a programmed form.
-      if ($cardinality == FieldStorageDefinitionInterface::CARDINALITY_UNLIMITED && !$form_state
-        ->isProgrammed()) {
-        $id_prefix = implode('-', array_merge($parents, [
-          $field_name,
-        ]));
-        $wrapper_id = Html::getUniqueId($id_prefix . '-add-more-wrapper');
-        $elements['#prefix'] = '<div id="' . $wrapper_id . '">';
-        $elements['#suffix'] = '</div>';
-        $elements['add_more'] = [
-          '#type' => 'submit',
-          '#name' => strtr($id_prefix, '-', '_') . '_add_more',
-          '#value' => $this->t('Add another item'),
-          '#attributes' => [
-            'class' => [
-              'field-add-more-submit',
-            ],
-          ],
-          '#limit_validation_errors' => [
-            array_merge($parents, [
-              $field_name,
-            ]),
-          ],
-          '#submit' => [
-            [
-              get_class($this),
-              'addMoreSubmit',
-            ],
-          ],
-          '#ajax' => [
-            'callback' => [
-              get_class($this),
-              'addMoreAjax',
-            ],
-            'wrapper' => $wrapper_id,
-            'effect' => 'fade',
-          ],
-        ];
-      }
+    // Add 'add more' button, if not working with a programmed form.
+    if ($is_unlimited_not_programmed) {
+      $elements['#prefix'] = '<div id="' . $wrapper_id . '">';
+      $elements['#suffix'] = '</div>';
+
+      $elements['add_more'] = [
+        '#type' => 'submit',
+        '#name' => str_replace('-', '_', $id_prefix) . '_add_more',
+        '#value' => $this->t('Add another item'),
+        '#attributes' => ['class' => ['field-add-more-submit']],
+        '#limit_validation_errors' => [
+          array_merge($parents, [
+            $field_name,
+          ]),
+        ],
+        '#submit' => [[static::class, 'addMoreSubmit']],
+        '#ajax' => [
+          'callback' => [static::class, 'addMoreAjax'],
+          'wrapper' => $wrapper_id,
+          'effect' => 'fade',
+        ],
+      ];
     }
+
     return $elements;
   }
 

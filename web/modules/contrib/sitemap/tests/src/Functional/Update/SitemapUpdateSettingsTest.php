@@ -15,6 +15,11 @@ class SitemapUpdateSettingsTest extends UpdatePathTestBase {
   /**
    * {@inheritdoc}
    */
+  protected static $modules = ['block', 'sitemap'];
+
+  /**
+   * {@inheritdoc}
+   */
   protected $defaultTheme = 'stark';
 
   /**
@@ -59,6 +64,10 @@ class SitemapUpdateSettingsTest extends UpdatePathTestBase {
 
     // Test sitemap_update_8205().
     $this->assertEquals(9, $new_settings->get('plugins.menu:main.settings.menu_depth'));
+
+    // Test sitemap_post_update_sitemap_syndicate_block().
+    $this->assertEmpty($new_settings->get('rss_front'));
+    $this->assertEquals('/dolor.sit', \Drupal::config('block.block.sitemap_syndicate_stark')->get('settings.rss_feed_path'));
   }
 
 }

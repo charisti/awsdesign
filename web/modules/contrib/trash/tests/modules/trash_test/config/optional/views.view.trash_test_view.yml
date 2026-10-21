@@ -8,7 +8,7 @@ label: trash_test_view
 module: views
 description: 'Various test views'
 tag: ''
-base_table: trash_test
+base_table: trash_test_field_data
 base_field: id
 core: 8.x
 display:
@@ -67,7 +67,7 @@ display:
       fields:
         id:
           id: id
-          table: trash_test
+          table: trash_test_field_data
           field: id
           relationship: none
           group_type: group
@@ -135,7 +135,7 @@ display:
       sorts:
         id:
           id: id
-          table: trash_test
+          table: trash_test_field_data
           field: id
           relationship: none
           group_type: group
@@ -190,17 +190,19 @@ display:
         filters: false
         filter_groups: false
       filters:
-        Deleted:
-          id: Deleted
-          table: trash_test
-          field: Deleted
+        deleted:
+          id: deleted
+          table: trash_test_field_data
+          field: deleted
           relationship: none
           group_type: group
           admin_label: ''
-          operator: '>'
+          operator: '<='
           value:
-            value: '0'
-            type: 'date'
+            min: ''
+            max: ''
+            value: now
+            type: offset
           group: 1
           exposed: false
           expose:
@@ -209,12 +211,17 @@ display:
             description: ''
             use_operator: false
             operator: ''
+            operator_limit_selection: false
+            operator_list: {  }
             identifier: ''
             required: false
             remember: false
             multiple: false
             remember_roles:
               authenticated: authenticated
+            min_placeholder: ''
+            max_placeholder: ''
+            placeholder: ''
           is_grouped: false
           group_info:
             label: ''
@@ -228,7 +235,79 @@ display:
             default_group_multiple: {  }
             group_items: {  }
           entity_type: trash_test_entity
-          entity_field: Deleted
+          entity_field: deleted
+          plugin_id: date
+      filter_groups:
+        operator: AND
+        groups:
+          1: AND
+    cache_metadata:
+      max-age: -1
+      contexts:
+        - 'languages:language_content'
+        - 'languages:language_interface'
+        - url.query_args
+      tags: {  }
+  page_3:
+    display_plugin: page
+    id: page_3
+    display_title: 'Page 3'
+    position: 3
+    display_options:
+      display_extenders: {  }
+      path: trash-test-not-empty
+      title: 'trash_test not empty deleted'
+      defaults:
+        title: false
+        filters: false
+        filter_groups: false
+      filters:
+        deleted:
+          id: deleted
+          table: trash_test_field_data
+          field: deleted
+          relationship: none
+          group_type: group
+          admin_label: ''
+          operator: 'not empty'
+          value:
+            min: ''
+            max: ''
+            value: ''
+            type: date
+          group: 1
+          exposed: false
+          expose:
+            operator_id: ''
+            label: ''
+            description: ''
+            use_operator: false
+            operator: ''
+            operator_limit_selection: false
+            operator_list: {  }
+            identifier: ''
+            required: false
+            remember: false
+            multiple: false
+            remember_roles:
+              authenticated: authenticated
+            min_placeholder: ''
+            max_placeholder: ''
+            placeholder: ''
+          is_grouped: false
+          group_info:
+            label: ''
+            description: ''
+            identifier: ''
+            optional: true
+            widget: select
+            multiple: false
+            remember: false
+            default_group: All
+            default_group_multiple: {  }
+            group_items: {  }
+          entity_type: trash_test_entity
+          entity_field: deleted
           plugin_id: date
       filter_groups:
         operator: AND

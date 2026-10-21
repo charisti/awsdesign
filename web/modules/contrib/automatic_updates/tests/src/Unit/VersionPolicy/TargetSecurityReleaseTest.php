@@ -8,12 +8,15 @@ use Drupal\automatic_updates\Validator\VersionPolicy\TargetSecurityRelease;
 use Drupal\update\ProjectRelease;
 use Drupal\Tests\automatic_updates\Traits\VersionPolicyTestTrait;
 use Drupal\Tests\UnitTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
- * @covers \Drupal\automatic_updates\Validator\VersionPolicy\TargetSecurityRelease
- * @group automatic_updates
  * @internal
  */
+#[Group('automatic_updates')]
+#[CoversClass(TargetSecurityRelease::class)]
 class TargetSecurityReleaseTest extends UnitTestCase {
 
   use VersionPolicyTestTrait;
@@ -59,9 +62,8 @@ class TargetSecurityReleaseTest extends UnitTestCase {
    *   The available releases of Drupal core, keyed by version.
    * @param string[] $expected_errors
    *   The expected error messages, if any.
-   *
-   * @dataProvider providerTargetSecurityRelease
    */
+  #[DataProvider('providerTargetSecurityRelease')]
   public function testTargetSecurityRelease(array $available_releases, array $expected_errors): void {
     $rule = new TargetSecurityRelease();
     $this->assertPolicyErrors($rule, '9.8.0', '9.8.1', $expected_errors, $available_releases);

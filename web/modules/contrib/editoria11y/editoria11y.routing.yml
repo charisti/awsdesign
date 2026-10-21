@@ -6,6 +6,14 @@ editoria11y.settings:
   requirements:
     _permission: 'administer editoria11y checker'
 
+editoria11y.demo:
+  path: '/admin/config/content/editoria11y/demo'
+  defaults:
+    _controller: '\Drupal\editoria11y\Controller\DemoController::demo'
+    _title: 'Demo'
+  requirements:
+    _permission: 'administer editoria11y checker'
+
 editoria11y.reports_dashboard:
   path: '/admin/reports/editoria11y'
   defaults:

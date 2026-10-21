@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Drupal\migrate_plus\Plugin\migrate\process;
 
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateExecutableInterface;
-use Drupal\migrate\Row;
 use Drupal\migrate\ProcessPluginBase;
+use Drupal\migrate\Row;
 
 /**
  * Exchange rows and columns.
@@ -64,11 +65,8 @@ use Drupal\migrate\ProcessPluginBase;
  * [[url0, text0], [url1, text1], [url2, text2]].
  * Inside sub_process, the extract plugin in this example takes each
  * [url, text] subarray and assigns uri: url, title: text.
- *
- * @MigrateProcessPlugin(
- *   id = "transpose"
- * )
  */
+#[MigrateProcess(id: 'transpose')]
 class Transpose extends ProcessPluginBase {
 
   /**

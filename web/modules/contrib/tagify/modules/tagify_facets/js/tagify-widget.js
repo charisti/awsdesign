@@ -5,6 +5,7 @@
 
 // eslint-disable-next-line func-names
 (function ($, Drupal, once) {
+  // cspell:ignore whitelist
   Drupal.facets = Drupal.facets || {};
 
   // eslint-disable-next-line func-names
@@ -127,7 +128,9 @@
               10,
             ),
             maxItems:
-              settings.tagify.tagify_facets_widget.max_items ?? Infinity,
+              Number(settings.tagify.tagify_facets_widget.max_items) === 0
+                ? Infinity
+                : Number(settings.tagify.tagify_facets_widget.max_items),
           },
           templates: {
             tag: tagTemplate,
@@ -143,17 +146,6 @@
         });
 
         /**
-         * Binds Sortable to Tagify's main element and specifies draggable items.
-         */
-        Sortable.create(tagify.DOM.scope, {
-          draggable: `.${tagify.settings.classNames.tag}:not(tagify__input)`,
-          forceFallback: true,
-          onEnd() {
-            tagify.updateValueByDOMTags();
-          },
-        });
-
-        /**
          * Listens to add tag event and updates facets values accordingly.
          */
 
@@ -162,7 +154,9 @@
           const value = e.detail?.data?.value;
           if (!value) return;
           e.preventDefault();
-          $widget.trigger('facets_filter', [value]);
+          if ($widgetLinks.filter(`[href="${value}"]`).length > 0) {
+            $widget.trigger('facets_filter', [value]);
+          }
         });
 
         /**

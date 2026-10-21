@@ -11,7 +11,7 @@ dependencies:
   - drupal:views
   - drupal:block
 
-# Information added by Drupal.org packaging script on 2025-09-05
-version: '1.2.42'
+# Information added by Drupal.org packaging script on 2026-10-07
+version: '1.2.55'
 project: 'tagify'
-datestamp: 1757084236
+datestamp: 1791358131

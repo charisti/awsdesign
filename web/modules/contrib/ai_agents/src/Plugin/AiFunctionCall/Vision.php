@@ -82,7 +82,7 @@ class Vision extends FunctionCallBase implements ExecutableFunctionCallInterface
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Collect the context values.
     $prompt = $this->getContextValue('prompt');
     $image_id = $this->getContextValue('image_id');
@@ -93,9 +93,11 @@ class Vision extends FunctionCallBase implements ExecutableFunctionCallInterface
       return;
     }
     $provider = $this->aiProviderManager->createInstance($default['provider_id']);
-    $prompt = "Could you describe this image?\n";
-    if ($prompt) {
-      $prompt .= "Take the following into account: " . $prompt;
+
+    // If no prompt was provided, use a default one.
+    $final_prompt = "Could you describe this image?";
+    if (!empty($prompt)) {
+      $final_prompt .= "\nTake the following into account: " . $prompt;
     }
     $file = $this->entityTypeManager->getStorage('file')->load($image_id);
     // Make sure it exists and that the user has access to the file.
@@ -107,7 +109,7 @@ class Vision extends FunctionCallBase implements ExecutableFunctionCallInterface
     $image->setFileFromFile($file);
     $images = [$image];
     $input = new ChatInput([
-      new ChatMessage('user', $prompt, $images),
+      new ChatMessage('user', $final_prompt, $images),
     ]);
     $response = $provider->chat($input, $default['model_id'], [
       'vision_tool',

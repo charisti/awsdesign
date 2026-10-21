@@ -14,13 +14,13 @@ use Drupal\ai\AiProviderPluginManager;
 use Drupal\ai\OperationType\Chat\ChatInput;
 use Drupal\ai\OperationType\Chat\ChatMessage;
 use Drupal\ai\OperationType\Chat\StreamedChatMessageIteratorInterface;
+use Drupal\ai\Response\AiStreamedResponse;
 use Drupal\ai_ckeditor\PluginInterfaces\AiCKEditorPluginInterface;
 use Drupal\ai_ckeditor\PluginManager\AiCKEditorPluginManager;
 use Drupal\editor\EditorInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Returns responses for CKEditor integration routes.
@@ -87,10 +87,10 @@ class AiRequest implements ContainerInjectionInterface {
    * @param \Drupal\ai_ckeditor\PluginInterfaces\AiCKEditorPluginInterface $ai_ckeditor_plugin
    *   The CK Editor plugin.
    *
-   * @return \Symfony\Component\HttpFoundation\StreamedResponse|\Symfony\Component\HttpFoundation\Response
+   * @return \Drupal\ai\Response\AiStreamedResponse|\Symfony\Component\HttpFoundation\Response
    *   The AI response.
    */
-  public function doRequest(Request $request, EditorInterface $editor, AiCKEditorPluginInterface $ai_ckeditor_plugin): StreamedResponse|Response {
+  public function doRequest(Request $request, EditorInterface $editor, AiCKEditorPluginInterface $ai_ckeditor_plugin): AiStreamedResponse|Response {
     $data = json_decode($request->getContent());
 
     try {
@@ -111,7 +111,7 @@ class AiRequest implements ContainerInjectionInterface {
             '%ai_settings_link' => Link::createFromRoute($this->t('AI settings'), 'ai.settings_form')
               ->toString(),
           ]));
-          throw new \exception('No AI provider is set for chat. Please configure one in the AI default settings or in the ai_content settings form.');
+          throw new \Exception('No AI provider is set for chat. Please configure one in the AI default settings or in the ai_content settings form.');
         }
         $ai_provider = $this->aiProviderManager->createInstance($default_provider['provider_id']);
         $ai_model = $default_provider['model_id'];
@@ -137,29 +137,28 @@ class AiRequest implements ContainerInjectionInterface {
       }
       $data->prompt = "Do not try to use any image, video, or audio tags. Do not use backticks or ```html indicator." . $data->prompt;
 
+      // Build the system prompt.
+      $system_prompt = 'You are a helpful website assistant for content writing and editing.';
+      $system_prompt .= ' Do not give responses in the first, second or third person form. Do not add any commentary to the answer.';
+
       $messages = new ChatInput([
         new ChatMessage('user', $data->prompt),
       ]);
 
       // Add the system message.
       $messages->setStreamedOutput(TRUE);
-      $messages->setSystemPrompt('You are helpful website assistant for content writing and editing. Do not give responses in the first, second or third person form. Do not add any commentary to the answer.');
+      $messages->setSystemPrompt($system_prompt);
 
       /** @var \Drupal\ai\OperationType\Chat\StreamedChatMessageIteratorInterface $response */
       $response = $ai_provider->chat($messages, $ai_model, ['ai_ckeditor'])->getNormalized();
 
       if ($response instanceof StreamedChatMessageIteratorInterface) {
-        return new StreamedResponse(function () use ($response) {
+        return new AiStreamedResponse(function () use ($response) {
           foreach ($response as $message) {
             echo $message->getText();
-            ob_flush();
             flush();
           }
-        }, 200, [
-          'Cache-Control' => 'no-cache, must-revalidate',
-          'Content-Type' => 'text/event-stream',
-          'X-Accel-Buffering' => 'no',
-        ]);
+        });
       }
       else {
         return new Response($response->getText());

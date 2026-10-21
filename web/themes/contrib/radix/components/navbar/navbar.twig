@@ -8,6 +8,9 @@
  * - placement: default | fixed-top | fixed-bottom | sticky-top
  * - navbar_expand: sm | md | lg | xl | false
  * - navbar_theme: dark | light (default: light)
+ * - navbar_id: A unique ID for the collapsible content, used to scope the
+ *   toggle button so multiple navbars can coexist on the same page.
+ *   (default: navbar-collapse-random(1000))
  * - navbar_utility_classes: An array of utility classes.
  *
  * Available blocks:
@@ -22,6 +25,7 @@
 {% set placement = placement ?? '' %}
 {% set navbar_expand = navbar_expand ?? 'lg' %}
 {% set navbar_theme = navbar_theme ?? null %}
+{% set navbar_id = navbar_id|default('navbar-collapse-' ~ random(1000)) %}
 
 {%
   set navbar_container_classes = [
@@ -49,12 +53,12 @@
     {% endblock %}
 
     {% block navbar_toggler %}
-      <button class="navbar-toggler collapsed" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+      <button class="navbar-toggler collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#{{ navbar_id }}" aria-controls="{{ navbar_id }}" aria-expanded="false" aria-label="{{ 'Toggle navigation'|t }}">
         <span class="navbar-toggler-icon"></span>
       </button>
     {% endblock %}
 
-    <div class="collapse navbar-collapse">
+    <div id="{{ navbar_id }}" class="collapse navbar-collapse">
       {% block left %}
         {{ left }}
       {% endblock %}

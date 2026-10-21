@@ -13,17 +13,22 @@ use Drupal\KernelTests\KernelTestBase;
 use Drupal\migrate\MigrateExecutable;
 use Drupal\migrate\MigrateMessageInterface;
 use Drupal\migrate\Plugin\MigrationPluginManager;
+use Drupal\migrate_plus\Plugin\migrate\process\EntityGenerate;
 use Drupal\node\Entity\NodeType;
 use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\Tests\field\Traits\EntityReferenceFieldCreationTrait;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the migration plugin.
- *
- * @coversDefaultClass \Drupal\migrate_plus\Plugin\migrate\process\EntityGenerate
- * @group migrate_plus
  */
+#[CoversClass(EntityGenerate::class)]
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 final class EntityGenerateTest extends KernelTestBase implements MigrateMessageInterface {
 
   use EntityReferenceFieldCreationTrait;
@@ -61,7 +66,7 @@ final class EntityGenerateTest extends KernelTestBase implements MigrateMessageI
   /**
    * The migration plugin manager.
    */
-  protected ?MigrationPluginManager $migrationPluginManager;
+  protected ?MigrationPluginManager $migrationPluginManager = NULL;
 
   /**
    * {@inheritdoc}
@@ -123,9 +128,8 @@ final class EntityGenerateTest extends KernelTestBase implements MigrateMessageI
    * Tests generating an entity.
    *
    * @dataProvider transformDataProvider
-   *
-   * @covers ::transform
    */
+  #[DataProvider('transformDataProvider')]
   public function testTransform(array $definition, array $expected, array $preSeed = []): void {
     // Pre seed some test data.
     foreach ($preSeed as $storageName => $values) {
@@ -145,7 +149,6 @@ final class EntityGenerateTest extends KernelTestBase implements MigrateMessageI
     $migration = $this->migrationPluginManager->createStubMigration($definition);
     $reflector = new \ReflectionObject($migration->getDestinationPlugin());
     $attribute = $reflector->getProperty('storage');
-    $attribute->setAccessible(TRUE);
     /** @var \Drupal\Core\Entity\EntityStorageBase $storage */
     $storage = $attribute->getValue($migration->getDestinationPlugin());
     $migrationExecutable = (new MigrateExecutable($migration, $this));

@@ -7,6 +7,7 @@ namespace Drupal\migrate_plus\Plugin\migrate\process;
 use Drupal\Core\File\FileExists;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\ProcessPluginBase;
 use Drupal\migrate\Row;
@@ -68,17 +69,9 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * concatenating the base filename with the destination directory set in the
  * constants to create the final path. The resulting values are then referenced
  * as the source of the file_blob plugin.
- *
- * @MigrateProcessPlugin(
- *   id = "file_blob"
- * )
  */
+#[MigrateProcess(id: 'file_blob')]
 class FileBlob extends ProcessPluginBase implements ContainerFactoryPluginInterface {
-
-  /**
-   * The filesystem service.
-   */
-  protected FileSystemInterface $fileSystem;
 
   /**
    * Constructs a file_blob process plugin.
@@ -89,15 +82,19 @@ class FileBlob extends ProcessPluginBase implements ContainerFactoryPluginInterf
    *   The plugin ID.
    * @param mixed $plugin_definition
    *   The plugin definition.
-   * @param \Drupal\Core\File\FileSystemInterface $file_system
+   * @param \Drupal\Core\File\FileSystemInterface $fileSystem
    *   The file system service.
    */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, FileSystemInterface $file_system) {
+  public function __construct(
+    array $configuration,
+    $plugin_id,
+    $plugin_definition,
+    protected FileSystemInterface $fileSystem,
+  ) {
     $configuration += [
       'reuse' => FALSE,
     ];
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->fileSystem = $file_system;
   }
 
   /**
@@ -131,11 +128,13 @@ class FileBlob extends ProcessPluginBase implements ContainerFactoryPluginInterf
     $success = $this->fileSystem->prepareDirectory($dir, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
     if (!$success) {
       $this->stopPipeline();
+      return NULL;
     }
 
     // Attempt to save the file.
     if (!$this->putFile($destination, $blob, $replace)) {
       $this->stopPipeline();
+      return NULL;
     }
 
     return $destination;
@@ -199,7 +198,7 @@ class FileBlob extends ProcessPluginBase implements ContainerFactoryPluginInterf
    */
   protected function getDirectory(string $uri) {
     $dir = $this->fileSystem->dirname($uri);
-    if (substr($dir, -3) === '://') {
+    if (str_ends_with($dir, '://')) {
       return $this->fileSystem->realpath($dir);
     }
     return $dir;

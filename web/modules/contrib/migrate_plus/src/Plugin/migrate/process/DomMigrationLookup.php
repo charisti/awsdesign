@@ -6,6 +6,7 @@ namespace Drupal\migrate_plus\Plugin\migrate\process;
 
 use Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\migrate\Attribute\MigrateProcess;
 use Drupal\migrate\MigrateExecutableInterface;
 use Drupal\migrate\Plugin\MigratePluginManagerInterface;
 use Drupal\migrate\Plugin\MigrationInterface;
@@ -62,22 +63,9 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  *       plugin: dom
  *       method: export
  * @endcode
- *
- * @MigrateProcessPlugin(
- *   id = "dom_migration_lookup"
- * )
  */
+#[MigrateProcess(id: 'dom_migration_lookup')]
 class DomMigrationLookup extends DomStrReplace implements ContainerFactoryPluginInterface {
-
-  /**
-   * The migration.
-   */
-  protected MigrationInterface $migration;
-
-  /**
-   * The migrate plugin manager.
-   */
-  protected MigratePluginManagerInterface $processPluginManager;
 
   /**
    * Parameters passed to transform method, except the first, value.
@@ -86,10 +74,13 @@ class DomMigrationLookup extends DomStrReplace implements ContainerFactoryPlugin
    */
   protected array $transformParameters = [];
 
-  /**
-   * {@inheritdoc}
-   */
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, MigrationInterface $migration, MigratePluginManagerInterface $process_plugin_manager) {
+  public function __construct(
+    array $configuration,
+    $plugin_id,
+    $plugin_definition,
+    protected MigrationInterface $migration,
+    protected MigratePluginManagerInterface $processPluginManager,
+  ) {
     $configuration += ['no_stub' => TRUE];
     $default_replace_missing = empty($configuration['replace']);
     if ($default_replace_missing) {
@@ -99,8 +90,6 @@ class DomMigrationLookup extends DomStrReplace implements ContainerFactoryPlugin
     if ($default_replace_missing) {
       unset($this->configuration['replace']);
     }
-    $this->migration = $migration;
-    $this->processPluginManager = $process_plugin_manager;
     if (empty($this->configuration['migrations'])) {
       throw new InvalidPluginDefinitionException(
         $this->getPluginId(),

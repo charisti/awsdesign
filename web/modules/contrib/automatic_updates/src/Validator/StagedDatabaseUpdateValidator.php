@@ -39,6 +39,7 @@ final class StagedDatabaseUpdateValidator implements EventSubscriberInterface {
 
     $invalid_extensions = $this->stagedDBUpdateValidator->getExtensionsWithDatabaseUpdates($sandbox_manager->getSandboxDirectory());
     if ($invalid_extensions) {
+      // phpcs:ignore
       $invalid_extensions = array_map($this->t(...), $invalid_extensions);
       $event->addError($invalid_extensions, $this->t('The update cannot proceed because database updates have been detected in the following extensions.'));
     }

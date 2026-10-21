@@ -8,7 +8,7 @@ use Drupal\Core\Extension\ModuleExtensionList;
 use Drupal\Core\File\FileExists;
 use Drupal\Core\File\FileSystem;
 use Drupal\Core\File\FileSystemInterface;
-use Drupal\Core\Messenger\Messenger;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\eca\Entity\Eca;
 
@@ -33,7 +33,7 @@ class ExportRecipe {
    *   The module extension list.
    * @param \Drupal\eca\Service\Modellers $modellerService
    *   The ECA modeller service.
-   * @param \Drupal\Core\Messenger\Messenger $messenger
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
    *   The messenger.
    */
   public function __construct(
@@ -41,7 +41,7 @@ class ExportRecipe {
     protected readonly FileSystemInterface $fileSystem,
     protected readonly ModuleExtensionList $moduleExtensionList,
     protected readonly Modellers $modellerService,
-    protected readonly Messenger $messenger,
+    protected readonly MessengerInterface $messenger,
   ) {}
 
   /**

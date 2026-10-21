@@ -14,6 +14,7 @@ use Drupal\project_browser\ComposerInstaller\Installer;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the CoreNotUpdatedValidator class.
@@ -22,6 +23,7 @@ use PHPUnit\Framework\Attributes\Group;
  */
 #[CoversClass(CoreNotUpdatedValidator::class)]
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class CoreNotUpdatedValidatorTest extends PackageManagerKernelTestBase {
 
   /**
@@ -81,7 +83,7 @@ final class CoreNotUpdatedValidatorTest extends PackageManagerKernelTestBase {
       $this->getStageFixtureManipulator()?->setCorePackageVersion('9.8.1');
     }
     /** @var \Drupal\project_browser\ComposerInstaller\Installer $installer */
-    $installer = $this->container->get(Installer::class);
+    $installer = \Drupal::service(Installer::class);
     $installer->create();
     $installer->require(['org/package-name']);
     try {

@@ -7,8 +7,10 @@
 
 use Drupal\Component\Utility\NestedArray;
 use Drupal\Component\Utility\Unicode;
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
+use Drupal\link\AttributeXss;
 use Drupal\menu_link_content\MenuLinkContentInterface;
 
 /**
@@ -87,6 +89,11 @@ function menu_link_attributes_form_menu_link_content_form_alter(array &$form, Fo
       $attribute_formatted = preg_replace('/^container_/', '', $attribute);
     }
 
+    // Never offer attributes that could inject markup or scripts.
+    if (!menu_link_attributes_is_allowed_attribute_name($attribute_formatted)) {
+      continue;
+    }
+
     // Provide default label / description for attributes.
     if (empty($info['label'])) {
       $info['label'] = str_replace('-', ' ', Unicode::ucfirst($attribute_formatted));
@@ -147,7 +154,7 @@ function menu_link_attributes_menu_link_content_form_entity_builder($entity_type
   }
 
   if (!\Drupal::currentUser()->hasPermission('use menu link attributes')) {
-    $menu_link_options = $form_state->get('menu_link_options');
+    $menu_link_options = $form_state->get('menu_link_options') ?: [];
   }
   elseif ($menu_link->isDefaultTranslation() || !$menu_link->isDefaultTranslationAffectedOnly()) {
     $menu_link_attributes = ['attributes' => $form_state->getValue('attributes')];
@@ -194,12 +201,12 @@ function menu_link_attributes_menu_link_content_form_entity_builder($entity_type
     $menuLinkStorage = \Drupal::entityTypeManager()->getStorage($menu_link->getEntityTypeId());
     $original = $menuLinkStorage->loadRevision($menu_link->getLoadedRevisionId());
 
-    $menu_link_options = $original->get('link')->first()->options;
+    $menu_link_options = $original->get('link')->first()->options ?: [];
   }
 
   // Merge with existing options:
-  $existing_options = $menu_link->link->first()->options;
-  $menu_link->link->first()->options = NestedArray::mergeDeep($existing_options, $menu_link_options);
+  $existing_options = $menu_link->link->first()->options ?: [];
+  $menu_link->link->first()->options = NestedArray::mergeDeepArray([$existing_options, $menu_link_options], TRUE);
 
   // Set for other languages.
   if ($menu_link->isDefaultTranslation() || !$menu_link->isDefaultTranslationAffectedOnly()) {
@@ -207,7 +214,7 @@ function menu_link_attributes_menu_link_content_form_entity_builder($entity_type
       if ($language->getId() != $menu_link->language()->getId()) {
         // Merge with existing translation options:
         $existing_translation_options = $menu_link->getTranslation($language->getId())->link->first()->options;
-        $menu_link->getTranslation($language->getId())->link->first()->options = NestedArray::mergeDeep($existing_translation_options, $menu_link_options);
+        $menu_link->getTranslation($language->getId())->link->first()->options = NestedArray::mergeDeepArray([$existing_translation_options, $menu_link_options], TRUE);
       }
     }
   }
@@ -253,8 +260,8 @@ function _menu_link_attributes_preprocess_menu_items(&$items) {
         $menu_link->link->first()->options : $menu_link->getOptions();
 
       // Apply container attributes on <li> element.
-      if ($options && isset($options['container_attributes'])) {
-        foreach ($options['container_attributes'] as $attribute => $value) {
+      if ($options && !empty($options['container_attributes']) && is_array($options['container_attributes'])) {
+        foreach (menu_link_attributes_filter_attributes($options['container_attributes']) as $attribute => $value) {
           $item['attributes']->setAttribute($attribute, $value);
         }
       }
@@ -263,4 +270,144 @@ function _menu_link_attributes_preprocess_menu_items(&$items) {
       _menu_link_attributes_preprocess_menu_items($item['below']);
     }
   }
+}
+
+/**
+ * Checks whether an attribute name is allowed to be configured.
+ *
+ * Uses the same rules as \Drupal\link\AttributeXss: the name must be a
+ * plain attribute name and must not be "style" or an event handler (on*).
+ * Attributes failing these rules would be stripped on output anyway.
+ *
+ * @param string $attribute_name
+ *   The attribute name, without the "container_" prefix.
+ *
+ * @return bool
+ *   TRUE if the attribute name is allowed.
+ */
+function menu_link_attributes_is_allowed_attribute_name($attribute_name) {
+  if (!is_string($attribute_name) || strlen($attribute_name) > 96 || !preg_match('/^[a-zA-Z][-a-zA-Z0-9]*$/', $attribute_name)) {
+    return FALSE;
+  }
+
+  $attribute_name = strtolower($attribute_name);
+  return $attribute_name !== 'style' && strpos($attribute_name, 'on') !== 0;
+}
+
+/**
+ * Replaces underscores in an attribute name with hyphens.
+ *
+ * Used to migrate attribute names that are not allowed because of
+ * underscores, see https://git.drupalcode.org/project/menu_link_attributes/-/issues/3590636.
+ *
+ * @param string $attribute
+ *   The attribute name, optionally with the "container_" prefix, which is
+ *   kept.
+ *
+ * @return string
+ *   The attribute name with hyphens instead of underscores.
+ */
+function menu_link_attributes_sanitize_attribute_name($attribute) {
+  $prefix = strpos($attribute, 'container_') === 0 ? 'container_' : '';
+  return $prefix . str_replace('_', '-', substr($attribute, strlen($prefix)));
+}
+
+/**
+ * Logs renamed attributes and returns a message about them.
+ *
+ * Front-end code targeting the old names stops working, so the renames are
+ * also logged as a warning for sites that do not read update output.
+ *
+ * @param string[] $renamed
+ *   New attribute names keyed by old attribute names.
+ * @param string $context
+ *   Where the attributes were renamed, e.g. "configuration".
+ *
+ * @return \Drupal\Core\StringTranslation\TranslatableMarkup
+ *   The message.
+ */
+function menu_link_attributes_log_renamed_attributes(array $renamed, $context) {
+  $renames = [];
+  foreach ($renamed as $old => $new) {
+    $renames[] = $old . ' → ' . $new;
+  }
+
+  $variables = ['@context' => $context, '@renames' => implode(', ', $renames)];
+  \Drupal::logger('menu_link_attributes')->warning('Renamed menu link attributes with underscores in @context: @renames. Update front-end code (CSS selectors, JavaScript, Twig) that targets the old attribute names, see https://git.drupalcode.org/project/menu_link_attributes/-/issues/3590636.', $variables);
+  return t('Renamed menu link attributes with underscores in @context: @renames. Update front-end code (CSS selectors, JavaScript, Twig) that targets the old attribute names, see https://git.drupalcode.org/project/menu_link_attributes/-/issues/3590636.', $variables);
+}
+
+/**
+ * Maps attribute definitions to the names they are stored under on links.
+ *
+ * Follows menu_link_attributes_is_container_attribute(), but works on the
+ * given definitions instead of the saved configuration.
+ *
+ * @param array $attributes
+ *   Attribute definitions keyed by attribute, as in the configuration.
+ *
+ * @return array
+ *   The configured attributes keyed by group ("attributes" or
+ *   "container_attributes") and the name stored on links.
+ */
+function menu_link_attributes_get_stored_attribute_names(array $attributes) {
+  $stored = ['attributes' => [], 'container_attributes' => []];
+  foreach ($attributes as $attribute => $info) {
+    $attribute = (string) $attribute;
+    $has_prefix = strpos($attribute, 'container_') === 0;
+    if (!empty($info['container']) || ($has_prefix && !isset($info['container']))) {
+      $stored['container_attributes'][preg_replace('/^container_/', '', $attribute)][] = $attribute;
+    }
+    else {
+      $stored['attributes'][$attribute][] = $attribute;
+    }
+  }
+  return $stored;
+}
+
+/**
+ * Sanitizes attributes before they are rendered.
+ *
+ * Uses \Drupal\link\AttributeXss, which core applies to menu link
+ * attributes, when available. Older core versions fall back to equivalent
+ * filtering.
+ *
+ * @param array $attributes
+ *   Attribute values keyed by attribute name.
+ *
+ * @return array
+ *   The sanitized attributes.
+ */
+function menu_link_attributes_filter_attributes(array $attributes) {
+  // Numeric keys are never valid attribute names.
+  $attributes = array_filter($attributes, 'is_string', ARRAY_FILTER_USE_KEY);
+
+  if (class_exists(AttributeXss::class)) {
+    return AttributeXss::sanitizeAttributes($attributes);
+  }
+
+  $skip_protocol_filtering = ['title', 'alt', 'rel', 'property', 'class', 'datetime'];
+
+  foreach ($attributes as $attribute_name => $value) {
+    if (!menu_link_attributes_is_allowed_attribute_name($attribute_name)) {
+      unset($attributes[$attribute_name]);
+      continue;
+    }
+
+    $attribute_name_lower = strtolower($attribute_name);
+    if (strpos($attribute_name_lower, 'data-') === 0 || in_array($attribute_name_lower, $skip_protocol_filtering, TRUE)) {
+      continue;
+    }
+
+    if (is_array($value)) {
+      $attributes[$attribute_name] = array_map(function ($item) {
+        return is_scalar($item) ? UrlHelper::filterBadProtocol((string) $item) : $item;
+      }, $value);
+    }
+    elseif (is_scalar($value) && !is_bool($value)) {
+      $attributes[$attribute_name] = UrlHelper::filterBadProtocol((string) $value);
+    }
+  }
+
+  return $attributes;
 }

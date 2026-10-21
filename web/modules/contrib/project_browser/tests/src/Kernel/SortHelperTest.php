@@ -11,6 +11,7 @@ use Drupal\project_browser\Plugin\ProjectBrowserSource\SortHelper;
 use Drupal\project_browser\Plugin\ProjectBrowserSourceManager;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests the SortHelper class.
@@ -19,6 +20,7 @@ use PHPUnit\Framework\Attributes\Group;
  */
 #[CoversClass(SortHelper::class)]
 #[Group('project_browser')]
+#[RunTestsInSeparateProcesses]
 final class SortHelperTest extends KernelTestBase {
 
   /**
@@ -26,7 +28,7 @@ final class SortHelperTest extends KernelTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
-    $this->container->get(ModuleInstallerInterface::class)->install([
+    \Drupal::service(ModuleInstallerInterface::class)->install([
       'project_browser_test',
       'user',
     ]);
@@ -38,7 +40,7 @@ final class SortHelperTest extends KernelTestBase {
    * @legacy-covers ::sortInDefinedOrder
    */
   public function testDefinableOrder(): void {
-    $projects = $this->container->get(ProjectBrowserSourceManager::class)
+    $projects = \Drupal::service(ProjectBrowserSourceManager::class)
       ->createInstance('project_browser_test_mock')
       ->getProjects()
       ->list;

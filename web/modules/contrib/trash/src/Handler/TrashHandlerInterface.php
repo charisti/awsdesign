@@ -19,37 +19,62 @@ interface TrashHandlerInterface {
    *
    * @param \Drupal\Core\Entity\EntityInterface $entity
    *   An entity object.
+   * @param string[] $langcodes
+   *   The langcodes of the translations that are about to be marked as
+   *   deleted. Translations that are already trashed are not included.
    */
-  public function preTrashDelete(EntityInterface $entity): void;
+  public function preTrashDelete(EntityInterface $entity, array $langcodes): void;
 
   /**
    * Acts after an entity is soft-deleted.
    *
    * @param \Drupal\Core\Entity\EntityInterface $entity
    *   An entity object.
+   * @param string[] $langcodes
+   *   The langcodes of the translations that were marked as deleted.
+   *   Translations that were already trashed are not included.
    */
-  public function postTrashDelete(EntityInterface $entity): void;
+  public function postTrashDelete(EntityInterface $entity, array $langcodes): void;
+
+  /**
+   * Validates that an entity can be restored.
+   *
+   * This method performs validation checks (e.g., unique field violations,
+   * conflicting aliases) without modifying the entity. It can be called
+   * during form validation to provide early feedback to users.
+   *
+   * @param \Drupal\Core\Entity\EntityInterface $entity
+   *   The entity to validate.
+   *
+   * @throws \Drupal\trash\Exception\UnrestorableEntityException
+   *   Thrown when the entity cannot be restored.
+   */
+  public function validateRestore(EntityInterface $entity): void;
 
   /**
    * Acts before an entity is restored.
    *
    * @param \Drupal\Core\Entity\EntityInterface $entity
    *   An entity object.
+   * @param string[] $langcodes
+   *   The langcodes of the translations that are about to be restored.
    *
    * @throws \Drupal\trash\Exception\UnrestorableEntityException
    *   Thrown when an entity can not be restored from Trash.
    */
-  public function preTrashRestore(EntityInterface $entity): void;
+  public function preTrashRestore(EntityInterface $entity, array $langcodes): void;
 
   /**
    * Acts after an entity is restored.
    *
    * @param \Drupal\Core\Entity\EntityInterface $entity
    *   An entity object.
-   * @param int|string $deleted_timestamp
-   *   The timestamp when the entity was deleted.
+   * @param array<string, int|string> $deleted_timestamps
+   *   The deletion timestamps of the restored translations, keyed by
+   *   langcode. Translations can be trashed at different times, so the
+   *   values may differ.
    */
-  public function postTrashRestore(EntityInterface $entity, int|string $deleted_timestamp): void;
+  public function postTrashRestore(EntityInterface $entity, array $deleted_timestamps): void;
 
   /**
    * Alters the entity delete form to provide additional information if needed.

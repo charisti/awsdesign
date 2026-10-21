@@ -103,7 +103,7 @@ class GetFieldConfigForm extends FunctionCallBase implements ExecutableFunctionC
   /**
    * {@inheritdoc}
    */
-  public function execute() {
+  public function execute(?object $object = NULL) {
     // Get the context.
     $field_type = $this->getContextValue('field_type');
     $entity_type = $this->getContextValue('entity_type');

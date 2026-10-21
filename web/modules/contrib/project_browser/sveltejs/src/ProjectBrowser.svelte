@@ -213,7 +213,7 @@
 
       <div class="pb-layout__header">
         <div class="pb-search-results">
-          {#if rowsCount}
+          {#if rowsCount && paginate}
             {Drupal.formatPlural(
               rowsCount,
               `${numberFormatter.format(1)} Result`,

@@ -45,6 +45,13 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class RemotePostWebformHandler extends WebformHandlerBase {
 
   /**
+   * The current user.
+   *
+   * @var \Drupal\Core\Session\AccountProxyInterface
+   */
+  protected $currentUser;
+
+  /**
    * The module handler.
    *
    * @var \Drupal\Core\Extension\ModuleHandlerInterface
@@ -117,6 +124,7 @@ class RemotePostWebformHandler extends WebformHandlerBase {
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
     $instance = parent::create($container, $configuration, $plugin_id, $plugin_definition);
     $instance->moduleHandler = $container->get('module_handler');
+    $instance->currentUser = $container->get('current_user');
     $instance->httpClient = $container->get('http_client');
     $instance->tokenManager = $container->get('webform.token_manager');
     $instance->messageManager = $container->get('webform.message_manager');
@@ -199,6 +207,21 @@ class RemotePostWebformHandler extends WebformHandlerBase {
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
     $webform = $this->getWebform();
+    $has_remote_post_urls_access = $this->currentUser->hasPermission('administer webform remote post urls') || $this->currentUser->hasPermission('administer webform');
+
+    if (!$has_remote_post_urls_access) {
+      // Add a message container to ensure the message comes immediately
+      // after the general settings.
+      // @see \Drupal\webform\Utility\WebformFormHelper::buildTabs
+      $form['messages'] = [
+        '#type' => 'container',
+      ];
+      $form['messages']['remote_post_urls_access'] = [
+        '#type' => 'webform_message',
+        '#message_message' => $this->t('You do not have permission to edit remote post URLs. Contact an administrator for access.'),
+        '#message_type' => 'warning',
+      ];
+    }
 
     // States.
     $states = [
@@ -261,6 +284,13 @@ class RemotePostWebformHandler extends WebformHandlerBase {
         '#required' => ($state === WebformSubmissionInterface::STATE_COMPLETED),
         '#maxlength' => NULL,
         '#default_value' => $this->configuration[$state_url],
+        '#access' => $has_remote_post_urls_access,
+      ];
+      $form[$state][$state_url . '_item'] = [
+        '#type' => 'item',
+        '#title' => $this->t('@title URL', $t_args),
+        '#markup' => Html::escape($this->configuration[$state_url]),
+        '#access' => !$has_remote_post_urls_access,
       ];
       $form[$state][$state_custom_data] = [
         '#type' => 'webform_codemirror',
@@ -329,9 +359,9 @@ class RemotePostWebformHandler extends WebformHandlerBase {
       '<br/>' .
       $this->t('For custom data, the casts allowed are:') .
       '<ul>' .
-      '<li>' . $this->t('@cast - cast to @type', ['@cast' => '(int), (integer)', '@type' => 'integer']) . '</li>' .
-      '<li>' . $this->t('@cast - cast to @type', ['@cast' => '(float), (double), (real)', '@type' => 'float']) . '</li>' .
-      '<li>' . $this->t('@cast - cast to @type', ['@cast' => '(bool), (boolean)', '@type' => 'boolean']) . '</li>' .
+      '<li>' . $this->t('@cast - cast to @type', ['@cast' => '(int)', '@type' => 'integer']) . '</li>' .
+      '<li>' . $this->t('@cast - cast to @type', ['@cast' => '(float)', '@type' => 'float']) . '</li>' .
+      '<li>' . $this->t('@cast - cast to @type', ['@cast' => '(bool)', '@type' => 'boolean']) . '</li>' .
       '</ul>',
       '#return_value' => TRUE,
       '#default_value' => $this->configuration['cast'],
@@ -733,7 +763,7 @@ class RemotePostWebformHandler extends WebformHandlerBase {
    */
   protected function castRequestValue(array $element, WebformElementInterface $element_plugin, $value) {
     if ($element_plugin instanceof BooleanBase) {
-      return (boolean) $value;
+      return (bool) $value;
     }
     elseif ($element_plugin instanceof NumericBase) {
       return (float) $value;

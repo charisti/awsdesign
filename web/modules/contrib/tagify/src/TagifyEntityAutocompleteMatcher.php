@@ -7,11 +7,15 @@ use Drupal\Core\Entity\EntityReferenceSelection\SelectionPluginManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\Utility\Token;
+use Drupal\tagify\Services\TagifyHierarchicalTermManagerInterface;
+use Drupal\taxonomy\Entity\Term;
 
 /**
  * Matcher class to get autocompletion results for entity reference.
  */
 class TagifyEntityAutocompleteMatcher implements TagifyEntityAutocompleteMatcherInterface {
+
+  use TagifyHtmlFilterTrait;
 
   /**
    * The entity reference selection handler plugin manager.
@@ -42,6 +46,13 @@ class TagifyEntityAutocompleteMatcher implements TagifyEntityAutocompleteMatcher
   protected $token;
 
   /**
+   * The hierarchical term manager.
+   *
+   * @var \Drupal\tagify\Services\TagifyHierarchicalTermManagerInterface
+   */
+  protected $hierarchicalTermManager;
+
+  /**
    * Constructs a TagifyEntityAutocompleteMatcher object.
    *
    * @param \Drupal\Core\Entity\EntityReferenceSelection\SelectionPluginManagerInterface $selection_manager
@@ -52,17 +63,21 @@ class TagifyEntityAutocompleteMatcher implements TagifyEntityAutocompleteMatcher
    *   The entity type manager.
    * @param \Drupal\Core\Utility\Token $token
    *   The token service.
+   * @param \Drupal\tagify\Services\TagifyHierarchicalTermManagerInterface $hierarchical_term_manager
+   *   The hierarchical term manager.
    */
   public function __construct(
     SelectionPluginManagerInterface $selection_manager,
     ModuleHandlerInterface $module_handler,
     EntityTypeManagerInterface $entity_type_manager,
     Token $token,
+    TagifyHierarchicalTermManagerInterface $hierarchical_term_manager,
   ) {
     $this->selectionManager = $selection_manager;
     $this->moduleHandler = $module_handler;
     $this->entityTypeManager = $entity_type_manager;
     $this->token = $token;
+    $this->hierarchicalTermManager = $hierarchical_term_manager;
   }
 
   /**
@@ -102,7 +117,7 @@ class TagifyEntityAutocompleteMatcher implements TagifyEntityAutocompleteMatcher
       $match_limit = isset($selection_settings['match_limit']) ? (int) $selection_settings['match_limit'] : 10;
       $entity_labels = $handler->getReferenceableEntities($string, $match_operator, ($match_limit === 0) ? $match_limit : $match_limit + count($selected));
       // Loop through the entities and convert them into autocomplete output.
-      foreach ($entity_labels as $values) {
+      foreach ($entity_labels as $bundle => $values) {
         foreach ($values as $entity_id => $label) {
           // Filter out already selected items.
           if (in_array($entity_id, $selected)) {
@@ -118,10 +133,21 @@ class TagifyEntityAutocompleteMatcher implements TagifyEntityAutocompleteMatcher
             $info_label = $this->token->replacePlain($selection_settings['info_label'], [$target_type => $entity], ['clear' => TRUE]);
             $info_label = trim(preg_replace('/\s+/', ' ', $info_label));
           }
-          $context = ['entity' => $entity] + $options;
+          $context = $options + ['entity' => $entity];
+
+          // Remove dashes from label for hierarchical entities.
+          if ($entity instanceof Term && $this->hierarchicalTermManager->isHierarchical($entity)) {
+            $label = ltrim($label, '-');
+          }
+
           $this->moduleHandler->alter('tagify_autocomplete_match', $label, $info_label, $context);
+
+          if ($info_label !== NULL) {
+            $info_label = self::filterHtmlWithImages($info_label);
+          }
+
           if ($label !== NULL) {
-            $matches[$entity_id] = $this->buildTagifyItem($entity_id, $label, $info_label);
+            $matches[$entity_id] = $this->buildTagifyItem($entity_id, $label, $info_label, $bundle);
           }
         }
       }
@@ -150,17 +176,23 @@ class TagifyEntityAutocompleteMatcher implements TagifyEntityAutocompleteMatcher
    *   - 'attributes':
    *     A key-value array of extra properties sent directly to tagify, IE:
    *     ['--tag-bg' => '#FABADA']
+   *   - 'parent_name':
+   *     The parent name of the term.
    */
-  protected function buildTagifyItem($entity_id, $label, $info_label): array {
+  protected function buildTagifyItem($entity_id, $label, $info_label, $bundle): array {
     // Check if the label contains HTML and remove it.
     $label = $this->isHtml($label) ? strip_tags($label) : $label;
-
-    return [
+    $tagify_items = [
       'entity_id' => $entity_id,
       'label' => Html::decodeEntities($label),
       'info_label' => $info_label,
       'editable' => FALSE,
     ];
+    // Add the parent name to the tagify item.
+    $tagify_items['parent_name'] = $this->hierarchicalTermManager
+      ->getParentName($entity_id, $bundle);
+
+    return $tagify_items;
   }
 
   /**

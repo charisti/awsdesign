@@ -6,12 +6,14 @@ namespace Drupal\Tests\migrate_example\Kernel;
 
 use Drupal\node\Entity\NodeType;
 use Drupal\Tests\migrate_drupal\Kernel\MigrateDrupalTestBase;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
  * Tests migrate_example migrations.
- *
- * @group migrate_plus
  */
+#[Group('migrate_plus')]
+#[RunTestsInSeparateProcesses]
 final class MigrateExampleTest extends MigrateDrupalTestBase {
 
   /**

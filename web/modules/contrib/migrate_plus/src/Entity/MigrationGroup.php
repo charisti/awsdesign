@@ -6,6 +6,8 @@ namespace Drupal\migrate_plus\Entity;
 
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\Entity\ConfigEntityBase;
+use Drupal\Core\Entity\Attribute\ConfigEntityType;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
 
 /**
  * Defines the Migration Group entity.
@@ -33,17 +35,34 @@ use Drupal\Core\Config\Entity\ConfigEntityBase;
  *   },
  * )
  */
+#[ConfigEntityType(
+  id: 'migration_group',
+  label: new TranslatableMarkup('Migration Group'),
+  entity_keys: [
+    'id' => 'id',
+    'label' => 'label',
+  ],
+  handlers: [],
+  config_export: [
+    'id',
+    'label',
+    'description',
+    'source_type',
+    'module',
+    'shared_configuration',
+  ],
+)]
 class MigrationGroup extends ConfigEntityBase implements MigrationGroupInterface {
 
   /**
    * The migration group ID (machine name).
    */
-  protected ?string $id;
+  protected ?string $id = NULL;
 
   /**
    * The human-readable label for the migration group.
    */
-  protected ?string $label;
+  protected ?string $label = NULL;
 
   /**
    * {@inheritdoc}

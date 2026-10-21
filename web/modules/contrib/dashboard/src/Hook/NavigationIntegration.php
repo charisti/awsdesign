@@ -42,6 +42,7 @@ class NavigationIntegration {
   #[Hook('block_alter')]
   public function blockAlter(array &$definitions): void {
     $block_ids = [
+      'dashboard_placeholder',
       'dashboard_text_block',
       'dashboard_site_status',
       'navigation_dashboard',
@@ -60,12 +61,23 @@ class NavigationIntegration {
   }
 
   /**
-   * If navigation is present, we use our own navigation block.
+   * Implements hook_navigation_menu_link_tree_alter().
    */
-  #[Hook('menu_links_discovered_alter')]
-  public function menuLinksDiscoveredAlter(&$links): void {
-    if ($this->moduleHandler->moduleExists('navigation')) {
-      unset($links['system.dashboard']);
+  #[Hook('navigation_menu_link_tree_alter')]
+  public function navigationMenuLinkTreeAlter(array &$tree): void {
+    foreach ($tree as $key => $item) {
+      // Skip elements where menu is not the 'admin' one.
+      $menu_name = $item->link->getMenuName();
+      if ($menu_name != 'admin') {
+        continue;
+      }
+
+      // Remove unwanted Dashboard menu link from the admin menu,
+      // as it has its own link at the first level.
+      $plugin_id = $item->link->getPluginId();
+      if ($plugin_id == 'system.dashboard') {
+        unset($tree[$key]);
+      }
     }
   }
 

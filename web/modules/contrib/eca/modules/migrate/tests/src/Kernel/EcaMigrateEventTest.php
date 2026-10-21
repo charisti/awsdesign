@@ -101,10 +101,23 @@ class EcaMigrateEventTest extends KernelTestBase {
     $expected = 'changed_value';
     $this->assertEquals($expected, $this->cleanupAfterSuccessors($expected));
 
-    // Array.
+    // Single value array.
+    $expected = ['changed_value_foo'];
+    $return_value = $this->cleanupAfterSuccessors($expected);
+    $this->assertSame($expected, $return_value);
+
+    $expected = ['foo' => 'changed_value_foo'];
+    $return_value = $this->cleanupAfterSuccessors($expected);
+    $this->assertSame($expected, $return_value);
+
+    // Multiple values array.
+    $expected = ['changed_value_foo', 'changed_value_bar'];
+    $return_value = $this->cleanupAfterSuccessors($expected);
+    $this->assertSame($expected, $return_value);
+
     $expected = ['foo' => 'changed_value_foo', 'bar' => 'changed_value_bar'];
     $return_value = $this->cleanupAfterSuccessors($expected);
-    $this->assertSame($expected, $return_value['values']);
+    $this->assertSame($expected, $return_value);
 
     // Entity.
     $expected = User::create([

@@ -32,7 +32,7 @@ final class RouteSubscriber extends RouteSubscriberBase {
   /**
    * {@inheritdoc}
    */
-  protected function alterRoutes(RouteCollection $collection) {
+  protected function alterRoutes(RouteCollection $collection): void {
     // Disable status checks on certain routes.
     $disabled_routes = [
       'system.theme_install',
@@ -44,6 +44,15 @@ final class RouteSubscriber extends RouteSubscriberBase {
       $collection->get($route)
         ?->setOption('_automatic_updates_status_messages', 'skip');
     }
+
+    // Clone the update route so that there can be distinct local tasks for it.
+    $clone = (clone $collection->get('automatic_updates.update_form'))
+      ->setPath('/admin/modules/update');
+    $collection->add('automatic_updates.module_update', $clone);
+
+    $clone = (clone $collection->get('automatic_updates.update_form'))
+      ->setPath('/admin/appearance/update');
+    $collection->add('automatic_updates.theme_update', $clone);
   }
 
 }

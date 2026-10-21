@@ -2,8 +2,8 @@
 
 namespace Drupal\Tests\search_api\Kernel\Index;
 
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\KernelTests\KernelTestBase;
-use Drupal\search_api\Utility\Utility;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
@@ -15,11 +15,9 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 class IndexImportTest extends KernelTestBase {
 
   /**
-   * The search index storage.
-   *
-   * @var \Drupal\Core\Config\Entity\ConfigEntityStorageInterface
+   * The entity type manager.
    */
-  protected $storage;
+  protected EntityTypeManagerInterface $entityTypeManager;
 
   /**
    * Modules to enable for this test.
@@ -52,16 +50,9 @@ class IndexImportTest extends KernelTestBase {
     $this->installConfig('system');
     $this->config('system.site')->set('UUID', $this->container->get('uuid')->generate());
 
-    // Do not use a batch for tracking the initial items after creating an
-    // index when running the tests via the GUI. Otherwise, it seems Drupal's
-    // Batch API gets confused and the test fails.
-    if (!Utility::isRunningInCli()) {
-      \Drupal::state()->set('search_api_use_tracking_batch', FALSE);
-    }
-
     $this->installConfig(['search_api_test_db']);
 
-    $this->storage = $this->container->get('entity_type.manager')->getStorage('search_api_index');
+    $this->entityTypeManager = $this->container->get('entity_type.manager');
   }
 
   /**
@@ -70,7 +61,7 @@ class IndexImportTest extends KernelTestBase {
   public function testIndexImport() {
     // Check initial conditions.
     /** @var \Drupal\search_api\IndexInterface $index */
-    $index = $this->storage->load('database_search_index');
+    $index = $this->entityTypeManager->getStorage('search_api_index')->load('database_search_index');
     $this->assertFalse($index->isValidProcessor('stopwords'), 'Processor is not in index');
 
     // Prepare the import by creating a copy of the active config in sync.
@@ -103,9 +94,9 @@ class IndexImportTest extends KernelTestBase {
 
     // Ensure the static cache is clear and check that our change was correctly
     // imported.
-    $this->storage->resetCache(['database_search_index']);
+    $this->entityTypeManager->getStorage('search_api_index')->resetCache(['database_search_index']);
     /** @var \Drupal\search_api\IndexInterface $imported_index */
-    $imported_index = $this->storage->load('database_search_index');
+    $imported_index = $this->entityTypeManager->getStorage('search_api_index')->load('database_search_index');
     $this->assertTrue($imported_index->isValidProcessor('stopwords'), 'Processor is in index after import');
 
     // Check that the processor does not have the default configuration.

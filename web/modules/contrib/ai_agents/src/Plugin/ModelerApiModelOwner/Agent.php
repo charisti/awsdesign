@@ -6,6 +6,7 @@ use Drupal\ai\Service\FunctionCalling\FunctionCallInterface;
 use Drupal\ai\Service\FunctionCalling\FunctionCallPluginManager;
 use Drupal\ai_agents\Entity\AiAgent;
 use Drupal\ai_agents\Form\AiAgentForm;
+use Drupal\ai_agents\PluginBase\AiAgentEntityWrapper;
 use Drupal\Component\Plugin\Exception\PluginException;
 use Drupal\Component\Plugin\PluginInspectionInterface;
 use Drupal\Component\Utility\Random;
@@ -28,7 +29,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  */
 #[ModelOwner(
   id: "ai_agents_agent",
-  label: new TranslatableMarkup("AI Agent"),
+  label: new TranslatableMarkup("AI Agents"),
   description: new TranslatableMarkup("Configure AI Agents"),
   uiLabelNewModel: new TranslatableMarkup("New AI Agent"),
   uiLabelNewModelWithModeler: new TranslatableMarkup("New AI Agent with modeler"),
@@ -137,7 +138,7 @@ class Agent extends ModelOwnerBase {
    * {@inheritdoc}
    */
   public function configEntityBasePath(): ?string {
-    return 'admin/config/ai/agents';
+    return 'admin/config/ai/tools-automation/agents';
   }
 
   /**
@@ -217,7 +218,8 @@ class Agent extends ModelOwnerBase {
             $config[$key . '___' . $valueKey] = is_array($value) ? implode("\n", $value) : $value;
           }
         }
-        $config['return_directly'] = (bool) ($model->get('tool_settings')[$id]['return_directly'] ?? 0);
+        $toolSettingsEntry = $model->get('tool_settings')[$id] ?? [];
+        $config = array_merge($toolSettingsEntry, $config);
         $components[] = new Component(
           $this,
           $componentId,
@@ -245,7 +247,7 @@ class Agent extends ModelOwnerBase {
    * {@inheritdoc}
    */
   public function availableOwnerComponents(int $type): array {
-    return match($type) {
+    return match ($type) {
       Api::COMPONENT_TYPE_START => [new ComponentWrapperPlugin(Api::COMPONENT_TYPE_START, 'New_Subagent')],
       Api::COMPONENT_TYPE_ELEMENT => $this->createAllInstances(),
       Api::COMPONENT_TYPE_SUBPROCESS => $this->getAllAgents(),
@@ -268,6 +270,11 @@ class Agent extends ModelOwnerBase {
     $plugin = $this->ownerComponent($type, $id);
     if ($plugin instanceof FunctionCallInterface) {
       $config['return_directly'] = FALSE;
+      $config['require_usage'] = FALSE;
+      $config['restrict_multiple_calls'] = FALSE;
+      $config['multiple_call_error_message'] = '';
+      $config['use_artifacts'] = FALSE;
+      $config['progress_message'] = '';
       $properties = $plugin->normalize()->getProperties();
       foreach ($properties as $property) {
         $property_name = $property->getName();
@@ -303,7 +310,7 @@ class Agent extends ModelOwnerBase {
    * {@inheritdoc}
    */
   public function ownerComponent(int $type, string $id, array $config = []): ?PluginInspectionInterface {
-    return match($type) {
+    return match ($type) {
       Api::COMPONENT_TYPE_START => new ComponentWrapperPlugin(Api::COMPONENT_TYPE_START, $id, $config),
       Api::COMPONENT_TYPE_ELEMENT => $this->functionCallPluginManager()->createInstance($id, $config),
       Api::COMPONENT_TYPE_SUBPROCESS => new ComponentWrapperPlugin(Api::COMPONENT_TYPE_SUBPROCESS, $id, $config),
@@ -334,6 +341,45 @@ class Agent extends ModelOwnerBase {
         '#title' => $this->t('Return directly'),
         '#description' => $this->t('Check this box if you want to return the result directly, without the LLM trying to rewrite them or use another tool. This is usually used for tools that are not used in a conversation or when its being used in an API where the tools is the structured result.'),
         '#default_value' => FALSE,
+      ];
+
+      $form['require_usage'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Require usage'),
+        '#description' => $this->t('Check this box if you want to require that this tool is used at least once in the agent execution. If the LLM does not use this tool, an error will be thrown. This is useful for tools that must be used, e.g. for compliance reasons.'),
+        '#default_value' => FALSE,
+      ];
+
+      $form['restrict_multiple_calls'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Restrict to one call per response'),
+        '#description' => $this->t('Check this box if this tool may be called at most once per LLM response. If the LLM calls it multiple times in a single response, all tool calls in that response are rejected and the LLM is asked to try again. Use this for tools where each call depends on the result of the previous call.'),
+        '#default_value' => FALSE,
+      ];
+
+      $form['multiple_call_error_message'] = [
+        '#type' => 'textarea',
+        '#title' => $this->t('Multiple call error message'),
+        '#attributes' => [
+          'rows' => 2,
+          'placeholder' => AiAgentEntityWrapper::MULTIPLE_CALL_DEFAULT_ERROR_MESSAGE,
+        ],
+        '#description' => $this->t('The error message sent back to the LLM when this tool is called more than once in a single response. Keep it empty to use the default message shown as the placeholder. You may use the placeholder [tool_name] for the tool name.'),
+        '#default_value' => '',
+      ];
+
+      $form['use_artifacts'] = [
+        '#type' => 'checkbox',
+        '#title' => $this->t('Use artifacts'),
+        '#description' => $this->t('Store tool response in an artifact, using a placeholder instead of sending responses to the AI provider. This is useful for tools that return large amounts of data and will be referenced by other tools but not needed for AI.'),
+        '#default_value' => FALSE,
+      ];
+
+      $form['progress_message'] = [
+        '#type' => 'textfield',
+        '#title' => $this->t('Progress message'),
+        '#description' => $this->t('An optional message that will be shown to the user while this tool is being executed. This can be used to inform the user about the current progress of the agent.'),
+        '#default_value' => '',
       ];
       $properties = $plugin->normalize()->getProperties();
       foreach ($properties as $property) {
@@ -442,7 +488,7 @@ class Agent extends ModelOwnerBase {
         }
         break;
 
-      case API::COMPONENT_TYPE_ELEMENT:
+      case Api::COMPONENT_TYPE_ELEMENT:
         $id = $component->getPluginId();
         $config = $component->getConfiguration();
         $elements = $model->get('tools');
@@ -450,17 +496,21 @@ class Agent extends ModelOwnerBase {
         $elementSettings = $model->get('tool_settings');
 
         $elements[$id] = TRUE;
-        $elementSettings[$id] = ['return_directly' => $config['return_directly'] ?? FALSE];
         $config += $this->ownerComponentDefaultConfig(Api::COMPONENT_TYPE_ELEMENT, $id);
-        unset($config['return_directly']);
+        $elementSettings[$id] = [];
         foreach ($config as $key => $value) {
-          [$plugin, $field] = explode('___', $key);
-          $plugin = str_replace('__colon__', ':', $plugin);
-          $value = match ($field) {
-            'values' => empty($value) ? '' : explode("\n", $value),
-            default => $value,
-          };
-          $elementUsageLimits[$id][$plugin][$field] = $value;
+          if (str_contains($key, '___')) {
+            [$plugin, $field] = explode('___', $key);
+            $plugin = str_replace('__colon__', ':', $plugin);
+            $value = match ($field) {
+              'values' => empty($value) ? '' : explode("\n", $value),
+              default => $value,
+            };
+            $elementUsageLimits[$id][$plugin][$field] = $value;
+          }
+          else {
+            $elementSettings[$id][$key] = $value;
+          }
         }
 
         $model->set('tools', $elements);

@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace Drupal\migrate_plus\Plugin\migrate_plus\authentication;
 
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\migrate_plus\Attribute\Authentication;
 use Drupal\migrate_plus\AuthenticationPluginBase;
 
 /**
- * Provides NTLM (Microsoft NTLM) authentication for the HTTP resource.
- *
- * @Authentication(
- *   id = "ntlm",
- *   title = @Translation("Ntlm")
- * )
+ * Provides NTLM authentication for the HTTP resource.
  */
+#[Authentication(
+  id: 'ntlm',
+  title: new TranslatableMarkup('NTLM')
+)]
 class Ntlm extends AuthenticationPluginBase implements ContainerFactoryPluginInterface {
 
   /**

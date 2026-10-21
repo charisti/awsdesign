@@ -8,10 +8,10 @@ props:
     attributes:
       type: Drupal\Core\Template\Attribute
     title_prefix:
-      type: array
+      type: ['array', 'null', 'string', 'object']
       title: title prefix
     title_suffix:
-      type: array
+      type: ['array', 'null', 'string', 'object']
       title: title suffix
 slots:
   form_children:

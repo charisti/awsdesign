@@ -9,3 +9,20 @@ services:
     class: Drupal\smart_date\TwigExtension\SmartDateFormat
     tags:
       - { name: twig.extension }
+
+  Drupal\smart_date\Hook\SmartDateHooks:
+    class: Drupal\smart_date\Hook\SmartDateHooks
+    autowire: true
+
+  Drupal\smart_date\Hook\SmartDateTokensHooks:
+    class: Drupal\smart_date\Hook\SmartDateTokensHooks
+    autowire: true
+    arguments:
+      $smartDateManager: '@smart_date.manager'
+      $tokenEntityMapper: '@?token.entity_mapper'
+
+  Drupal\smart_date\Hook\SmartDateViewsHooks:
+    class: Drupal\smart_date\Hook\SmartDateViewsHooks
+    autowire: true
+    arguments:
+      $fieldViewsDataProvider: '@?views.field_data_provider'

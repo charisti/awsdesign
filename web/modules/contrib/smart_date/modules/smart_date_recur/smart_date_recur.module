@@ -5,6 +5,8 @@
  * Field hooks for a field that stores a start and end date as timestamps.
  */
 
+use Drupal\Core\Hook\Attribute\LegacyHook;
+use Drupal\smart_date_recur\Hook\SmartDateRecurHooks;
 use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\Form\FormStateInterface;
@@ -16,53 +18,17 @@ use Drupal\smart_date_recur\Entity\SmartDateRule;
 /**
  * Implements hook_help().
  */
+#[LegacyHook]
 function smart_date_recur_help($route_name, RouteMatchInterface $route_match) {
-  switch ($route_name) {
-    case 'help.page.smart_date_recur':
-      $output = '';
-      $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('The Smart Date Recur module adds recurring date functionality to Smart Date fields. For more information, see the <a href=":datetime_do">online documentation for the Smart Date module</a>.', [
-        ':datetime_do' => 'https://www.drupal.org/docs/contributed-modules/smart-date',
-      ]) . '</p>';
-      return $output;
-  }
+  return \Drupal::service(SmartDateRecurHooks::class)->help($route_name, $route_match);
 }
 
 /**
  * Implements hook_theme().
  */
+#[LegacyHook]
 function smart_date_recur_theme($existing, $type, $theme, $path) {
-  return [
-    'smart_date_recurring_formatter' => [
-      'variables' => [
-        'rule_text' => NULL,
-        'past_display' => NULL,
-        'next_display' => NULL,
-        'upcoming_display' => NULL,
-      ],
-    ],
-    'smart_date_recurring_text_rule' => [
-      'variables' => [
-        'rule' => NULL,
-        'repeat' => NULL,
-        'repeat_separator' => NULL,
-        'day' => NULL,
-        'day_separator' => NULL,
-        'days_array' => [],
-        'month' => NULL,
-        'month_separator' => NULL,
-        'time' => NULL,
-        'time_separator' => NULL,
-        'limit' => NULL,
-        'limit_separator' => NULL,
-      ],
-    ],
-    'smart_date_recurring_comma_list' => [
-      'variables' => [
-        'values' => NULL,
-      ],
-    ],
-  ];
+  return \Drupal::service(SmartDateRecurHooks::class)->theme($existing, $type, $theme, $path);
 }
 
 /**
@@ -95,64 +61,9 @@ function template_preprocess_smart_date_recurring_text_rule(&$variables) {
 /**
  * Implements hook_entity_delete().
  */
+#[LegacyHook]
 function smart_date_recur_entity_delete($entity) {
-  $entity_type = $entity->getEntityTypeId();
-  $bundle = $entity->bundle();
-
-  // Check for rules that apply to this entity type and bundle.
-  $query = \Drupal::entityTypeManager()->getStorage('smart_date_rule');
-  $query_result = $query->getQuery()
-    ->condition('entity_type', $entity_type)
-    ->condition('bundle', $bundle)
-    ->accessCheck(TRUE)
-    ->execute();
-
-  // If none exist, nothing to do.
-  if (!$query_result) {
-    return;
-  }
-
-  $field_names = [];
-  // Get all the relevant fields for this bundle.
-  foreach ($query_result as $rule) {
-    $rrule = SmartDateRule::load($rule);
-    if ($rrule) {
-      $field_name = $rrule->field_name->value;
-      if (!in_array($field_name, $field_names)) {
-        $field_names[] = $field_name;
-      }
-    }
-  }
-
-  // If no relevant fields for this bundle, nothing to do.
-  if (!$field_names) {
-    return;
-  }
-
-  // Check for relevant field values on the deleted entity.
-  foreach ($field_names as $field_name) {
-    if (!$values = $entity->$field_name) {
-      continue;
-    }
-    $rules = [];
-    // Collect all distinct rules defined for the deleted entity.
-    foreach ($values as $value) {
-      if ($value->rrule && !in_array($value->rrule, $rules)) {
-        $rules[] = $value->rrule;
-      }
-    }
-
-    // If no rules defined for this field, nothing to do.
-    if (!$rules) {
-      continue;
-    }
-    // Delete any rules found.
-    foreach ($rules as $rule) {
-      if ($rrule = SmartDateRule::load($rule)) {
-        $rrule->delete();
-      }
-    }
-  }
+  \Drupal::service(SmartDateRecurHooks::class)->entityDelete($entity);
 }
 
 /**
@@ -778,6 +689,29 @@ function smart_date_recur_generate_rows(&$values, $entity_type, $bundle, $field_
     // Now process the generated instances.
     // Use the submitted values as a template.
     $new_item = $values[$index];
+
+    // If no instances fell within the generation window, this is commonly a
+    // long-interval recurrence (e.g. annual) whose first occurrence is beyond
+    // the configured month limit. Extend the search so we still store the
+    // first real occurrence rather than emptying the field, which would
+    // destroy the submitted value. Cron will extend the remaining instances
+    // later, as it does for any unlimited recurrence.
+    if (empty($instances) && !empty($new_item['rrule'])) {
+      $extended_rule = SmartDateRule::load($new_item['rrule']);
+      if ($extended_rule) {
+        $extended = $extended_rule->getRuleInstances(strtotime('+10 years'));
+        if (!empty($extended)) {
+          $instances = array_slice($extended, 0, 1, TRUE);
+        }
+      }
+    }
+
+    // If there are still no instances to generate, preserve the originally
+    // submitted value to avoid data loss.
+    if (empty($instances)) {
+      continue;
+    }
+
     // Replace the first instance, in case there's an override.
     unset($values[$index]);
 
@@ -800,60 +734,9 @@ function smart_date_recur_generate_rows(&$values, $entity_type, $bundle, $field_
  *
  * Queues rules without defined limits to have more instances generated.
  */
+#[LegacyHook]
 function smart_date_recur_cron() {
-  // Check a time variable to control how often this runs.
-  $time_check = \Drupal::state()->get('smart_date_recur_check');
-  if ($time_check && $time_check > time()) {
-    // Wait until a week has lapsed since the last check.
-    return;
-  }
-  /** @var QueueFactory $queue_factory */
-  $queue_factory = \Drupal::service('queue');
-  /** @var QueueInterface $queue */
-  $queue = $queue_factory->get('smart_date_recur_rules');
-  $queue->createQueue();
-
-  $to_process = [];
-  // Get the data we need, and group it by impacted entity.
-  $ids = \Drupal::entityTypeManager()->getStorage('smart_date_rule')->getRuleIdsToCheck();
-  foreach (SmartDateRule::loadMultiple($ids) as $rule) {
-    $entity_type = $rule?->entity_type?->getString();
-    if (!$entity_type) {
-      // Invalid rule, might be an orphaned rule.
-      // @todo Delete invalid rule?
-      // @todo Log a warning.
-      continue;
-    }
-
-    // Validate rule before calling getParentEntity
-    // Any orphaned rules (invalid entity type, bundle or field name) will
-    // prevent new instances from being generated.
-    $entity_id = $rule->validateRule() ? $rule->getParentEntity(TRUE) : NULL;
-    if (!$entity_id) {
-      // Invalid entity, might be an orphaned rule.
-      // @todo Log a warning.
-      continue;
-    }
-    $field_name = $rule->field_name->getString();
-    $rrid = $rule->id();
-    // Group the collected data by impacted entity.
-    $to_process[$entity_type][$entity_id][$field_name][$rrid] = $rrid;
-  }
-
-  foreach ($to_process as $entity_type => $type_items) {
-    foreach ($type_items as $entity_id => $data) {
-      // Create new queue item.
-      $item = new \stdClass();
-      $item->entity_type = $entity_type;
-      $item->entity_id = $entity_id;
-      $item->data = $data;
-      // Add our item to the queue.
-      $queue->createItem($item);
-    }
-  }
-  // Set the time to next extend instances.
-  $wait = "+7 days";
-  \Drupal::state()->set('smart_date_recur_check', strtotime($wait));
+  \Drupal::service(SmartDateRecurHooks::class)->cron();
 }
 
 /**
@@ -861,76 +744,17 @@ function smart_date_recur_cron() {
  *
  * Adds extra configuration fields to Smart Date fields configured to recur.
  */
+#[LegacyHook]
 function smart_date_recur_field_widget_third_party_settings_form($plugin, $field_definition, $form_mode, $form, $form_state) {
-  if ($field_definition->getType() === 'smartdate') {
-    if ($field_definition instanceof BaseFieldDefinition) {
-      $allow_recurring = $field_definition->getSetting('allow_recurring');
-    }
-    else {
-      $allow_recurring = $field_definition->getThirdPartySetting('smart_date_recur', 'allow_recurring');
-    }
-    if ($allow_recurring) {
-      $recur_manager = \Drupal::service('smart_date_recur.manager');
-      $element['modal'] = [
-        '#type' => 'checkbox',
-        '#title' => t('Use modal for managing instances'),
-        '#default_value' => $recur_manager->getThirdPartyFallback($plugin, 'modal', 1),
-      ];
-      $element['show_single'] = [
-        '#type' => 'checkbox',
-        '#title' => t('Show a value of 1 in the increment field'),
-        '#default_value' => $recur_manager->getThirdPartyFallback($plugin, 'show_single', 0),
-      ];
-      $element['allowed_recur_freq_values'] = [
-        '#type' => 'checkboxes',
-        '#title' => t('Allowed frequency values for recurring events'),
-        '#default_value' => $recur_manager->getThirdPartyFallback($plugin, 'allowed_recur_freq_values', _smart_date_recur_get_freq_defaults()),
-        '#options' => [
-          'MINUTELY' => t('by Minutes'),
-          'HOURLY' => t('Hourly'),
-          'DAILY' => t('Daily'),
-          'WEEKLY' => t('Weekly'),
-          'MONTHLY' => t('Monthly'),
-          'YEARLY' => t('Annually'),
-        ],
-      ];
-      return $element;
-    }
-  }
+  return \Drupal::service(SmartDateRecurHooks::class)->fieldWidgetThirdPartySettingsForm($plugin, $field_definition, $form_mode, $form, $form_state);
 }
 
 /**
- * Implements hook_field_formatter_settings_summary_alter().
+ * Implements hook_field_widget_settings_summary_alter().
  */
+#[LegacyHook]
 function smart_date_recur_field_widget_settings_summary_alter(&$summary, $context) {
-  $recur_manager = \Drupal::service('smart_date_recur.manager');
-  // Append messages to the summary.
-  if ($context['field_definition']->getType() == 'smartdate' && $recur_manager->getThirdPartyFallback($context['field_definition'], 'allow_recurring')) {
-    if ($recur_manager->getThirdPartyFallback($context['widget'], 'modal', 1)) {
-      $summary[] = t('Use modal for managing instances.');
-    }
-    if ($recur_manager->getThirdPartyFallback($context['widget'], 'show_single', 1)) {
-      $summary[] = t('Show a value of 1 in the increment field.');
-    }
-    if ($freq_values = $recur_manager->getThirdPartyFallback($context['widget'], 'allowed_recur_freq_values', _smart_date_recur_get_freq_defaults())) {
-      $labels = _smart_date_recur_label_freq_defaults($freq_values);
-      $summary[] = t('Dates can recur:') . ' ' . implode(', ', $labels);
-    }
-  }
-}
-
-/**
- * Helper function to centralize default frequency values.
- */
-function _smart_date_recur_label_freq_defaults($freq_values) {
-  $labels = [];
-  $freq_labels = \Drupal::service('smart_date_recur.manager')->getFrequencyLabels();
-  foreach ($freq_values as $key => $value) {
-    if ($value && isset($freq_labels[$value])) {
-      $labels[$key] = $freq_labels[$value];
-    }
-  }
-  return $labels;
+  \Drupal::service(SmartDateRecurHooks::class)->fieldWidgetSettingsSummaryAlter($summary, $context);
 }
 
 /**

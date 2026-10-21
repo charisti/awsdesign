@@ -10,7 +10,7 @@ declare(strict_types=1);
 use Drupal\automatic_updates\CronUpdateRunner;
 use Drupal\automatic_updates\UpdateSandboxManager;
 use Drupal\automatic_updates\Validation\StatusCheckRequirements;
-use Drupal\system\SystemManager;
+use Drupal\Core\Extension\Requirement\RequirementSeverity;
 
 /**
  * Implements hook_uninstall().
@@ -34,7 +34,7 @@ function automatic_updates_requirements($phase) {
     if (\Drupal::configFactory()->get('automatic_updates.settings')->get('unattended.level') !== CronUpdateRunner::DISABLED) {
       $requirements['automatic_updates_cron'] = [
         'title' => t('Cron installs updates automatically'),
-        'severity' => SystemManager::REQUIREMENT_WARNING,
+        'severity' => RequirementSeverity::Warning->value,
         'value' => t('Enabled. This is NOT an officially supported feature of the Automatic Updates module at this time. Use at your own risk.'),
       ];
     }

@@ -167,9 +167,7 @@ tr.even .smartdate--widget .form-type--select label {
   justify-content: center;
 }
 
-.smartdate--time-inline
-  .form-datetime-wrapper:nth-of-type(2)
-  .form-items-inline,
+.smartdate--time-inline .form-datetime-wrapper:nth-of-type(2) .form-items-inline,
 .smartdate--time-inline div.time-end {
   flex-wrap: wrap-reverse;
 }
@@ -189,7 +187,7 @@ tr.even .smartdate--widget .form-type--select label {
   --overlay-bkg: var(--gin-bg-input, #fff);
   --overlay-hover: var(--gin-color-primary-hover, #f6f6f6);
   --overlay-border: var(--gin-border-color, #999);
-  --overlay-item-border: rgba(0, 0, 0, 0.15);
+  --overlay-item-border: rgb(0, 0, 0, 0.15);
   --overlay-spacing: var(--gin-spacing-density-xs, 4px);
   --overlay-text: var(--gin-color-text-light, #666);
   --overlay-text-active: var(--gin-color-button-text, #222);
@@ -197,7 +195,7 @@ tr.even .smartdate--widget .form-type--select label {
 }
 
 .gin--dark-mode {
-  --overlay-item-border: rgba(255, 255, 255, 0.12);
+  --overlay-item-border: rgb(255, 255, 255, 0.12);
 }
 
 .smart-date--duration-list {
@@ -273,11 +271,7 @@ tr.even .smartdate--widget .form-type--select label {
   }
 
   /* Use a different bottom margin for Claro and Gin */
-  .field-multiple-table
-    tr
-    .fieldset__wrapper
-    .smartdate--time-inline
-    .form-item {
+  .field-multiple-table tr .fieldset__wrapper .smartdate--time-inline .form-item {
     margin-top: 0;
     margin-bottom: 0;
   }
@@ -291,9 +285,7 @@ tr.even .smartdate--widget .form-type--select label {
     justify-content: flex-end;
     gap: 5px;
   }
-  .smartdate--time-inline
-    .form-datetime-wrapper:nth-of-type(2)
-    .form-items-inline,
+  .smartdate--time-inline .form-datetime-wrapper:nth-of-type(2) .form-items-inline,
   .smartdate--time-inline div.time-end {
     flex-direction: row-reverse;
     flex-wrap: wrap;
