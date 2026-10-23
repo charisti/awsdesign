@@ -124,3 +124,25 @@ function material_custom_theme_suggestions_page_alter(array &$suggestions, array
     $suggestions[] = 'page__kunden__subpage';
   }
 }
+
+/**
+ * Implements hook_page_attachments_alter().
+ */
+function material_custom_page_attachments_alter(array &$attachments): void {
+  $path = '/' . \Drupal::service('extension.list.theme')->getPath('material_custom');
+  $links = [
+    ['icon', $path . '/favicon.ico', NULL, 'image/x-icon'],
+    ['icon', $path . '/icons/favicon-32.png', '32x32', 'image/png'],
+    ['apple-touch-icon', $path . '/icons/apple-touch-icon.png', '180x180', NULL],
+  ];
+  foreach ($links as $i => [$rel, $href, $sizes, $type]) {
+    $link = ['rel' => $rel, 'href' => $href];
+    if ($sizes) {
+      $link['sizes'] = $sizes;
+    }
+    if ($type) {
+      $link['type'] = $type;
+    }
+    $attachments['#attached']['html_head_link'][] = [$link];
+  }
+}
