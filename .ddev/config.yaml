@@ -9,10 +9,12 @@ additional_fqdns: []
 database:
     type: mariadb
     version: "10.11"
+performance_mode: mutagen
 use_dns_when_possible: true
 composer_version: "2"
 web_environment: []
 corepack_enable: true
+default_container_timeout: "240"
 
 # Key features of DDEV's config.yaml:
 
@@ -27,7 +29,7 @@ corepack_enable: true
 
 # docroot: <relative_path> # Relative path to the directory containing index.php.
 
-# php_version: "8.3"  # PHP version to use, "5.6" through "8.4"
+# php_version: "8.3"  # PHP version to use, "5.6" through "8.5"
 
 # You can explicitly specify the webimage but this
 # is not recommended, as the images are often closely tied to DDEV's' behavior,
@@ -42,7 +44,7 @@ corepack_enable: true
 #   version: <version> # database version, like "10.11" or "8.0"
 #   MariaDB versions can be 5.5-10.8, 10.11, 11.4, 11.8
 #   MySQL versions can be 5.5-8.0, 8.4
-#   PostgreSQL versions can be 9-17
+#   PostgreSQL versions can be 9-18
 
 # router_http_port: <port>  # Port to be used for http (defaults to global configuration, usually 80)
 # router_https_port: <port> # Port for https (defaults to global configuration, usually 443)
