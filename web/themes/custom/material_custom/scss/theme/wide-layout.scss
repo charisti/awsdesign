@@ -1,0 +1,33 @@
+// Let the page, header and front-page sections use the full width on large
+// screens (base theme caps them at 1200px / 1320px), keep a side margin that
+// grows with the viewport, and scale the root font size with it.
+// .front-section__inner sits inside .main-content__container, so it only gets
+// the cap and inherits the side margin from its parent.
+$page-max-width: 1920px;
+
+.container,
+.wrapper,
+.layout-container--page .main-content__container,
+.navbar .navbar__container,
+.front-section__inner {
+  max-width: $page-max-width;
+}
+
+@media (min-width: 1200px) {
+  .container,
+  .wrapper,
+  .layout-container--page .main-content__container,
+  .navbar .navbar__container {
+    max-width: min(#{$page-max-width}, calc(100% - 14vw));
+  }
+
+  html {
+    font-size: clamp(16px, calc(0.5vw + 9px), 21px);
+  }
+}
+
+// Full-width body images (about, contact), whatever width/height the editor set.
+img.clear_both {
+  width: 100%;
+  height: auto;
+}

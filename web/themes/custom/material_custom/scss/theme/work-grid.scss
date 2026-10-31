@@ -1,0 +1,31 @@
+// Work archive grid: the view hard-codes 2 columns and a 40px gap inline, so
+// override it with a fluid grid that adds columns as the viewport grows.
+.work-archive__items {
+  .views-view-responsive-grid--horizontal {
+    grid-template-columns: repeat(auto-fill, minmax(clamp(260px, 30vw, 560px), 1fr));
+    column-gap: clamp(0.5rem, 1vw, 1rem);
+    row-gap: clamp(0.75rem, 1.5vw, 1.5rem);
+  }
+
+  .work-item--card-title {
+    font-size: clamp(0.95rem, 1.1vw, 1.15rem);
+  }
+}
+
+// Tags / clients / kunden archives: cards were capped at 360px and centred in
+// fixed 2-column cells, leaving wide gaps. Let them fill fluid columns instead.
+.page-tags,
+.page-clients,
+.page-kunden {
+  .work-archive__columns {
+    grid-template-columns: repeat(auto-fill, minmax(clamp(260px, 30vw, 560px), 1fr));
+    column-gap: clamp(0.5rem, 1vw, 1rem);
+    row-gap: clamp(0.75rem, 1.5vw, 1.5rem);
+    justify-items: stretch;
+  }
+
+  .work-archive__columns .work-item-card {
+    max-width: none;
+    width: 100%;
+  }
+}
